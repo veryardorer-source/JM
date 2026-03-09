@@ -4,7 +4,7 @@ import Dashboard from './components/Dashboard'
 import Projects from './components/Projects'
 import Tasks from './components/Tasks'
 import Payments from './components/Payments'
-import { useStore } from './store/useStore'
+import { useStore, importAll } from './store/useStore'
 
 const TABS = [
   { id: 'dashboard', label: '대시보드', icon: '🏠' },
@@ -237,17 +237,14 @@ function BackupModal({ onClose }) {
     const file = e.target.files?.[0]
     if (!file) return
     const reader = new FileReader()
-    reader.onload = (ev) => {
+    reader.onload = async (ev) => {
       try {
         const data = JSON.parse(ev.target.result)
         if (!data.projects || !data.tasks) throw new Error('올바른 백업 파일이 아닙니다.')
         if (!confirm('현재 데이터가 모두 백업 파일로 교체됩니다.\n계속할까요?')) return
-        localStorage.setItem(STORAGE_KEYS.PROJECTS,  JSON.stringify(data.projects))
-        localStorage.setItem(STORAGE_KEYS.TASKS,     JSON.stringify(data.tasks))
-        localStorage.setItem(STORAGE_KEYS.PAYMENTS,  JSON.stringify(data.payments  || []))
-        localStorage.setItem(STORAGE_KEYS.RECURRING, JSON.stringify(data.recurring || []))
-        setMsg({ type: 'ok', text: '복원 완료! 페이지를 새로고침합니다.' })
-        setTimeout(() => window.location.reload(), 1200)
+        setMsg({ type: 'ok', text: '복원 중... 잠시 기다려주세요.' })
+        await importAll(data)
+        setMsg({ type: 'ok', text: '복원 완료! 창을 닫고 다시 열어주세요.' })
       } catch (err) {
         setMsg({ type: 'err', text: `복원 실패: ${err.message}` })
       }

@@ -126,14 +126,37 @@ async function initFromSupabase() {
   initialized = true
   const data = await fetchFromSupabase()
   if (!data) return
-  if (data.projects?.length)  { globalProjects  = data.projects;  saveToStorage(STORAGE_KEYS.PROJECTS,  data.projects) }
-  if (data.tasks?.length)     { globalTasks      = data.tasks;     saveToStorage(STORAGE_KEYS.TASKS,     data.tasks) }
-  if (data.payments?.length)  { globalPayments   = data.payments;  saveToStorage(STORAGE_KEYS.PAYMENTS,  data.payments) }
-  if (data.recurring?.length) { globalRecurring  = data.recurring; saveToStorage(STORAGE_KEYS.RECURRING, data.recurring) }
+  // localStorage에 데이터가 없을 때만 Supabase 데이터를 사용
+  if (!globalProjects.length && data.projects?.length)  { globalProjects  = data.projects;  saveToStorage(STORAGE_KEYS.PROJECTS,  data.projects) }
+  if (!globalTasks.length    && data.tasks?.length)     { globalTasks      = data.tasks;     saveToStorage(STORAGE_KEYS.TASKS,     data.tasks) }
+  if (!globalPayments.length && data.payments?.length)  { globalPayments   = data.payments;  saveToStorage(STORAGE_KEYS.PAYMENTS,  data.payments) }
+  if (!globalRecurring.length && data.recurring?.length) { globalRecurring = data.recurring; saveToStorage(STORAGE_KEYS.RECURRING, data.recurring) }
   notify()
 }
 
 initFromSupabase()
+
+// 백업 JSON 전체 가져오기 (localStorage + Supabase 동기화)
+export async function importAll(data) {
+  globalProjects  = data.projects  || []
+  globalTasks     = data.tasks     || []
+  globalPayments  = data.payments  || []
+  globalRecurring = data.recurring || []
+  saveToStorage(STORAGE_KEYS.PROJECTS,  globalProjects)
+  saveToStorage(STORAGE_KEYS.TASKS,     globalTasks)
+  saveToStorage(STORAGE_KEYS.PAYMENTS,  globalPayments)
+  saveToStorage(STORAGE_KEYS.RECURRING, globalRecurring)
+  // Supabase에도 전체 업로드
+  if (supabase) {
+    await Promise.all([
+      ...globalProjects.map(r => upsertToSupabase('projects', r)),
+      ...globalTasks.map(r => upsertToSupabase('tasks', r)),
+      ...globalPayments.map(r => upsertToSupabase('payments', r)),
+      ...globalRecurring.map(r => upsertToSupabase('recurring', r)),
+    ])
+  }
+  notify()
+}
 
 export function useStore() {
   const [, forceUpdate] = useState(0)

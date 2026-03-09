@@ -33,9 +33,12 @@ function getProgress(stages) {
   return { pct: Math.round((done / values.length) * 100) }
 }
 
-// 현재 프로젝트의 실제 단계 키 목록 (저장된 stages 기준)
+// 현재 프로젝트의 실제 단계 키 목록 (정의된 순서 기준)
 function getStageKeys(p) {
-  return Object.keys(p.stages || {})
+  const pType = p.projectType || '시공의뢰'
+  const ordered = STAGES_MAP[pType] || STAGES_MAP['시공의뢰']
+  const stageObj = p.stages || {}
+  return ordered.filter(s => s in stageObj)
 }
 
 // 디자인의뢰에서 작업도면 포함 여부

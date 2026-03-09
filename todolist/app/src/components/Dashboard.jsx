@@ -6,6 +6,17 @@ const TYPE_COLOR = {
   '디자인의뢰': 'text-purple-500 bg-purple-50 border border-purple-200',
 }
 
+const STAGES_MAP = {
+  '시공의뢰':  ['디자인', '견적', '작업도면', '시공', '마감'],
+  '디자인의뢰': ['평면도', '디자인', '작업도면'],
+}
+
+function getOrderedStageKeys(p) {
+  const ordered = STAGES_MAP[p.projectType || '시공의뢰'] || STAGES_MAP['시공의뢰']
+  const stageObj = p.stages || {}
+  return ordered.filter(s => s in stageObj)
+}
+
 function getStageProgress(stages) {
   const values = Object.values(stages || {})
   if (values.length === 0) return 0
@@ -88,7 +99,7 @@ export default function Dashboard({ onTabChange }) {
           <div className="space-y-2">
             {activeProjects.map(p => {
               const progress = getStageProgress(p.stages)
-              const stageKeys = Object.keys(p.stages || {})
+              const stageKeys = getOrderedStageKeys(p)
               const pType = p.projectType || '시공의뢰'
               return (
                 <div key={p.id} className="bg-white rounded-xl p-4 shadow-sm border border-gray-100">
