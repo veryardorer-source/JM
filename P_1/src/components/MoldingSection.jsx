@@ -1,34 +1,10 @@
 import { useStore } from '../store/useStore.js'
-import { WRAPPING_WIDTHS, WRAPPING_BOARD_LENGTH_M } from '../data/materials.js'
+import { WRAPPING_WIDTHS } from '../data/materials.js'
+import { calcMoldingLengthM, calcMoldingEA } from '../utils/molding.js'
 
 const MOLD_TYPES = ['걸레받이', '천정몰딩', '창틀몰딩', '유리칠판테두리']
 const AUTO_TYPES = ['걸레받이', '천정몰딩']
 
-// 몰딩 선형 길이 계산 (m)
-export function calcMoldingLengthM(molding, room) {
-  switch (molding.moldType) {
-    case '걸레받이': {
-      if (!molding.autoCalc) return molding.customLengthM || 0
-      const doorDeduction = (room.doors || []).reduce((sum, d) => sum + (d.widthM || 0), 0)
-      return Math.max(0, (room.widthM + room.depthM) * 2 - doorDeduction)
-    }
-    case '천정몰딩': {
-      if (!molding.autoCalc) return molding.customLengthM || 0
-      return (room.widthM + room.depthM) * 2
-    }
-    case '창틀몰딩':
-    case '유리칠판테두리': {
-      return ((molding.itemWidthM || 0) + (molding.itemHeightM || 0)) * 2 * (molding.qty || 1)
-    }
-    default:
-      return molding.customLengthM || 0
-  }
-}
-
-export function calcMoldingEA(lengthM) {
-  if (lengthM <= 0) return 0
-  return Math.ceil((lengthM / WRAPPING_BOARD_LENGTH_M) * 1.05)
-}
 
 export default function MoldingSection({ room }) {
   const { addMolding, updateMolding, deleteMolding } = useStore()

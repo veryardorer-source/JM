@@ -16,10 +16,19 @@ export function getSurfaceDimensions(room, sf) {
   switch (sf.direction) {
     case 'floor':   return { widthMm: widthM * 1000, heightMm: depthM * 1000, areaSqm: widthM * depthM }
     case 'ceiling': return { widthMm: widthM * 1000, heightMm: depthM * 1000, areaSqm: widthM * depthM }
+    case 'wallA':
+    case 'wallB':
     case 'wallN':
     case 'wallS':   return { widthMm: widthM * 1000, heightMm: heightM * 1000, areaSqm: widthM * heightM }
+    case 'wallC':
+    case 'wallD':
     case 'wallE':
     case 'wallW':   return { widthMm: depthM * 1000, heightMm: heightM * 1000, areaSqm: depthM * heightM }
+    case 'wall_custom': {
+      const w = sf.widthM || 0
+      const h = sf.heightM > 0 ? sf.heightM : room.heightM
+      return { widthMm: w * 1000, heightMm: h * 1000, areaSqm: w * h }
+    }
     default:        return { widthMm: 0, heightMm: 0, areaSqm: 0 }
   }
 }
@@ -36,8 +45,12 @@ export function calcSurfaceCost(room, sf) {
 
   const isWall = !['floor', 'ceiling'].includes(sf.direction)
 
-  // ── 각재 (바닥재, 텍스 제외) ──────────────────────────
-  if (sf.finishType !== 'flooring' && sf.finishType !== 'tex') {
+  const isCeiling = sf.direction === 'ceiling'
+  const needsCarpentry = sf.finishType !== 'flooring'
+    && (sf.finishType !== 'tex' || (isCeiling && sf.ceilingCarpentry))
+
+  // ── 각재 (바닥재 제외, 텍스는 천장목공 체크 시만) ──────────
+  if (needsCarpentry) {
     const { breakdown } = calcGakjae(widthMm, heightMm)
     const cost = calcGakjaeCost(breakdown)
     breakdown.forEach(({ length, count }) => {
@@ -66,6 +79,40 @@ export function calcSurfaceCost(room, sf) {
     })
   }
 
+  // ── 오징어합판 ───────────────────────────────────
+  if (sf.ojingeoEnabled) {
+    const oj = HAPAN.find(h => h.id === sf.ojingeoId) || HAPAN.find(h => h.type === '오징어')
+    if (oj) {
+      const manualQty = sf.ojingeoQty || 0
+      const sheets = manualQty > 0 ? manualQty : calcBoard(area, oj.areaPerSheet, oj.pricePerSheet).sheets
+      const cost = sheets * oj.pricePerSheet
+      items.push({ name: oj.name, qty: sheets, unit: '장', unitPrice: oj.pricePerSheet, cost })
+    }
+  }
+
+  // ── 경량벽체 (런너 + 스터드) ────────────────────
+  if (isWall && sf.wallType === 'lightweight') {
+    const spacingMm = sf.lgStudSpacingMm || 406
+    const runnerLenM = (widthMm / 1000) * 2   // 상·하 런너
+    const studCount = Math.ceil(widthMm / spacingMm) + 1
+    const runnerPrice = sf.lgRunnerPrice || 0
+    const studPrice = sf.lgStudPrice || 0
+    items.push({
+      name: '경량런너',
+      qty: Math.round(runnerLenM * 10) / 10,
+      unit: 'm',
+      unitPrice: runnerPrice,
+      cost: runnerLenM * runnerPrice,
+    })
+    items.push({
+      name: `경량스터드 (${spacingMm === 406 ? '400' : '600'}mm 간격)`,
+      qty: studCount,
+      unit: 'EA',
+      unitPrice: studPrice,
+      cost: studCount * studPrice,
+    })
+  }
+
   // ── 합판 (칸막이벽) ─────────────────────────────
   if (isWall && sf.wallType === 'partition') {
     const hapan = HAPAN.find(h => h.id === sf.hapanId) || HAPAN.find(h => h.id === 'hp_normal_11')
@@ -90,8 +137,18 @@ export function calcSurfaceCost(room, sf) {
     }
   }
 
+  // ── 천장 합판 (각재 사이 보강) ──────────────────────
+  if (isCeiling && sf.ceilingHapanEnabled) {
+    const hapan = HAPAN.find(h => h.id === sf.ceilingHapanId) || HAPAN.find(h => h.id === 'hp_normal_11')
+    if (hapan) {
+      const { sheets, cost } = calcBoard(area, hapan.areaPerSheet, hapan.pricePerSheet)
+      items.push({ name: hapan.name, qty: sheets, unit: '장', unitPrice: hapan.pricePerSheet, cost })
+    }
+  }
+
   // ── 석고보드 ─────────────────────────────────────
   const needsSeokgo = ['wallpaper', 'paint', 'film', 'luba', 'tile'].includes(sf.finishType)
+    || (isCeiling && sf.ceilingCarpentry)
   if (needsSeokgo) {
     const layers = sf.finishType === 'paint' ? 2 : 1
     const seokgoType = sf.finishType === 'tile' ? 'sg_waterproof' : sf.seokgoType
@@ -187,8 +244,8 @@ export function calcSurfaceCost(room, sf) {
       Object.values(filmGroups).forEach(group => {
         items.push({
           name: group.filmName,
-          spec: sf.label,
-          surfaceLabel: sf.label,
+          spec: sf.label || sf.name,
+          surfaceLabel: sf.label || sf.name,
           sections: group.sections,
           qty: group.totalM,
           unit: 'm',
@@ -201,8 +258,8 @@ export function calcSurfaceCost(room, sf) {
       if (sectionResults.length === 0) {
         items.push({
           name: '인테리어필름',
-          spec: sf.label,
-          surfaceLabel: sf.label,
+          spec: sf.label || sf.name,
+          surfaceLabel: sf.label || sf.name,
           sections: [],
           qty: 0,
           unit: 'm',
@@ -215,6 +272,15 @@ export function calcSurfaceCost(room, sf) {
     }
     default:
       break
+  }
+
+  // ── 템파보드 / 루버 ──────────────────────────────
+  if (isWall && sf.decorType && sf.decorType !== 'none' && (sf.decorSqm || 0) > 0) {
+    const nameMap = { tempboard: '템파보드', louver: '루버', stainless: '스테인리스', tile: '타일' }
+    const name = sf.decorType === 'custom' ? (sf.decorCustomName || '기타 장식재') : (nameMap[sf.decorType] || sf.decorType)
+    const sqm = sf.decorSqm || 0
+    const price = sf.decorPricePerSqm || 0
+    items.push({ name, qty: sqm, unit: '㎡', unitPrice: price, cost: sqm * price })
   }
 
   const total = items.reduce((s, i) => s + i.cost, 0)

@@ -3,12 +3,38 @@ import { useStore } from '../store/useStore.js'
 import SurfaceRow from './SurfaceRow.jsx'
 import { calcSurfaceCost } from '../utils/surfaceCost.js'
 import LightingSection from './LightingSection.jsx'
-import MoldingSection from './MoldingSection.jsx'
 
-const DOOR_TYPES = ['방문', '양개문', '현관문', '미서기문', '기타']
+const DOOR_TYPES = ['방문', 'ABS도어', '강화도어', '방화문', '양개문', '양개형도어', '현관문', '미서기문', '픽스유리', '기타']
+
+const SIZE_PRESETS = {
+  '방문':       ['900×2100', '800×2100', '750×2100', '직접입력'],
+  'ABS도어':    ['900×2100', '800×2100', '750×2100', '직접입력'],
+  '강화도어':   ['900×2100', '1000×2100', '800×2100', '직접입력'],
+  '방화문':     ['900×2100', '1000×2100', '1200×2100', '직접입력'],
+  '양개문':     ['1800×2100', '1600×2100', '1400×2100', '직접입력'],
+  '양개형도어': ['1800×2100', '1600×2100', '1400×2100', '직접입력'],
+  '현관문':     ['1000×2200', '900×2100', '직접입력'],
+  '미서기문':   ['1800×2100', '2400×2100', '1200×2100', '직접입력'],
+  '픽스유리':   ['900×2100', '900×1200', '600×1200', '직접입력'],
+  '기타':       ['직접입력'],
+}
+
+function getSizePreset(door) {
+  const wMm = Math.round(door.widthM * 1000)
+  const hMm = Math.round(door.heightM * 1000)
+  const key = `${wMm}×${hMm}`
+  const presets = SIZE_PRESETS[door.type] || ['직접입력']
+  return presets.includes(key) ? key : '직접입력'
+}
+
+function applyPreset(preset, roomId, doorId, updateDoor) {
+  if (preset === '직접입력') return
+  const [w, h] = preset.split('×').map(Number)
+  updateDoor(roomId, doorId, { widthM: w / 1000, heightM: h / 1000 })
+}
 
 export default function RoomCard({ room }) {
-  const { updateRoom, deleteRoom, duplicateRoom, addDoor, updateDoor, deleteDoor } = useStore()
+  const { updateRoom, deleteRoom, duplicateRoom, addDoor, updateDoor, deleteDoor, addPartition, updatePartition, deletePartition } = useStore()
   const [collapsed, setCollapsed] = useState(false)
 
   const roomTotal = room.surfaces.reduce((sum, sf) => {
@@ -67,27 +93,39 @@ export default function RoomCard({ room }) {
             {(room.doors || []).length > 0 && (
               <div style={styles.doorTable}>
                 <div style={styles.doorTableHead}>
-                  <span style={{ width: 90 }}>종류</span>
-                  <span style={{ width: 70 }}>폭(m)</span>
-                  <span style={{ width: 70 }}>높이(m)</span>
-                  <span style={{ width: 50 }}>수량</span>
+                  <span style={{ width: 96 }}>종류</span>
+                  <span style={{ width: 100 }}>규격(preset)</span>
+                  <span style={{ width: 58 }}>폭(mm)</span>
+                  <span style={{ width: 58 }}>높이(mm)</span>
+                  <span style={{ width: 44 }}>수량</span>
                   <span style={{ flex: 1 }}>단가(원/짝)</span>
                   <span style={{ width: 30 }}></span>
                 </div>
                 {(room.doors || []).map(door => (
                   <div key={door.id} style={styles.doorRow}>
-                    <select value={door.type} onChange={e => updateDoor(room.id, door.id, { type: e.target.value })} style={{ ...styles.doorInput, width: 90 }}>
+                    <select value={door.type}
+                      onChange={e => updateDoor(room.id, door.id, { type: e.target.value })}
+                      style={{ ...styles.doorInput, width: 96 }}>
                       {DOOR_TYPES.map(t => <option key={t}>{t}</option>)}
                     </select>
-                    <input type="number" min="0" step="0.01" value={door.widthM}
-                      onChange={e => updateDoor(room.id, door.id, { widthM: Number(e.target.value) })}
-                      style={{ ...styles.doorInput, width: 70 }} />
-                    <input type="number" min="0" step="0.01" value={door.heightM}
-                      onChange={e => updateDoor(room.id, door.id, { heightM: Number(e.target.value) })}
-                      style={{ ...styles.doorInput, width: 70 }} />
+                    <select value={getSizePreset(door)}
+                      onChange={e => applyPreset(e.target.value, room.id, door.id, updateDoor)}
+                      style={{ ...styles.doorInput, width: 100 }}>
+                      {(SIZE_PRESETS[door.type] || ['직접입력']).map(s => <option key={s}>{s}</option>)}
+                    </select>
+                    <input type="number" min="0" step="1"
+                      value={Math.round(door.widthM * 1000) || ''}
+                      placeholder="폭"
+                      onChange={e => updateDoor(room.id, door.id, { widthM: Number(e.target.value) / 1000 })}
+                      style={{ ...styles.doorInput, width: 58 }} />
+                    <input type="number" min="0" step="1"
+                      value={Math.round(door.heightM * 1000) || ''}
+                      placeholder="높이"
+                      onChange={e => updateDoor(room.id, door.id, { heightM: Number(e.target.value) / 1000 })}
+                      style={{ ...styles.doorInput, width: 58 }} />
                     <input type="number" min="1" value={door.qty}
                       onChange={e => updateDoor(room.id, door.id, { qty: Number(e.target.value) })}
-                      style={{ ...styles.doorInput, width: 50 }} />
+                      style={{ ...styles.doorInput, width: 44 }} />
                     <input type="number" min="0" value={door.unitPrice || ''}
                       placeholder="단가 입력"
                       onChange={e => updateDoor(room.id, door.id, { unitPrice: Number(e.target.value) })}
@@ -99,8 +137,22 @@ export default function RoomCard({ room }) {
             )}
           </div>
 
+          {/* 가벽 섹션 */}
+          <div style={styles.partitionSection}>
+            <div style={styles.doorHeader}>
+              <span style={styles.doorTitle}>가벽</span>
+              <button onClick={() => addPartition(room.id)} style={styles.addDoorBtn}>+ 가벽 추가</button>
+            </div>
+            {(room.partitions || []).map(p => (
+              <div key={p.id} style={styles.partitionItem}>
+                <SurfaceRow room={room} sf={p}
+                  updateFn={(fields) => updatePartition(room.id, p.id, fields)} />
+                <button onClick={() => deletePartition(room.id, p.id)} style={styles.partDelBtn}>가벽 삭제</button>
+              </div>
+            ))}
+          </div>
+
           <LightingSection room={room} />
-          <MoldingSection room={room} />
 
           <div style={styles.subtotal}>
             <span>소계</span>
@@ -191,6 +243,9 @@ const styles = {
   subtotalNum: { fontSize: 14 },
 
   doorSection: { marginTop: 10, borderTop: '1px dashed #dde4f0', paddingTop: 8 },
+  partitionSection: { marginTop: 10, borderTop: '1px dashed #d0c0e8', paddingTop: 8 },
+  partitionItem: { position: 'relative', background: '#fdf8ff', borderRadius: 6, border: '1px solid #e0c8f0', marginBottom: 6, padding: '4px 4px 4px 4px' },
+  partDelBtn: { fontSize: 10, padding: '2px 8px', background: '#fee', border: '1px solid #fcc', borderRadius: 4, cursor: 'pointer', color: '#c00', marginTop: 2, marginLeft: 10 },
   doorHeader: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 },
   doorTitle: { fontSize: 12, fontWeight: 700, color: '#555' },
   addDoorBtn: {

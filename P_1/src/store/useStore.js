@@ -4,7 +4,7 @@ import { persist } from 'zustand/middleware'
 const defaultSurface = (label, direction) => ({
   id: `${direction}_${Date.now()}_${Math.random()}`,
   label,
-  direction, // floor | ceiling | wallN | wallS | wallE | wallW
+  direction, // floor | ceiling | wallA | wallB | wallC | wallD
   finishType: 'none',        // 마감재 타입 키
   finishMaterialId: '',      // 선택된 마감재 ID
   seokgoType: 'sg_normal',   // 석고보드 종류
@@ -14,6 +14,19 @@ const defaultSurface = (label, direction) => ({
   wallType: 'normal',        // 'normal' | 'partition' (칸막이벽)
   hapanId: 'hp_normal_11',   // 합판 종류 (칸막이벽용)
   insulationType: 'none',    // 흡음재 종류
+  decorType: 'none',         // 'none' | 'tempboard' | 'louver' | 'stainless' | 'tile' | 'custom'
+  decorCustomName: '',       // 직접입력 시 자재명
+  decorSqm: 0,               // 장식재 면적(㎡)
+  decorPricePerSqm: 0,       // 장식재 단가(원/㎡)
+  ojingeoEnabled: false,     // 오징어합판 추가 여부
+  ojingeoId: 'hp_squid_4',   // 오징어합판 종류
+  ojingeoQty: 0,             // 오징어합판 수량 (0=자동계산)
+  lgStudSpacingMm: 406,      // 경량벽체 스터드 간격
+  lgRunnerPrice: 0,          // 경량벽체 런너 단가(원/m)
+  lgStudPrice: 0,            // 경량벽체 스터드 단가(원/EA)
+  ceilingCarpentry: false,   // 천장 목공 (각재+석고) 포함 여부
+  ceilingHapanEnabled: false, // 천장 합판 사용 여부
+  ceilingHapanId: 'hp_normal_11', // 천장 합판 종류
   enabled: true,
 })
 
@@ -31,10 +44,10 @@ const createRoom = (name) => {
     surfaces: [
       defaultSurface('바닥', 'floor'),
       defaultSurface('천장', 'ceiling'),
-      defaultSurface('벽(북)', 'wallN'),
-      defaultSurface('벽(남)', 'wallS'),
-      defaultSurface('벽(동)', 'wallE'),
-      defaultSurface('벽(서)', 'wallW'),
+      defaultSurface('벽A', 'wallA'),
+      defaultSurface('벽B', 'wallB'),
+      defaultSurface('벽C', 'wallC'),
+      defaultSurface('벽D', 'wallD'),
     ],
   }
 }
@@ -54,6 +67,116 @@ export const useStore = create(
 
   // 실(Room) 목록
   rooms: [],
+
+  addPartition: (roomId) =>
+    set((s) => ({
+      rooms: s.rooms.map((r) =>
+        r.id !== roomId ? r : {
+          ...r,
+          partitions: [...(r.partitions || []), {
+            id: `part_${Date.now()}_${Math.random()}`,
+            name: `가벽 ${(r.partitions || []).length + 1}`,
+            widthM: 0,
+            heightM: 0,
+            direction: 'wall_custom',
+            finishType: 'none',
+            finishMaterialId: '',
+            seokgoType: 'sg_normal',
+            mdfId: 'mdf_9',
+            filmPricePerM: 5000,
+            filmSections: [],
+            wallType: 'normal',
+            hapanId: 'hp_normal_11',
+            insulationType: 'none',
+            decorType: 'none',
+            decorCustomName: '',
+            decorSqm: 0,
+            decorPricePerSqm: 0,
+            ojingeoEnabled: false,
+            ojingeoId: 'hp_squid_4',
+            ojingeoQty: 0,
+            lgStudSpacingMm: 406,
+            lgRunnerPrice: 0,
+            lgStudPrice: 0,
+            enabled: true,
+          }],
+        }
+      ),
+    })),
+
+  updatePartition: (roomId, partitionId, fields) =>
+    set((s) => ({
+      rooms: s.rooms.map((r) =>
+        r.id !== roomId ? r : {
+          ...r,
+          partitions: (r.partitions || []).map((p) =>
+            p.id !== partitionId ? p : { ...p, ...fields }
+          ),
+        }
+      ),
+    })),
+
+  addPartitionMolding: (roomId, partitionId) =>
+    set((s) => ({
+      rooms: s.rooms.map((r) =>
+        r.id !== roomId ? r : {
+          ...r,
+          partitions: (r.partitions || []).map((p) =>
+            p.id !== partitionId ? p : {
+              ...p,
+              moldings: [...(p.moldings || []), {
+                id: `pmold_${Date.now()}_${Math.random()}`,
+                widthMm: 60,
+                autoCalc: true,
+                customLengthM: 0,
+              }],
+            }
+          ),
+        }
+      ),
+    })),
+
+  updatePartitionMolding: (roomId, partitionId, moldingId, fields) =>
+    set((s) => ({
+      rooms: s.rooms.map((r) =>
+        r.id !== roomId ? r : {
+          ...r,
+          partitions: (r.partitions || []).map((p) =>
+            p.id !== partitionId ? p : {
+              ...p,
+              moldings: (p.moldings || []).map((m) =>
+                m.id !== moldingId ? m : { ...m, ...fields }
+              ),
+            }
+          ),
+        }
+      ),
+    })),
+
+  deletePartitionMolding: (roomId, partitionId, moldingId) =>
+    set((s) => ({
+      rooms: s.rooms.map((r) =>
+        r.id !== roomId ? r : {
+          ...r,
+          partitions: (r.partitions || []).map((p) =>
+            p.id !== partitionId ? p : {
+              ...p,
+              moldings: (p.moldings || []).filter((m) => m.id !== moldingId),
+            }
+          ),
+        }
+      ),
+    })),
+
+  deletePartition: (roomId, partitionId) =>
+    set((s) => ({
+      rooms: s.rooms.map((r) =>
+        r.id !== roomId ? r : {
+          ...r,
+          partitions: (r.partitions || []).filter((p) => p.id !== partitionId),
+        }
+      ),
+    })),
 
   addRoom: () =>
     set((s) => ({
@@ -154,6 +277,7 @@ export const useStore = create(
             spec: '',
             qty: 1,
             lengthM: 0,
+            totalLengthMm: 0,
           }],
         }
       ),
@@ -191,7 +315,7 @@ export const useStore = create(
             id: `mold_${Date.now()}_${Math.random()}`,
             moldType,
             widthMm: moldType === '걸레받이' ? 80 : moldType === '천정몰딩' ? 30 : moldType === '창틀몰딩' ? 150 : 60,
-            autoCalc: ['걸레받이', '천정몰딩'].includes(moldType),
+            autoCalc: ['걸레받이', '천정몰딩', '벽A', '벽B', '벽C', '벽D', '벽(북)', '벽(남)', '벽(동)', '벽(서)'].includes(moldType),
             customLengthM: 0,
             itemWidthM: 0,
             itemHeightM: 0,
@@ -268,51 +392,62 @@ export const useStore = create(
   // 필름 구간 추가
   addFilmSection: (roomId, surfaceId, section) =>
     set((s) => ({
-      rooms: s.rooms.map((r) =>
-        r.id !== roomId ? r : {
+      rooms: s.rooms.map((r) => {
+        if (r.id !== roomId) return r
+        const newSec = { id: `fs_${Date.now()}`, ...section }
+        const inSurface = r.surfaces.some(sf => sf.id === surfaceId)
+        return {
           ...r,
-          surfaces: r.surfaces.map((sf) =>
-            sf.id !== surfaceId ? sf : {
-              ...sf,
-              filmSections: [...sf.filmSections, { id: `fs_${Date.now()}`, ...section }],
-            }
-          ),
+          surfaces: inSurface ? r.surfaces.map((sf) =>
+            sf.id !== surfaceId ? sf : { ...sf, filmSections: [...sf.filmSections, newSec] }
+          ) : r.surfaces,
+          partitions: !inSurface ? (r.partitions || []).map((p) =>
+            p.id !== surfaceId ? p : { ...p, filmSections: [...(p.filmSections || []), newSec] }
+          ) : (r.partitions || []),
         }
-      ),
+      }),
     })),
 
   // 필름 구간 수정
   updateFilmSection: (roomId, surfaceId, sectionId, fields) =>
     set((s) => ({
-      rooms: s.rooms.map((r) =>
-        r.id !== roomId ? r : {
+      rooms: s.rooms.map((r) => {
+        if (r.id !== roomId) return r
+        const inSurface = r.surfaces.some(sf => sf.id === surfaceId)
+        const updSec = (list) => list.map((sf) =>
+          sf.id !== surfaceId ? sf : {
+            ...sf,
+            filmSections: (sf.filmSections || []).map((sec) =>
+              sec.id !== sectionId ? sec : { ...sec, ...fields }
+            ),
+          }
+        )
+        return {
           ...r,
-          surfaces: r.surfaces.map((sf) =>
-            sf.id !== surfaceId ? sf : {
-              ...sf,
-              filmSections: sf.filmSections.map((sec) =>
-                sec.id !== sectionId ? sec : { ...sec, ...fields }
-              ),
-            }
-          ),
+          surfaces: inSurface ? updSec(r.surfaces) : r.surfaces,
+          partitions: !inSurface ? updSec(r.partitions || []) : (r.partitions || []),
         }
-      ),
+      }),
     })),
 
   // 필름 구간 삭제
   deleteFilmSection: (roomId, surfaceId, sectionId) =>
     set((s) => ({
-      rooms: s.rooms.map((r) =>
-        r.id !== roomId ? r : {
+      rooms: s.rooms.map((r) => {
+        if (r.id !== roomId) return r
+        const inSurface = r.surfaces.some(sf => sf.id === surfaceId)
+        const delSec = (list) => list.map((sf) =>
+          sf.id !== surfaceId ? sf : {
+            ...sf,
+            filmSections: (sf.filmSections || []).filter((sec) => sec.id !== sectionId),
+          }
+        )
+        return {
           ...r,
-          surfaces: r.surfaces.map((sf) =>
-            sf.id !== surfaceId ? sf : {
-              ...sf,
-              filmSections: sf.filmSections.filter((sec) => sec.id !== sectionId),
-            }
-          ),
+          surfaces: inSurface ? delSec(r.surfaces) : r.surfaces,
+          partitions: !inSurface ? delSec(r.partitions || []) : (r.partitions || []),
         }
-      ),
+      }),
     })),
   }),
   { name: 'interior-estimate-store' }

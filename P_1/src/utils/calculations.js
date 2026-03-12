@@ -176,6 +176,23 @@ export function netAreaSqm(widthM, heightM, openings = []) {
   return Math.max(0, gross - deduction)
 }
 
+// ── T5/T7 라인조명 조합 계산 ─────────────────────
+const LINEAR_SIZES = [1200, 900, 600, 300]
+
+export function calcLinearCombo(totalMm) {
+  if (!totalMm || totalMm <= 0) return { items: [], remaining: 0 }
+  const result = []
+  let remaining = totalMm
+  for (const size of LINEAR_SIZES) {
+    const count = Math.floor(remaining / size)
+    if (count > 0) {
+      result.push({ size, count })
+      remaining -= count * size
+    }
+  }
+  return { items: result, remaining }
+}
+
 // ── 숫자 포맷 ────────────────────────────────────
 export function formatWon(n) {
   return Math.round(n).toLocaleString('ko-KR') + '원'

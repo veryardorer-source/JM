@@ -2,8 +2,18 @@ import { useState } from 'react'
 import { useStore } from '../store/useStore.js'
 import { calcSurfaceCost } from '../utils/surfaceCost.js'
 import { generatePDF } from '../utils/pdfGenerator.js'
-import { calcMoldingLengthM, calcMoldingEA } from './MoldingSection.jsx'
+import { calcMoldingLengthM, calcMoldingEA } from '../utils/molding.js'
+import { calcLinearCombo } from '../utils/calculations.js'
 import { WRAPPING_BOARD_LENGTH_M } from '../data/materials.js'
+
+const DIR_LABEL = {
+  wallA: '벽A', wallB: '벽B', wallC: '벽C', wallD: '벽D',
+  wallN: '벽A', wallS: '벽B', wallE: '벽C', wallW: '벽D',
+  floor: '바닥', ceiling: '천장',
+}
+function getSurfaceLabel(sf) {
+  return DIR_LABEL[sf.direction] || sf.label || sf.name || sf.direction
+}
 
 // 자재 수량 합산 (name + unit 기준)
 function aggregateItems(itemsList) {
@@ -53,7 +63,8 @@ export default function Summary() {
 
   // 데이터 계산
   const roomData = rooms.map(room => {
-    const surfaceData = room.surfaces
+    const allSurfaces = [...room.surfaces, ...(room.partitions || [])]
+    const surfaceData = allSurfaces
       .filter(sf => sf.enabled && sf.finishType && sf.finishType !== 'none')
       .map(sf => {
         const result = calcSurfaceCost(room, sf)
@@ -73,27 +84,26 @@ export default function Summary() {
         qty: l.qty,
         unit: 'EA',
         lengthM: l.lengthM || 0,
+        totalLengthMm: l.totalLengthMm || 0,
         unitPrice: 0,
         cost: 0,
         isLighting: true,
       }))
 
-    // 랩핑평판(몰딩) 항목
-    const moldingItems = (room.moldings || [])
-      .map(m => {
-        const lengthM = calcMoldingLengthM(m, room)
+    // 랩핑평판(몰딩) 항목 - 벽면 + 가벽
+    const wallMoldings = (room.moldings || []).map(m => {
+      const lengthM = calcMoldingLengthM(m, room)
+      const ea = calcMoldingEA(lengthM)
+      return { name: `랩핑평판 ${m.widthMm}mm (${m.moldType})`, qty: ea, unit: 'EA', lengthM, unitPrice: 0, cost: 0, isMolding: true }
+    })
+    const partMoldings = (room.partitions || []).flatMap(p =>
+      (p.moldings || []).map(m => {
+        const lengthM = m.autoCalc ? (p.widthM || 0) : (m.customLengthM || 0)
         const ea = calcMoldingEA(lengthM)
-        return {
-          name: `랩핑평판 ${m.widthMm}mm (${m.moldType})`,
-          qty: ea,
-          unit: 'EA',
-          lengthM,
-          unitPrice: 0,
-          cost: 0,
-          isMolding: true,
-        }
+        return { name: `랩핑평판 ${m.widthMm}mm (${p.name || '가벽'})`, qty: ea, unit: 'EA', lengthM, unitPrice: 0, cost: 0, isMolding: true }
       })
-      .filter(m => m.qty > 0)
+    )
+    const moldingItems = [...wallMoldings, ...partMoldings].filter(m => m.qty > 0)
 
     const allItems = [...surfaceData.flatMap(d => d.items), ...doorItems, ...lightingItems, ...moldingItems]
     const roomAggregate = aggregateItems(allItems)
@@ -140,7 +150,7 @@ export default function Summary() {
                     <div key={sf.id} style={s.surfaceBlock}>
                       <div style={s.surfaceHeader} onClick={() => toggleSurface(sf.id)}>
                         <span style={s.collapseIconSm}>{collapsedSurfaces[sf.id] ? '▶' : '▼'}</span>
-                        <span style={s.surfaceName}>{sf.label}</span>
+                        <span style={s.surfaceName}>{getSurfaceLabel(sf)}</span>
                         <span style={s.surfaceCostHint}>{Math.round(total).toLocaleString()}원</span>
                       </div>
                       {!collapsedSurfaces[sf.id] && (
@@ -191,16 +201,35 @@ export default function Summary() {
                       </div>
                       <table style={s.table}>
                         <tbody>
-                          {lightingItems.map((item, i) => (
-                            <tr key={i} style={s.itemRow}>
-                              <td style={s.tdName}>
-                                <span style={{ ...s.filmBadge, background: '#e0a020' }}>조명</span>
-                                {item.name}{item.spec ? ` (${item.spec})` : ''}
-                              </td>
-                              <td style={s.tdQty}>{item.qty} EA{item.lengthM > 0 ? ` / ${item.lengthM}m` : ''}</td>
-                              <td style={s.tdCost}>-</td>
-                            </tr>
-                          ))}
+                          {lightingItems.map((item, i) => {
+                            const isLinear = item.name.startsWith('T5') || item.name.startsWith('T7')
+                            const combo = isLinear && item.totalLengthMm > 0
+                              ? calcLinearCombo(item.totalLengthMm) : null
+                            return (
+                              <>
+                                <tr key={i} style={s.itemRow}>
+                                  <td style={s.tdName}>
+                                    <span style={{ ...s.filmBadge, background: '#e0a020' }}>조명</span>
+                                    {item.name}{item.spec ? ` (${item.spec})` : ''}
+                                  </td>
+                                  <td style={s.tdQty}>
+                                    {item.qty} EA
+                                    {item.totalLengthMm > 0
+                                      ? ` / ${item.totalLengthMm}mm`
+                                      : item.lengthM > 0 ? ` / ${item.lengthM}m` : ''}
+                                  </td>
+                                  <td style={s.tdCost}>-</td>
+                                </tr>
+                                {combo && combo.items.length > 0 && combo.items.map(({ size, count }) => (
+                                  <tr key={`${i}_${size}`} style={s.secRow}>
+                                    <td style={s.secName}>└ {item.name} {size}mm</td>
+                                    <td style={{ ...s.tdQty, fontSize: 11, fontWeight: 700, color: '#1e4078' }}>{count} EA</td>
+                                    <td style={s.tdCost}>-</td>
+                                  </tr>
+                                ))}
+                              </>
+                            )
+                          })}
                         </tbody>
                       </table>
                     </div>
