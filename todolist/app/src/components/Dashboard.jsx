@@ -44,8 +44,9 @@ export default function Dashboard({ onTabChange }) {
 
   const today = new Date().toISOString().slice(0, 10)
   const activeProjects = projects.filter(p => p.status !== '완료')
-  const todayTasks = tasks.filter(t => t.status !== '완료' && (isToday(t.dueDate) || (!t.dueDate)))
-  const urgentTasks = tasks.filter(t => t.status !== '완료' && t.dueDate && (isUrgent(t.dueDate) || isOverdue(t.dueDate)) && !isToday(t.dueDate))
+  const completedProjectIds = new Set(projects.filter(p => p.status === '완료').map(p => p.id))
+  const todayTasks = tasks.filter(t => t.status !== '완료' && !completedProjectIds.has(t.projectId) && (isToday(t.dueDate) || (!t.dueDate)))
+  const urgentTasks = tasks.filter(t => t.status !== '완료' && !completedProjectIds.has(t.projectId) && t.dueDate && (isUrgent(t.dueDate) || isOverdue(t.dueDate)) && !isToday(t.dueDate))
   // 오늘 해당하는 반복 업무
   const todayRecurring = (recurring || []).filter(r => isRecurringToday(r))
 
