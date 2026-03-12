@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import { persist } from 'zustand/middleware'
 
 const defaultSurface = (label, direction) => ({
   id: `${direction}_${Date.now()}_${Math.random()}`,
@@ -35,7 +36,9 @@ const createRoom = (name) => {
   }
 }
 
-export const useStore = create((set, get) => ({
+export const useStore = create(
+  persist(
+    (set, get) => ({
   // 프로젝트 정보
   project: {
     siteName: '',
@@ -189,4 +192,7 @@ export const useStore = create((set, get) => ({
         }
       ),
     })),
-}))
+  }),
+  { name: 'interior-estimate-store' }
+)
+)
