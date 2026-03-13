@@ -3,12 +3,14 @@ import { useStore } from '../store/useStore.js'
 import SurfaceRow from './SurfaceRow.jsx'
 import { calcSurfaceCost } from '../utils/surfaceCost.js'
 import LightingSection from './LightingSection.jsx'
-import MoldingSection from './MoldingSection.jsx'
 
-const DOOR_TYPES = ['방문', '양개문', '현관문', '미서기문', '기타']
+const DOOR_TYPES = [
+  '방문', 'ABS도어', '강화도어', '양문형도어', '양개문',
+  '현관문', '미서기문', '폴딩도어', '중문', '기타',
+]
 
 export default function RoomCard({ room }) {
-  const { updateRoom, deleteRoom, duplicateRoom, addDoor, updateDoor, deleteDoor } = useStore()
+  const { updateRoom, deleteRoom, duplicateRoom, addDoor, updateDoor, deleteDoor, addWall } = useStore()
   const [collapsed, setCollapsed] = useState(false)
 
   const roomTotal = room.surfaces.reduce((sum, sf) => {
@@ -34,8 +36,10 @@ export default function RoomCard({ room }) {
           <DimField label="가로(m)" value={room.widthM} onChange={v => upd({ widthM: v })} />
           <span style={styles.x}>×</span>
           <DimField label="세로(m)" value={room.depthM} onChange={v => upd({ depthM: v })} />
-          <span style={styles.x}>× H</span>
-          <DimField label="높이(m)" value={room.heightM} onChange={v => upd({ heightM: v })} />
+          <span style={styles.x}>× 마감H</span>
+          <DimField label="마감높이(m)" value={room.heightM} onChange={v => upd({ heightM: v })} />
+          <span style={styles.x}>/ 슬라브H</span>
+          <DimField label="슬라브높이(m)" value={room.slabHeightM || 0} onChange={v => upd({ slabHeightM: v })} />
         </div>
         <div style={styles.actions}>
           <span style={styles.total}>{roomTotal.toLocaleString()}원</span>
@@ -57,6 +61,9 @@ export default function RoomCard({ room }) {
           {room.surfaces.map(sf => (
             <SurfaceRow key={sf.id} room={room} sf={sf} />
           ))}
+          <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '4px 0 2px' }}>
+            <button onClick={() => addWall(room.id)} style={styles.addDoorBtn}>+ 벽 추가</button>
+          </div>
 
           {/* 도어 섹션 */}
           <div style={styles.doorSection}>
@@ -99,8 +106,8 @@ export default function RoomCard({ room }) {
             )}
           </div>
 
+          {/* 조명 – 실 하단 */}
           <LightingSection room={room} />
-          <MoldingSection room={room} />
 
           <div style={styles.subtotal}>
             <span>소계</span>

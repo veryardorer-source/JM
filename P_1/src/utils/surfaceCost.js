@@ -5,7 +5,7 @@ import {
   GAKJAE, SEOKGO, MDF, HAPAN, WALLPAPER, TILE, FLOORING, LUBA, TEX, INSULATION,
 } from '../data/materials.js'
 import {
-  calcGakjae, calcGakjaeCost,
+  calcGakjae, calcGakjaeCost, calcCeilingGakjae,
   calcSeokgo, calcBoard,
   calcWallpaper, calcTile, calcFlooring, calcLuba, calcFilmSections,
 } from './calculations.js'
@@ -16,10 +16,17 @@ export function getSurfaceDimensions(room, sf) {
   switch (sf.direction) {
     case 'floor':   return { widthMm: widthM * 1000, heightMm: depthM * 1000, areaSqm: widthM * depthM }
     case 'ceiling': return { widthMm: widthM * 1000, heightMm: depthM * 1000, areaSqm: widthM * depthM }
-    case 'wallN':
-    case 'wallS':   return { widthMm: widthM * 1000, heightMm: heightM * 1000, areaSqm: widthM * heightM }
-    case 'wallE':
-    case 'wallW':   return { widthMm: depthM * 1000, heightMm: heightM * 1000, areaSqm: depthM * heightM }
+    case 'wallA': case 'wallB':
+    case 'wallN': case 'wallS':  // 구버전 호환
+      return { widthMm: widthM * 1000, heightMm: heightM * 1000, areaSqm: widthM * heightM }
+    case 'wallC': case 'wallD':
+    case 'wallE': case 'wallW':  // 구버전 호환
+      return { widthMm: depthM * 1000, heightMm: heightM * 1000, areaSqm: depthM * heightM }
+    case 'wallExtra': {
+      const w = (sf.extraWidthM || 0) * 1000
+      const h = (sf.extraHeightM || heightM) * 1000
+      return { widthMm: w, heightMm: h, areaSqm: (sf.extraWidthM || 0) * (sf.extraHeightM || heightM) }
+    }
     default:        return { widthMm: 0, heightMm: 0, areaSqm: 0 }
   }
 }
@@ -36,23 +43,58 @@ export function calcSurfaceCost(room, sf) {
 
   const isWall = !['floor', 'ceiling'].includes(sf.direction)
 
-  // ── 각재 (바닥재, 텍스 제외) ──────────────────────────
-  if (sf.finishType !== 'flooring' && sf.finishType !== 'tex') {
-    const { breakdown } = calcGakjae(widthMm, heightMm)
-    const cost = calcGakjaeCost(breakdown)
-    breakdown.forEach(({ length, count }) => {
-      const gak = GAKJAE.find(g => g.length === length)
-      if (!gak || count === 0) return
-      const dan = Math.ceil(count / gak.countPerDan)
-      items.push({
-        name: `각재 28×28×${length}`,
-        spec: `${dan}단 (${count}본)`,
-        qty: dan,
-        unit: '단',
-        unitPrice: gak.pricePerDan,
-        cost: dan * gak.pricePerDan,
+  // ── 각재 (바닥, 바닥재, 텍스 제외) ────────────────────
+  if (sf.direction !== 'floor' && sf.finishType !== 'flooring' && sf.finishType !== 'tex') {
+    if (sf.direction === 'ceiling') {
+      // 천장: 트러스 구조 계산 (짧은 면 1000mm / 긴 면 450mm)
+      // 스터드 높이 = 슬라브 - 마감 (slabHeightM 미입력 시 room.heightM 사용)
+      const studHeightM = (room.slabHeightM && room.slabHeightM > room.heightM)
+        ? room.slabHeightM - room.heightM
+        : room.heightM
+      const { breakdown, mainCount, subCount, supportHapanSheets, pieceHeightMm } =
+        calcCeilingGakjae(widthMm, heightMm, studHeightM, room.heightM * 1000)
+      breakdown.forEach(({ length, count }) => {
+        const gak = GAKJAE.find(g => g.length === length)
+        if (!gak || count === 0) return
+        const dan = Math.ceil(count / gak.countPerDan)
+        items.push({
+          name: `각재 28×28×${length}`,
+          spec: `주${mainCount}본/부${subCount}본 트러스`,
+          qty: dan,
+          unit: '단',
+          unitPrice: gak.pricePerDan,
+          cost: dan * gak.pricePerDan,
+        })
       })
-    })
+      // 지지 합판 (4.6T 기준, 재단 높이 = 천장 높이)
+      if (supportHapanSheets > 0) {
+        const hapan = HAPAN.find(h => h.id === 'hp_normal_4') || HAPAN[0]
+        items.push({
+          name: hapan.name,
+          spec: `천장스터드지지 ${Math.round(pieceHeightMm)}mm재단 (${mainCount}×${subCount}=${mainCount * subCount}점)`,
+          qty: supportHapanSheets,
+          unit: '장',
+          unitPrice: hapan.pricePerSheet,
+          cost: supportHapanSheets * hapan.pricePerSheet,
+        })
+      }
+    } else {
+      // 벽면: 세로상 450mm 간격, 가로상 단수(2 or 3) 적용
+      const { breakdown, rowCount } = calcGakjae(widthMm, heightMm, sf.gakjaeRows ?? null)
+      breakdown.forEach(({ length, count }) => {
+        const gak = GAKJAE.find(g => g.length === length)
+        if (!gak || count === 0) return
+        const dan = Math.ceil(count / gak.countPerDan)
+        items.push({
+          name: `각재 28×28×${length}`,
+          spec: `세로 450간격 / 가로 ${rowCount}단`,
+          qty: dan,
+          unit: '단',
+          unitPrice: gak.pricePerDan,
+          cost: dan * gak.pricePerDan,
+        })
+      })
+    }
   }
 
   // ── M-BAR (텍스 천장) ────────────────────────────
@@ -90,8 +132,8 @@ export function calcSurfaceCost(room, sf) {
     }
   }
 
-  // ── 석고보드 ─────────────────────────────────────
-  const needsSeokgo = ['wallpaper', 'paint', 'film', 'luba', 'tile'].includes(sf.finishType)
+  // ── 석고보드 (바닥 제외) ─────────────────────────────
+  const needsSeokgo = sf.direction !== 'floor' && ['wallpaper', 'paint', 'film', 'luba', 'tile'].includes(sf.finishType)
   if (needsSeokgo) {
     const layers = sf.finishType === 'paint' ? 2 : 1
     const seokgoType = sf.finishType === 'tile' ? 'sg_waterproof' : sf.seokgoType
@@ -142,7 +184,7 @@ export function calcSurfaceCost(room, sf) {
     }
     case 'tile': {
       const tile = TILE.find(t => t.id === sf.finishMaterialId) || TILE[0]
-      const { boxes, cost } = calcTile(area, tile.areaPerBox, tile.pricePerBox)
+      const { boxes, cost } = calcTile(widthMm, heightMm, tile)
       items.push({ name: tile.name, spec: `${boxes}BOX`, qty: boxes, unit: 'BOX', unitPrice: tile.pricePerBox, cost })
       break
     }

@@ -7,49 +7,88 @@ const GAKJAE_SPACING = 450 // mm
 const WASTE_RATE = 1.1     // 할증 10%
 const SQM_TO_PYUNG = 3.3058
 
-// ── 각재 계산 ──────────────────────────────────
-// 주어진 면의 가로(mm)×세로(mm) 기준으로
-// 450mm 간격 격자 프레임의 총 m수 계산
-export function calcGakjae(widthMm, heightMm) {
-  const verticalCount = Math.floor(widthMm / GAKJAE_SPACING) + 1  // 세로 부재 수
-  const horizontalCount = Math.floor(heightMm / GAKJAE_SPACING) + 1 // 가로 부재 수
+// 층고(referenceMm) 이상인 각재 중 가장 짧은 것 선택
+// 해당하는 길이가 없으면 가장 긴 것 사용
+function selectGakjaeByHeight(referenceMm) {
+  const sorted = [...GAKJAE].sort((a, b) => a.length - b.length)
+  return sorted.find(g => g.length >= referenceMm) || sorted[sorted.length - 1]
+}
 
-  const verticalTotalMm = verticalCount * heightMm   // 세로 부재 총 길이
-  const horizontalTotalMm = horizontalCount * widthMm // 가로 부재 총 길이
+// ── 각재 계산 (벽면용) ──────────────────────────
+// 세로상(수직 부재): 450mm 간격
+// 가로상(수평 부재): (벽 폭 / 각재 길이) × 단수 (2단 or 3단)
+//   단수: null → 높이 2400 이하 2단, 초과 3단 자동 / 또는 직접 지정
+export function calcGakjae(widthMm, heightMm, rows = null) {
+  // 세로상: 450mm 간격, 높이 방향으로 뻗음
+  const verticalCount   = Math.floor(widthMm / GAKJAE_SPACING) + 1
+  const verticalTotalMm = verticalCount * heightMm
+
+  // 가로상 단수 결정
+  const rowCount = rows ?? (heightMm <= 2400 ? 2 : 3)
+
+  // 가로상: 벽 폭 전체를 rowCount 단 배치
+  const horizontalTotalMm = widthMm * rowCount
 
   const totalMm = (verticalTotalMm + horizontalTotalMm) * WASTE_RATE
-  const totalM = totalMm / 1000
 
-  // 최적 길이 조합 (낭비 최소화)
-  const lengths = GAKJAE.map(g => g.length).sort((a, b) => b - a) // 긴 것부터
-  const breakdown = calcGakjaeBreakdown(totalMm, lengths)
+  // 층고(heightMm) 기준으로 각재 길이 선택: 층고 이상인 것 중 가장 짧은 것
+  const selectedGak = selectGakjaeByHeight(heightMm)
+  const count = Math.ceil(totalMm / selectedGak.length)
+  const breakdown = [{ length: selectedGak.length, count }]
 
-  return { totalM: Math.round(totalM * 100) / 100, breakdown }
+  return { totalM: Math.round(totalMm / 1000 * 100) / 100, breakdown, rowCount }
 }
 
-function calcGakjaeBreakdown(totalMm, sortedLengths) {
-  const result = []
-  let remaining = totalMm
+// ── 천장 목공 트러스 각재 계산 ──────────────────
+// 짧은 면 방향 → 1000mm 간격 (주 각재)
+// 긴 면 방향  → 450mm 간격  (부 각재)
+// 지지 합판   → studHeightM(슬라브-마감 차이)에 따라 장수 계산
+// roomHeightMm → 층고(마감 높이, mm) 기준으로 각재 길이 선택
+export function calcCeilingGakjae(widthMm, depthMm, studHeightM, roomHeightMm) {
+  const heightM = studHeightM  // 하위 호환성
+  const shortMm = Math.min(widthMm, depthMm)
+  const longMm  = Math.max(widthMm, depthMm)
 
-  for (const len of sortedLengths) {
-    if (remaining <= 0) break
-    const count = Math.floor(remaining / len)
-    if (count > 0) {
-      result.push({ length: len, count })
-      remaining -= count * len
-    }
+  // 주 각재: 짧은 면 방향으로 뻗음, 긴 면 따라 1000mm 간격 배치
+  const mainCount    = Math.floor(longMm / 1000) + 1
+  const mainTotalMm  = mainCount * shortMm
+
+  // 부 각재: 긴 면 방향으로 뻗음, 짧은 면 따라 450mm 간격 배치
+  const subCount    = Math.floor(shortMm / 450) + 1
+  const subTotalMm  = subCount * longMm
+
+  const totalMm = (mainTotalMm + subTotalMm) * WASTE_RATE
+
+  // 층고(roomHeightMm) 기준으로 각재 길이 선택
+  const selectedGak = selectGakjaeByHeight(roomHeightMm || 0)
+  const count = Math.ceil(totalMm / selectedGak.length)
+  const breakdown = [{ length: selectedGak.length, count }]
+
+  // 지지 합판 계산
+  // 주 각재와 부 각재 교차점에 합판 지지대를 넣음
+  // 합판 1장(1220×2440)을 천장 높이에 맞게 재단
+  // 지지대 높이 = room.heightM * 1000 (천장 높이 기준)
+  // 지지대 폭   = 200mm (고정)
+  const pieceHeightMm = Math.max(100, Math.round(heightM * 1000))
+  const pieceWidthMm  = 200
+  const piecesPerCol  = Math.floor(2440 / pieceHeightMm)
+  const piecesPerRow  = Math.floor(1220 / pieceWidthMm)
+  const piecesPerSheet = Math.max(1, piecesPerCol * piecesPerRow)
+
+  // 필요 지지대 수 = 주 각재 × 부 각재 교차점
+  const supportCount  = mainCount * subCount
+  const hapanSheets   = Math.ceil(supportCount / piecesPerSheet)
+
+  return {
+    totalM: Math.round(totalMm / 1000 * 100) / 100,
+    breakdown,
+    mainCount,
+    subCount,
+    supportHapanSheets: hapanSheets,
+    pieceHeightMm,
   }
-
-  // 나머지가 있으면 가장 짧은 길이 1개 추가
-  if (remaining > 0) {
-    const shortest = sortedLengths[sortedLengths.length - 1]
-    const last = result.find(r => r.length === shortest)
-    if (last) last.count += 1
-    else result.push({ length: shortest, count: 1 })
-  }
-
-  return result
 }
+
 
 // 각재 단가 계산
 export function calcGakjaeCost(breakdown) {
@@ -65,10 +104,10 @@ export function calcGakjaeCost(breakdown) {
 }
 
 // ── 석고보드 계산 ───────────────────────────────
-// areaSqm: 면적(㎡), layers: 장수(1 or 2), pricePerSheet: 장당 단가
+// areaSqm: 면적(㎡), layers: 겹수(1 or 2), pricePerSheet: 장당 단가
 export function calcSeokgo(areaSqm, layers, pricePerSheet) {
   const areaPerSheet = 1.62
-  const sheets = Math.ceil((areaSqm / areaPerSheet) * WASTE_RATE) * layers
+  const sheets = Math.ceil(areaSqm / areaPerSheet) * layers
   const cost = sheets * pricePerSheet
   return { sheets, cost }
 }
@@ -89,10 +128,19 @@ export function calcWallpaper(areaSqm, pricePerRoll, pyungPerRoll) {
 }
 
 // ── 타일 계산 ───────────────────────────────────
-export function calcTile(areaSqm, areaPerBox, pricePerBox) {
-  const boxes = Math.ceil((areaSqm / areaPerBox) * WASTE_RATE)
-  const cost = boxes * pricePerBox
-  return { boxes, cost }
+// widthMm/heightMm: 면 치수(mm), tile: TILE 객체
+// tileW/tileH 있으면 장수 기반 계산, 없으면 면적 기반 fallback
+export function calcTile(widthMm, heightMm, tile) {
+  let boxes
+  if (tile.tileW && tile.tileH && tile.tilesPerBox) {
+    const tilesW = Math.ceil(widthMm / tile.tileW)
+    const tilesH = Math.ceil(heightMm / tile.tileH)
+    boxes = Math.ceil((tilesW * tilesH) / tile.tilesPerBox)
+  } else {
+    const areaSqm = (widthMm * heightMm) / 1_000_000
+    boxes = Math.ceil((areaSqm / tile.areaPerBox) * WASTE_RATE)
+  }
+  return { boxes, cost: boxes * tile.pricePerBox }
 }
 
 // ── 바닥재 계산 ─────────────────────────────────

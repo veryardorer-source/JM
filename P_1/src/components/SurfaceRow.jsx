@@ -3,9 +3,10 @@ import { useStore } from '../store/useStore.js'
 import { FINISH_TYPES, SEOKGO, MDF, HAPAN, WALLPAPER, TILE, FLOORING, TEX, INSULATION } from '../data/materials.js'
 import { calcSurfaceCost, getSurfaceDimensions } from '../utils/surfaceCost.js'
 import { calcFilmSections } from '../utils/calculations.js'
+import MoldingSection from './MoldingSection.jsx'
 
 export default function SurfaceRow({ room, sf }) {
-  const { updateSurface, addFilmSection, updateFilmSection, deleteFilmSection } = useStore()
+  const { updateSurface, addFilmSection, updateFilmSection, deleteFilmSection, deleteSurface } = useStore()
 
   const upd = (fields) => updateSurface(room.id, sf.id, fields)
   const result = calcSurfaceCost(room, sf)
@@ -13,18 +14,40 @@ export default function SurfaceRow({ room, sf }) {
 
   const isCeiling = sf.direction === 'ceiling'
   const isFloor = sf.direction === 'floor'
+  const isExtra = sf.direction === 'wallExtra'
   const isWall = !isFloor && !isCeiling
 
   return (
-    <div style={styles.row}>
+    <div style={styles.surfaceBlock}><div style={styles.row}>
       {/* 면 라벨 */}
       <div style={styles.labelCell}>
         <label style={styles.checkRow}>
           <input type="checkbox" checked={sf.enabled}
             onChange={e => upd({ enabled: e.target.checked })} />
-          <span style={{ fontWeight: 600, fontSize: 13, color: '#1e4078' }}>{sf.label}</span>
+          <input
+            value={sf.label}
+            onChange={e => upd({ label: e.target.value })}
+            style={{ fontWeight: 600, fontSize: 13, color: '#1e4078', border: 'none', background: 'transparent', borderBottom: '1px solid #c8d4e8', width: 60, outline: 'none' }}
+          />
+          {isExtra && (
+            <button onClick={() => deleteSurface(room.id, sf.id)} style={{ ...styles.btnDel, marginLeft: 4, fontSize: 9, padding: '1px 4px' }}>✕</button>
+          )}
         </label>
-        <span style={styles.areaBadge}>{areaSqm.toFixed(2)}㎡</span>
+        {/* 추가 벽: 치수 직접 입력 */}
+        {isExtra ? (
+          <div style={{ display: 'flex', gap: 4, alignItems: 'center', marginTop: 3 }}>
+            <input type="number" min="0" step="0.01" value={sf.extraWidthM || ''}
+              placeholder="폭(m)" onChange={e => upd({ extraWidthM: Number(e.target.value) })}
+              style={{ width: 55, border: '1px solid #d0d7e3', borderRadius: 3, padding: '2px 4px', fontSize: 11 }} />
+            <span style={{ fontSize: 10, color: '#888' }}>×</span>
+            <input type="number" min="0" step="0.01" value={sf.extraHeightM || ''}
+              placeholder={`H${room.heightM}`} onChange={e => upd({ extraHeightM: Number(e.target.value) })}
+              style={{ width: 55, border: '1px solid #d0d7e3', borderRadius: 3, padding: '2px 4px', fontSize: 11 }} />
+            <span style={styles.areaBadge}>{areaSqm.toFixed(2)}㎡</span>
+          </div>
+        ) : (
+          <span style={styles.areaBadge}>{areaSqm.toFixed(2)}㎡</span>
+        )}
       </div>
 
       {/* 마감재 타입 선택 */}
@@ -33,7 +56,7 @@ export default function SurfaceRow({ room, sf }) {
           {FINISH_TYPES.filter(ft => {
             if (isFloor) return ['flooring', 'tile', 'none'].includes(ft.id)
             if (isCeiling) return ['wallpaper', 'paint', 'tex', 'none'].includes(ft.id)
-            return true
+            return !['tex', 'flooring'].includes(ft.id)
           }).map(ft => (
             <option key={ft.id} value={ft.id}>{ft.label}</option>
           ))}
@@ -103,6 +126,16 @@ export default function SurfaceRow({ room, sf }) {
             </select>
           </label>
         )}
+        {/* 각재 가로단수 (벽면만) */}
+        {isWall && sf.finishType !== 'none' && (
+          <label style={styles.inlineLabel}>가로상 단수
+            <select value={sf.gakjaeRows ?? 'auto'} onChange={e => upd({ gakjaeRows: e.target.value === 'auto' ? null : Number(e.target.value) })} style={styles.selectSm}>
+              <option value="auto">자동 (H≤2.4m→2단)</option>
+              <option value="2">2단</option>
+              <option value="3">3단</option>
+            </select>
+          </label>
+        )}
         {/* 칸막이벽 옵션 (벽면만) */}
         {isWall && sf.finishType !== 'none' && (
           <label style={styles.inlineLabel}>벽 구조
@@ -139,6 +172,8 @@ export default function SurfaceRow({ room, sf }) {
         )}
       </div>
     </div>
+    <MoldingSection room={room} sf={sf} />
+    </div>
   )
 }
 
@@ -171,8 +206,11 @@ function FilmSectionEditor({ room, sf, addFilmSection, updateFilmSection, delete
 
   const totalLossM = Math.round(sectionResults.reduce((s, r) => s + r.lossM, 0) * 10) / 10
   const wallTotalMm = sections.reduce((s, sec) => s + (sec.widthMm || 0), 0)
-  const wallWidthMm = (sf.direction === 'wallE' || sf.direction === 'wallW')
-    ? room.depthM * 1000 : room.widthM * 1000
+  const wallWidthMm = (sf.direction === 'wallC' || sf.direction === 'wallD' || sf.direction === 'wallE' || sf.direction === 'wallW')
+    ? room.depthM * 1000
+    : sf.direction === 'wallExtra'
+    ? (sf.extraWidthM || 0) * 1000
+    : room.widthM * 1000
   const wallDiffMm = wallWidthMm > 0 ? wallTotalMm - wallWidthMm : null
 
   return (
@@ -361,16 +399,18 @@ const fs = {
 }
 
 const styles = {
+  surfaceBlock: {
+    background: '#fafbfd',
+    borderRadius: 4,
+    marginBottom: 6,
+    border: '1px solid #f0f2f5',
+  },
   row: {
     display: 'grid',
     gridTemplateColumns: '110px 140px 1fr 120px',
     gap: 8,
     alignItems: 'start',
     padding: '8px 10px',
-    borderBottom: '1px solid #f0f2f5',
-    background: '#fafbfd',
-    borderRadius: 4,
-    marginBottom: 4,
   },
   labelCell: { display: 'flex', flexDirection: 'column', gap: 4 },
   checkRow: { display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' },

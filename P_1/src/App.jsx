@@ -2,6 +2,7 @@ import { useStore } from './store/useStore.js'
 import ProjectInfo from './components/ProjectInfo.jsx'
 import RoomCard from './components/RoomCard.jsx'
 import Summary from './components/Summary.jsx'
+import GlobalItems from './components/GlobalItems.jsx'
 
 export default function App() {
   const { rooms, addRoom } = useStore()
@@ -34,6 +35,8 @@ export default function App() {
           ) : (
             rooms.map(room => <RoomCard key={room.id} room={room} />)
           )}
+
+          <GlobalItems />
         </main>
 
         {/* 사이드 요약 */}
