@@ -1,81 +1,53 @@
-import { useState, useEffect } from 'react'
-
-function NumInput({ value, onChange, style, placeholder }) {
-  const [str, setStr] = useState(value > 0 ? String(value) : '')
-  useEffect(() => {
-    if (value > 0 && Number(str) !== value) setStr(String(value))
-    if (value === 0 && str !== '' && str !== '0') setStr('')
-  }, [value])
-  return (
-    <input
-      type="number" min="0" step="0.01"
-      value={str}
-      placeholder={placeholder}
-      style={style}
-      onChange={e => {
-        setStr(e.target.value)
-        const n = parseFloat(e.target.value)
-        onChange(!isNaN(n) && n >= 0 ? n : 0)
-      }}
-    />
-  )
-}
+import { useState } from 'react'
 import { useStore } from '../store/useStore.js'
-import { FINISH_TYPES, SEOKGO, MDF, HAPAN, WALLPAPER, TILE, FLOORING, TEX, INSULATION, WRAPPING_WIDTHS } from '../data/materials.js'
-
-const OJINGEO_LIST = HAPAN.filter(h => h.type === '오징어')
+import { FINISH_TYPES, SEOKGO, MDF, HAPAN, WALLPAPER, TILE, FLOORING, TEX, INSULATION } from '../data/materials.js'
 import { calcSurfaceCost, getSurfaceDimensions } from '../utils/surfaceCost.js'
 import { calcFilmSections } from '../utils/calculations.js'
-import { calcMoldingEA } from '../utils/molding.js'
+import MoldingSection from './MoldingSection.jsx'
 
-const DIR_TO_MOLD = {
-  wallA: '벽A', wallB: '벽B', wallC: '벽C', wallD: '벽D',
-  wallN: '벽A', wallS: '벽B', wallE: '벽C', wallW: '벽D',
-}
-const DIR_LABEL = {
-  wallA: '벽A', wallB: '벽B', wallC: '벽C', wallD: '벽D',
-  wallN: '벽A', wallS: '벽B', wallE: '벽C', wallW: '벽D',
-  floor: '바닥', ceiling: '천장',
-}
+export default function SurfaceRow({ room, sf }) {
+  const { updateSurface, addFilmSection, updateFilmSection, deleteFilmSection, deleteSurface } = useStore()
 
-export default function SurfaceRow({ room, sf, updateFn }) {
-  const { updateSurface, addFilmSection, updateFilmSection, deleteFilmSection } = useStore()
-
-  const upd = (fields) => updateFn ? updateFn(fields) : updateSurface(room.id, sf.id, fields)
+  const upd = (fields) => updateSurface(room.id, sf.id, fields)
   const result = calcSurfaceCost(room, sf)
   const { areaSqm } = getSurfaceDimensions(room, sf)
 
   const isCeiling = sf.direction === 'ceiling'
   const isFloor = sf.direction === 'floor'
-  const isPartition = sf.direction === 'wall_custom'
+  const isExtra = sf.direction === 'wallExtra'
   const isWall = !isFloor && !isCeiling
-  const moldType = DIR_TO_MOLD[sf.direction]
 
   return (
-    <>
-    <div style={styles.row}>
+    <div style={styles.surfaceBlock}><div style={styles.row}>
       {/* 면 라벨 */}
       <div style={styles.labelCell}>
         <label style={styles.checkRow}>
           <input type="checkbox" checked={sf.enabled}
             onChange={e => upd({ enabled: e.target.checked })} />
-          {isPartition ? (
-            <input value={sf.name || ''} onChange={e => upd({ name: e.target.value })}
-              style={styles.partNameInput} />
-          ) : (
-            <span style={{ fontWeight: 600, fontSize: 13, color: '#1e4078' }}>{DIR_LABEL[sf.direction] || sf.label}</span>
+          <input
+            value={sf.label}
+            onChange={e => upd({ label: e.target.value })}
+            style={{ fontWeight: 600, fontSize: 13, color: '#1e4078', border: 'none', background: 'transparent', borderBottom: '1px solid #c8d4e8', width: 60, outline: 'none' }}
+          />
+          {isExtra && (
+            <button onClick={() => deleteSurface(room.id, sf.id)} style={{ ...styles.btnDel, marginLeft: 4, fontSize: 9, padding: '1px 4px' }}>✕</button>
           )}
         </label>
-        {isPartition && (
-          <div style={styles.partDims}>
-            <NumInput value={sf.widthM} onChange={v => upd({ widthM: v })}
-              placeholder="폭(m)" style={styles.partDimInput} />
-            <span style={{ fontSize: 10, color: '#aaa' }}>×</span>
-            <NumInput value={sf.heightM} onChange={v => upd({ heightM: v })}
-              placeholder={`H${room.heightM}m`} style={styles.partDimInput} />
+        {/* 추가 벽: 치수 직접 입력 */}
+        {isExtra ? (
+          <div style={{ display: 'flex', gap: 4, alignItems: 'center', marginTop: 3 }}>
+            <input type="number" min="0" step="0.01" value={sf.extraWidthM || ''}
+              placeholder="폭(m)" onChange={e => upd({ extraWidthM: Number(e.target.value) })}
+              style={{ width: 55, border: '1px solid #d0d7e3', borderRadius: 3, padding: '2px 4px', fontSize: 11 }} />
+            <span style={{ fontSize: 10, color: '#888' }}>×</span>
+            <input type="number" min="0" step="0.01" value={sf.extraHeightM || ''}
+              placeholder={`H${room.heightM}`} onChange={e => upd({ extraHeightM: Number(e.target.value) })}
+              style={{ width: 55, border: '1px solid #d0d7e3', borderRadius: 3, padding: '2px 4px', fontSize: 11 }} />
+            <span style={styles.areaBadge}>{areaSqm.toFixed(2)}㎡</span>
           </div>
+        ) : (
+          <span style={styles.areaBadge}>{areaSqm.toFixed(2)}㎡</span>
         )}
-        <span style={styles.areaBadge}>{areaSqm.toFixed(2)}㎡</span>
       </div>
 
       {/* 마감재 타입 선택 */}
@@ -154,136 +126,24 @@ export default function SurfaceRow({ room, sf, updateFn }) {
             </select>
           </label>
         )}
-        {/* 천장 목공 (각재+석고) */}
-        {isCeiling && sf.finishType !== 'none' && (
-          <label style={{ ...styles.inlineLabel, cursor: 'pointer' }}>목공
-            <label style={{ display: 'flex', alignItems: 'center', gap: 3, cursor: 'pointer' }}>
-              <input type="checkbox" checked={!!sf.ceilingCarpentry}
-                onChange={e => upd({ ceilingCarpentry: e.target.checked })} />
-              <span style={{ fontSize: 11, color: '#555' }}>각재+석고</span>
-            </label>
-          </label>
-        )}
-        {isCeiling && sf.ceilingCarpentry && (
-          <label style={styles.inlineLabel}>석고보드
-            <select value={sf.seokgoType} onChange={e => upd({ seokgoType: e.target.value })} style={styles.selectSm}>
-              {SEOKGO.map(s => <option key={s.id} value={s.id}>{s.name.replace('900×1800×', '')}</option>)}
+        {/* 각재 가로단수 (벽면만) */}
+        {isWall && sf.finishType !== 'none' && (
+          <label style={styles.inlineLabel}>가로상 단수
+            <select value={sf.gakjaeRows ?? 'auto'} onChange={e => upd({ gakjaeRows: e.target.value === 'auto' ? null : Number(e.target.value) })} style={styles.selectSm}>
+              <option value="auto">자동 (H≤2.4m→2단)</option>
+              <option value="2">2단</option>
+              <option value="3">3단</option>
             </select>
           </label>
         )}
-        {isCeiling && sf.ceilingCarpentry && (
-          <label style={styles.inlineLabel}>칸막이합판
-            <select
-              value={sf.ceilingHapanEnabled ? (sf.ceilingHapanId || 'hp_normal_11') : 'none'}
-              onChange={e => upd(e.target.value === 'none'
-                ? { ceilingHapanEnabled: false }
-                : { ceilingHapanEnabled: true, ceilingHapanId: e.target.value }
-              )}
-              style={styles.selectSm}>
-              <option value="none">없음</option>
-              {HAPAN.filter(h => h.type !== '오징어').map(h => (
-                <option key={h.id} value={h.id}>{h.name}</option>
-              ))}
-            </select>
-          </label>
-        )}
-
-        {/* 오징어합판 (바닥 제외) */}
-        {sf.finishType !== 'none' && !isFloor && (
-          <label style={styles.inlineLabel}>오징어합판
-            <select value={sf.ojingeoEnabled ? (sf.ojingeoId || 'hp_squid_4') : 'none'}
-              onChange={e => upd(e.target.value === 'none'
-                ? { ojingeoEnabled: false }
-                : { ojingeoEnabled: true, ojingeoId: e.target.value }
-              )}
-              style={styles.selectSm}>
-              <option value="none">없음</option>
-              {OJINGEO_LIST.map(h => <option key={h.id} value={h.id}>{h.name}</option>)}
-            </select>
-          </label>
-        )}
-        {sf.ojingeoEnabled && !isFloor && (
-          <label style={styles.inlineLabel}>수량(장)<span style={{ fontSize: 9, color: '#bbb' }}>0=자동</span>
-            <input type="number" min="0" step="1"
-              value={sf.ojingeoQty || ''}
-              placeholder="자동"
-              onChange={e => upd({ ojingeoQty: Number(e.target.value) })}
-              style={{ ...styles.inputSm, width: 55 }} />
-          </label>
-        )}
-
-        {/* 템파보드 / 루버 (벽지·도장, 천장·벽 공통) */}
-        {!isFloor && ['wallpaper', 'paint'].includes(sf.finishType) && (
-          <label style={styles.inlineLabel}>장식재
-            <select value={sf.decorType || 'none'}
-              onChange={e => upd({ decorType: e.target.value })}
-              style={styles.selectSm}>
-              <option value="none">없음</option>
-              <option value="tempboard">템파보드</option>
-              <option value="louver">루버</option>
-              <option value="stainless">스테인리스</option>
-              <option value="tile">타일</option>
-              <option value="custom">직접입력</option>
-            </select>
-          </label>
-        )}
-        {!isFloor && ['wallpaper', 'paint'].includes(sf.finishType) && sf.decorType && sf.decorType !== 'none' && (
-          <>
-            {sf.decorType === 'custom' && (
-              <label style={styles.inlineLabel}>자재명
-                <input
-                  value={sf.decorCustomName || ''}
-                  placeholder="자재명 입력"
-                  onChange={e => upd({ decorCustomName: e.target.value })}
-                  style={{ ...styles.inputSm, width: 90 }} />
-              </label>
-            )}
-            <label style={styles.inlineLabel}>면적(㎡)
-              <input type="number" min="0" step="0.01"
-                value={sf.decorSqm || ''}
-                placeholder="0"
-                onChange={e => upd({ decorSqm: Number(e.target.value) })}
-                style={styles.inputSm} />
-            </label>
-            <label style={styles.inlineLabel}>단가(원/㎡)
-              <input type="number" min="0"
-                value={sf.decorPricePerSqm || ''}
-                placeholder="0"
-                onChange={e => upd({ decorPricePerSqm: Number(e.target.value) })}
-                style={styles.inputSm} />
-            </label>
-          </>
-        )}
-
-        {/* 벽 구조 (벽면만) */}
+        {/* 칸막이벽 옵션 (벽면만) */}
         {isWall && sf.finishType !== 'none' && (
           <label style={styles.inlineLabel}>벽 구조
             <select value={sf.wallType || 'normal'} onChange={e => upd({ wallType: e.target.value })} style={styles.selectSm}>
               <option value="normal">일반벽</option>
-              <option value="partition">칸막이벽 (합판)</option>
-              <option value="lightweight">경량벽체</option>
+              <option value="partition">칸막이벽 (합판 포함)</option>
             </select>
           </label>
-        )}
-        {isWall && sf.wallType === 'lightweight' && (
-          <>
-            <label style={styles.inlineLabel}>스터드 간격
-              <select value={sf.lgStudSpacingMm || 406} onChange={e => upd({ lgStudSpacingMm: Number(e.target.value) })} style={styles.selectSm}>
-                <option value={406}>400mm</option>
-                <option value={610}>600mm</option>
-              </select>
-            </label>
-            <label style={styles.inlineLabel}>런너 단가(원/m)
-              <input type="number" min="0" value={sf.lgRunnerPrice || ''} placeholder="0"
-                onChange={e => upd({ lgRunnerPrice: Number(e.target.value) })}
-                style={styles.inputSm} />
-            </label>
-            <label style={styles.inlineLabel}>스터드 단가(원/EA)
-              <input type="number" min="0" value={sf.lgStudPrice || ''} placeholder="0"
-                onChange={e => upd({ lgStudPrice: Number(e.target.value) })}
-                style={styles.inputSm} />
-            </label>
-          </>
         )}
         {isWall && sf.wallType === 'partition' && (
           <label style={styles.inlineLabel}>합판 종류
@@ -312,110 +172,7 @@ export default function SurfaceRow({ room, sf, updateFn }) {
         )}
       </div>
     </div>
-    {isWall && !isPartition && moldType && <WallMoldingSubRow room={room} moldType={moldType} />}
-    {isPartition && <PartitionMoldingSubRow room={room} partition={sf} />}
-    </>
-  )
-}
-
-// ── 벽면 랩핑평판 서브 행 ────────────────────────────
-function WallMoldingSubRow({ room, moldType }) {
-  const { addMolding, updateMolding, deleteMolding } = useStore()
-  const moldings = (room.moldings || []).filter(m => m.moldType === moldType)
-  const wallLengthM = (moldType === '벽A' || moldType === '벽B') ? room.widthM : room.depthM
-
-  return (
-    <div style={wm.wrap}>
-      <span style={wm.label}>└ 랩핑평판</span>
-      <div style={wm.items}>
-        {moldings.map(m => {
-          const lengthM = m.autoCalc ? (wallLengthM || 0) : (m.customLengthM || 0)
-          const ea = calcMoldingEA(lengthM)
-          return (
-            <div key={m.id} style={wm.item}>
-              <select value={m.widthMm}
-                onChange={e => updateMolding(room.id, m.id, { widthMm: Number(e.target.value) })}
-                style={wm.select}>
-                {WRAPPING_WIDTHS.map(w => <option key={w} value={w}>{w}mm</option>)}
-              </select>
-              <label style={wm.autoLabel}>
-                <input type="checkbox" checked={!!m.autoCalc}
-                  onChange={e => updateMolding(room.id, m.id, { autoCalc: e.target.checked })} />
-                자동
-              </label>
-              {!m.autoCalc && (
-                <input type="number" min="0" step="0.1"
-                  value={m.customLengthM || ''}
-                  placeholder="길이(m)"
-                  onChange={e => updateMolding(room.id, m.id, { customLengthM: Number(e.target.value) })}
-                  style={wm.input} />
-              )}
-              <span style={wm.result}>
-                {lengthM > 0 ? `${lengthM.toFixed(2)}m → ${ea}EA` : '-'}
-              </span>
-              <button onClick={() => deleteMolding(room.id, m.id)} style={wm.delBtn}>✕</button>
-            </div>
-          )
-        })}
-      </div>
-      <button onClick={() => addMolding(room.id, moldType)} style={wm.addBtn}>+ 랩핑평판 추가</button>
-    </div>
-  )
-}
-
-const wm = {
-  wrap: { display: 'flex', alignItems: 'flex-start', gap: 8, padding: '4px 10px 6px 22px', background: '#f5f8ee', borderBottom: '1px solid #e8f0de', flexWrap: 'wrap' },
-  label: { fontSize: 11, color: '#5a7a30', fontWeight: 700, whiteSpace: 'nowrap', paddingTop: 4 },
-  items: { display: 'flex', flexDirection: 'column', gap: 4, flex: 1 },
-  item: { display: 'flex', alignItems: 'center', gap: 6 },
-  select: { border: '1px solid #c0d4a0', borderRadius: 4, padding: '3px 5px', fontSize: 11, background: '#fff' },
-  autoLabel: { fontSize: 11, display: 'flex', alignItems: 'center', gap: 3, color: '#555', cursor: 'pointer' },
-  input: { border: '1px solid #c0d4a0', borderRadius: 4, padding: '3px 5px', fontSize: 11, width: 70 },
-  result: { fontSize: 11, color: '#3a6010', fontWeight: 600 },
-  delBtn: { fontSize: 10, padding: '1px 5px', background: '#fee', border: '1px solid #fcc', borderRadius: 3, cursor: 'pointer', color: '#c00' },
-  addBtn: { fontSize: 10, padding: '3px 10px', background: '#eef5e0', border: '1px solid #c0d4a0', borderRadius: 4, cursor: 'pointer', color: '#4a7020', fontWeight: 600, whiteSpace: 'nowrap', alignSelf: 'center' },
-}
-
-// ── 가벽 랩핑평판 서브 행 ────────────────────────────
-function PartitionMoldingSubRow({ room, partition }) {
-  const { addPartitionMolding, updatePartitionMolding, deletePartitionMolding } = useStore()
-  const moldings = partition.moldings || []
-
-  return (
-    <div style={wm.wrap}>
-      <span style={wm.label}>└ 랩핑평판</span>
-      <div style={wm.items}>
-        {moldings.map(m => {
-          const lengthM = m.autoCalc ? (partition.widthM || 0) : (m.customLengthM || 0)
-          const ea = calcMoldingEA(lengthM)
-          return (
-            <div key={m.id} style={wm.item}>
-              <select value={m.widthMm}
-                onChange={e => updatePartitionMolding(room.id, partition.id, m.id, { widthMm: Number(e.target.value) })}
-                style={wm.select}>
-                {WRAPPING_WIDTHS.map(w => <option key={w} value={w}>{w}mm</option>)}
-              </select>
-              <label style={wm.autoLabel}>
-                <input type="checkbox" checked={!!m.autoCalc}
-                  onChange={e => updatePartitionMolding(room.id, partition.id, m.id, { autoCalc: e.target.checked })} />
-                자동
-              </label>
-              {!m.autoCalc && (
-                <input type="number" min="0" step="0.1"
-                  value={m.customLengthM || ''}
-                  placeholder="길이(m)"
-                  onChange={e => updatePartitionMolding(room.id, partition.id, m.id, { customLengthM: Number(e.target.value) })}
-                  style={wm.input} />
-              )}
-              <span style={wm.result}>
-                {lengthM > 0 ? `${lengthM.toFixed(2)}m → ${ea}EA` : '-'}
-              </span>
-              <button onClick={() => deletePartitionMolding(room.id, partition.id, m.id)} style={wm.delBtn}>✕</button>
-            </div>
-          )
-        })}
-      </div>
-      <button onClick={() => addPartitionMolding(room.id, partition.id)} style={wm.addBtn}>+ 랩핑평판 추가</button>
+    <MoldingSection room={room} sf={sf} />
     </div>
   )
 }
@@ -449,8 +206,11 @@ function FilmSectionEditor({ room, sf, addFilmSection, updateFilmSection, delete
 
   const totalLossM = Math.round(sectionResults.reduce((s, r) => s + r.lossM, 0) * 10) / 10
   const wallTotalMm = sections.reduce((s, sec) => s + (sec.widthMm || 0), 0)
-  const wallWidthMm = (sf.direction === 'wallC' || sf.direction === 'wallD')
-    ? room.depthM * 1000 : room.widthM * 1000
+  const wallWidthMm = (sf.direction === 'wallC' || sf.direction === 'wallD' || sf.direction === 'wallE' || sf.direction === 'wallW')
+    ? room.depthM * 1000
+    : sf.direction === 'wallExtra'
+    ? (sf.extraWidthM || 0) * 1000
+    : room.widthM * 1000
   const wallDiffMm = wallWidthMm > 0 ? wallTotalMm - wallWidthMm : null
 
   return (
@@ -639,21 +399,20 @@ const fs = {
 }
 
 const styles = {
+  surfaceBlock: {
+    background: '#fafbfd',
+    borderRadius: 4,
+    marginBottom: 6,
+    border: '1px solid #f0f2f5',
+  },
   row: {
     display: 'grid',
     gridTemplateColumns: '110px 140px 1fr 120px',
     gap: 8,
     alignItems: 'start',
     padding: '8px 10px',
-    borderBottom: '1px solid #f0f2f5',
-    background: '#fafbfd',
-    borderRadius: 4,
-    marginBottom: 4,
   },
   labelCell: { display: 'flex', flexDirection: 'column', gap: 4 },
-  partNameInput: { fontSize: 12, fontWeight: 700, color: '#6a3a8a', border: 'none', borderBottom: '1px solid #c8a0e0', background: 'transparent', width: 80, outline: 'none', padding: '1px 2px' },
-  partDims: { display: 'flex', alignItems: 'center', gap: 3 },
-  partDimInput: { width: 48, fontSize: 11, border: '1px solid #d0c0e8', borderRadius: 3, padding: '2px 4px', textAlign: 'center' },
   checkRow: { display: 'flex', alignItems: 'center', gap: 6, cursor: 'pointer' },
   areaBadge: {
     fontSize: 11, color: '#888', background: '#eef2f8',

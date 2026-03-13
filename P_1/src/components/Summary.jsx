@@ -5,6 +5,7 @@ import { generatePDF } from '../utils/pdfGenerator.js'
 import { calcMoldingLengthM, calcMoldingEA } from '../utils/molding.js'
 import { calcLinearCombo } from '../utils/calculations.js'
 import { WRAPPING_BOARD_LENGTH_M } from '../data/materials.js'
+import { exportToExcel } from '../utils/excelExport.js'
 
 const DIR_LABEL = {
   wallA: '벽A', wallB: '벽B', wallC: '벽C', wallD: '벽D',
@@ -43,7 +44,7 @@ function fmtQty(qty, unit) {
 }
 
 export default function Summary() {
-  const { project, rooms } = useStore()
+  const { project, rooms, globalItems } = useStore()
   const [collapsedRooms, setCollapsedRooms] = useState({})
   const [collapsedSurfaces, setCollapsedSurfaces] = useState({})
 
@@ -124,7 +125,12 @@ export default function Summary() {
       {/* 헤더 */}
       <div style={s.header}>
         <h2 style={s.title}>자재 집계</h2>
-        <button onClick={() => generatePDF(project, rooms)} style={s.pdfBtn}>PDF 출력</button>
+        <div style={{ display: 'flex', gap: 6 }}>
+          <button
+            onClick={() => exportToExcel(project, roomData, grandAggregate, grandTotal, globalItems)}
+            style={s.xlsBtn}>엑셀 내보내기</button>
+          <button onClick={() => generatePDF(project, roomData, grandAggregate, grandTotal)} style={s.pdfBtn}>인쇄 / PDF</button>
+        </div>
       </div>
 
       {roomData.length === 0 ? (
@@ -165,6 +171,30 @@ export default function Summary() {
                     </div>
                   ))}
 
+                  {/* 랩핑평판 – 면 목록 바로 아래 */}
+                  {moldingItems.length > 0 && (
+                    <div style={s.surfaceBlock}>
+                      <div style={{ ...s.surfaceHeader, borderLeftColor: '#6a9e4a' }}>
+                        <span style={s.collapseIconSm}>―</span>
+                        <span style={s.surfaceName}>랩핑평판</span>
+                      </div>
+                      <table style={s.table}>
+                        <tbody>
+                          {moldingItems.map((item, i) => (
+                            <tr key={i} style={s.itemRow}>
+                              <td style={s.tdName}>
+                                <span style={{ ...s.filmBadge, background: '#6a9e4a' }}>몰딩</span>
+                                {item.name}
+                              </td>
+                              <td style={s.tdQty}>{item.qty} EA <span style={{ color: '#999', fontSize: 10 }}>({item.lengthM.toFixed(2)}m)</span></td>
+                              <td style={s.tdCost}>-</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+
                   {/* 도어 목록 */}
                   {doorItems.length > 0 && (
                     <div style={s.surfaceBlock}>
@@ -192,7 +222,7 @@ export default function Summary() {
                     </div>
                   )}
 
-                  {/* 조명 목록 */}
+                  {/* 조명 – 실 하단 */}
                   {lightingItems.length > 0 && (
                     <div style={s.surfaceBlock}>
                       <div style={{ ...s.surfaceHeader, borderLeftColor: '#e0a020' }}>
@@ -230,30 +260,6 @@ export default function Summary() {
                               </>
                             )
                           })}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-
-                  {/* 랩핑평판 목록 */}
-                  {moldingItems.length > 0 && (
-                    <div style={s.surfaceBlock}>
-                      <div style={{ ...s.surfaceHeader, borderLeftColor: '#6a9e4a' }}>
-                        <span style={s.collapseIconSm}>―</span>
-                        <span style={s.surfaceName}>랩핑평판</span>
-                      </div>
-                      <table style={s.table}>
-                        <tbody>
-                          {moldingItems.map((item, i) => (
-                            <tr key={i} style={s.itemRow}>
-                              <td style={s.tdName}>
-                                <span style={{ ...s.filmBadge, background: '#6a9e4a' }}>몰딩</span>
-                                {item.name}
-                              </td>
-                              <td style={s.tdQty}>{item.qty} EA <span style={{ color: '#999', fontSize: 10 }}>({item.lengthM.toFixed(2)}m)</span></td>
-                              <td style={s.tdCost}>-</td>
-                            </tr>
-                          ))}
                         </tbody>
                       </table>
                     </div>
@@ -377,6 +383,7 @@ const s = {
   header:{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 10, borderBottom: '2px solid #1e4078', paddingBottom: 6 },
   title: { fontSize: 14, fontWeight: 700, color: '#1e4078' },
   pdfBtn:{ fontSize: 12, padding: '6px 14px', background: '#1e4078', color: '#fff', border: 'none', borderRadius: 5, cursor: 'pointer', fontWeight: 600 },
+  xlsBtn:{ fontSize: 12, padding: '6px 14px', background: '#1a7a3a', color: '#fff', border: 'none', borderRadius: 5, cursor: 'pointer', fontWeight: 600 },
   empty: { color: '#aaa', fontSize: 13, textAlign: 'center', padding: 24 },
 
   // 실 블록

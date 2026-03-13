@@ -1,133 +1,122 @@
-import jsPDF from 'jspdf'
-import autoTable from 'jspdf-autotable'
 import { calcSurfaceCost } from './surfaceCost.js'
-import { formatWon } from './calculations.js'
 
 export function generatePDF(project, rooms) {
-  const doc = new jsPDF({ orientation: 'portrait', unit: 'mm', format: 'a4' })
+  const lines = []
 
-  // ── 폰트 설정 (한글 지원을 위해 기본 폰트 사용, 영문/숫자 위주)
-  doc.setFont('helvetica')
+  // ── 스타일 ──────────────────────────────────────
+  lines.push(`
+    <style>
+      * { box-sizing: border-box; margin: 0; padding: 0; }
+      body { font-family: '맑은 고딕', 'Malgun Gothic', 'Apple SD Gothic Neo', sans-serif; font-size: 10pt; color: #222; }
+      h1  { font-size: 18pt; text-align: center; padding: 12px 0 6px; letter-spacing: 6px; }
+      .info-table { width: 100%; border-collapse: collapse; margin-bottom: 12px; }
+      .info-table td { padding: 4px 8px; border: 1px solid #bbb; font-size: 9.5pt; }
+      .info-table .lbl { background: #dce6f1; font-weight: bold; width: 70px; }
+      .section-title { background: #1e4078; color: #fff; font-size: 11pt; font-weight: bold;
+                        padding: 4px 10px; margin: 14px 0 4px; }
+      table.mat { width: 100%; border-collapse: collapse; margin-bottom: 6px; }
+      table.mat th { background: #3c64a0; color: #fff; font-size: 9pt; padding: 4px 5px; border: 1px solid #2a4a80; }
+      table.mat td { font-size: 9pt; padding: 3px 5px; border: 1px solid #ccc; }
+      table.mat tr:nth-child(even) td { background: #f4f7fb; }
+      table.mat .sf-lbl { font-weight: bold; color: #1e4078; background: #eef2f8; }
+      table.mat .subtot td { background: #dce6f1; font-weight: bold; }
+      table.mat .r { text-align: right; }
+      table.mat .c { text-align: center; }
+      .grand { margin-top: 12px; border: 2px solid #1e4078; padding: 6px 12px; text-align: right;
+               font-size: 12pt; font-weight: bold; color: #1e4078; }
+      @media print {
+        @page { size: A4; margin: 12mm 10mm; }
+        .no-print { display: none; }
+      }
+    </style>
+  `)
 
-  const pageW = doc.internal.pageSize.getWidth()
-  const margin = 15
+  // ── 헤더 ────────────────────────────────────────
+  lines.push(`<h1>내 역 서</h1>`)
+  lines.push(`<table class="info-table">
+    <tr>
+      <td class="lbl">수 신</td><td>${project.clientName || ''}</td>
+      <td class="lbl">작성일</td><td>${project.date || ''}</td>
+    </tr>
+    <tr>
+      <td class="lbl">공사명</td><td colspan="3">${project.siteName || ''}</td>
+    </tr>
+    <tr>
+      <td class="lbl">담 당</td><td colspan="3">${project.manager || ''}</td>
+    </tr>
+  </table>`)
 
-  // ── 헤더 ──
-  doc.setFillColor(30, 64, 120)
-  doc.rect(0, 0, pageW, 28, 'F')
-  doc.setTextColor(255, 255, 255)
-  doc.setFontSize(16)
-  doc.text('Interior Estimate', margin, 12)
-  doc.setFontSize(9)
-  doc.text('\xC778\xD14C\xB9AC\xC5B4 \uACAC\xC801\xC11C', margin, 20)
-
-  // ── 프로젝트 정보 ──
-  doc.setTextColor(40, 40, 40)
-  doc.setFontSize(9)
-  let y = 35
-
-  const info = [
-    ['현장명', project.siteName || '-'],
-    ['고객명', project.clientName || '-'],
-    ['담당자', project.manager || '-'],
-    ['작성일', project.date || '-'],
-  ]
-  info.forEach(([label, value]) => {
-    doc.setFont('helvetica', 'bold')
-    doc.text(label, margin, y)
-    doc.setFont('helvetica', 'normal')
-    doc.text(value, margin + 20, y)
-    y += 6
-  })
-
-  y += 4
-  doc.setDrawColor(180, 180, 180)
-  doc.line(margin, y, pageW - margin, y)
-  y += 6
-
-  // ── 실별 견적 테이블 ──
   let grandTotal = 0
 
   rooms.forEach((room, ri) => {
-    const roomRows = []
+    const rows = []
     let roomTotal = 0
 
-    room.surfaces.forEach((sf) => {
+    room.surfaces.forEach(sf => {
       if (!sf.enabled) return
       const result = calcSurfaceCost(room, sf)
       if (!result || result.items.length === 0) return
-
       result.items.forEach((item, idx) => {
-        roomRows.push([
-          idx === 0 ? sf.label : '',
-          item.name,
-          item.spec || '',
-          item.qty,
-          item.unit,
-          item.unitPrice ? Number(item.unitPrice).toLocaleString() : '-',
-          Number(item.cost).toLocaleString(),
-        ])
-        roomTotal += item.cost
+        rows.push({ sfLabel: idx === 0 ? sf.label : '', item })
+        roomTotal += item.cost || 0
       })
     })
 
-    if (roomRows.length === 0) return
-
-    // 실 제목
-    doc.setFontSize(10)
-    doc.setFont('helvetica', 'bold')
-    doc.setTextColor(30, 64, 120)
-    doc.text(`[${ri + 1}] ${room.name}  (${room.widthM}m x ${room.depthM}m x H${room.heightM}m)`, margin, y)
-    y += 4
-
-    autoTable(doc, {
-      startY: y,
-      head: [['면', '자재명', '규격', '수량', '단위', '단가(원)', '금액(원)']],
-      body: roomRows,
-      foot: [['', '', '', '', '', '소계', roomTotal.toLocaleString()]],
-      styles: { fontSize: 8, cellPadding: 2, font: 'helvetica' },
-      headStyles: { fillColor: [60, 100, 160], textColor: 255, fontStyle: 'bold' },
-      footStyles: { fillColor: [220, 230, 245], fontStyle: 'bold', textColor: [30, 64, 120] },
-      columnStyles: {
-        0: { cellWidth: 18 },
-        1: { cellWidth: 38 },
-        2: { cellWidth: 28 },
-        3: { cellWidth: 16, halign: 'right' },
-        4: { cellWidth: 14 },
-        5: { cellWidth: 24, halign: 'right' },
-        6: { cellWidth: 24, halign: 'right' },
-      },
-      margin: { left: margin, right: margin },
-      theme: 'striped',
-    })
-
-    y = doc.lastAutoTable.finalY + 6
+    if (rows.length === 0) return
     grandTotal += roomTotal
 
-    if (y > 260) { doc.addPage(); y = 15 }
+    const dimStr = (room.widthM > 0 && room.depthM > 0)
+      ? ` (${room.widthM}×${room.depthM}×H${room.heightM}m)`
+      : ''
+
+    lines.push(`<div class="section-title">[${ri + 1}] ${room.name}${dimStr}</div>`)
+    lines.push(`<table class="mat">
+      <thead><tr>
+        <th style="width:12%">면</th>
+        <th style="width:26%">자재명</th>
+        <th style="width:18%">규격</th>
+        <th style="width:8%" class="r">수량</th>
+        <th style="width:7%" class="c">단위</th>
+        <th style="width:15%" class="r">단가(원)</th>
+        <th style="width:14%" class="r">금액(원)</th>
+      </tr></thead>
+      <tbody>`)
+
+    rows.forEach(({ sfLabel, item }) => {
+      lines.push(`<tr>
+        <td class="sf-lbl">${sfLabel}</td>
+        <td>${item.name}</td>
+        <td>${item.spec || ''}</td>
+        <td class="r">${item.qty ?? ''}</td>
+        <td class="c">${item.unit || ''}</td>
+        <td class="r">${item.unitPrice ? Number(item.unitPrice).toLocaleString() : '-'}</td>
+        <td class="r">${item.cost > 0 ? Math.round(item.cost).toLocaleString() : '-'}</td>
+      </tr>`)
+    })
+
+    lines.push(`</tbody>
+      <tfoot><tr class="subtot">
+        <td colspan="5" style="text-align:right; font-weight:bold">소 계</td>
+        <td></td>
+        <td class="r">${Math.round(roomTotal).toLocaleString()}</td>
+      </tr></tfoot>
+    </table>`)
   })
 
-  // ── 합계 ──
-  y += 4
-  doc.setDrawColor(30, 64, 120)
-  doc.setLineWidth(0.5)
-  doc.line(margin, y, pageW - margin, y)
-  y += 6
+  lines.push(`<div class="grand">합 계 (재료비): ${Math.round(grandTotal).toLocaleString()} 원</div>`)
 
-  doc.setFontSize(11)
-  doc.setFont('helvetica', 'bold')
-  doc.setTextColor(30, 64, 120)
-  doc.text('TOTAL', margin, y)
-  doc.text(grandTotal.toLocaleString() + ' ' + '\xC6D0', pageW - margin, y, { align: 'right' })
-
-  // ── 푸터 ──
-  const pageCount = doc.internal.getNumberOfPages()
-  for (let i = 1; i <= pageCount; i++) {
-    doc.setPage(i)
-    doc.setFontSize(7)
-    doc.setTextColor(150)
-    doc.text(`${i} / ${pageCount}`, pageW / 2, 292, { align: 'center' })
-  }
-
-  doc.save(`견적서_${project.siteName || '현장'}_${project.date}.pdf`)
+  // ── 새 창에서 출력 ──────────────────────────────
+  const win = window.open('', '_blank', 'width=800,height=900')
+  win.document.write(`<!DOCTYPE html><html><head>
+    <meta charset="utf-8">
+    <title>${project.siteName || '견적서'} 내역서</title>
+    ${lines[0]}
+  </head><body>
+    <div class="no-print" style="padding:10px; text-align:center">
+      <button onclick="window.print()" style="padding:8px 24px; font-size:13px; cursor:pointer; margin-right:8px">🖨️ 인쇄 / PDF 저장</button>
+      <button onclick="window.close()" style="padding:8px 16px; font-size:13px; cursor:pointer">닫기</button>
+    </div>
+    ${lines.slice(1).join('\n')}
+  </body></html>`)
+  win.document.close()
 }

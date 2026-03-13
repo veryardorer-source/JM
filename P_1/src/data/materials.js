@@ -64,18 +64,18 @@ export const WALLPAPER = [
   { id: 'wp_ceil_hanji',name: '장폭합지천정지',     pyungPerRoll: 10, pricePerRoll: 27000, forCeiling: true },
 ]
 
-// 타일 (단위: BOX, 1BOX=1.44㎡)
+// 타일 (단위: BOX, tileW/tileH: mm 단위 타일 크기, tilesPerBox: 박스당 장수)
 export const TILE = [
-  { id: 'tile_1200_600', name: '타일 1200×600', size: '1200×600', areaPerBox: 1.44, pricePerBox: 60000 },
-  { id: 'tile_600_600',  name: '타일 600×600',  size: '600×600',  areaPerBox: 1.44, pricePerBox: 30000 },
-  { id: 'tile_300_600',  name: '타일 300×600',  size: '300×600',  areaPerBox: 1.44, pricePerBox: 30000 },
-  { id: 'tile_250_400',  name: '타일 250×400',  size: '250×400',  areaPerBox: 1.44, pricePerBox: 14000 },
-  { id: 'tile_300_300_c',name: '타일 300×300(중국산)', size: '300×300', areaPerBox: 1.44, pricePerBox: 14000 },
-  { id: 'tile_300_300_k',name: '타일 300×300(국산)',   size: '300×300', areaPerBox: 1.44, pricePerBox: 20000 },
-  { id: 'tile_200_200',  name: '타일 200×200',  size: '200×200',  areaPerBox: 1.44, pricePerBox: 25000 },
-  { id: 'tile_100_300',  name: '타일 100×300',  size: '100×300',  areaPerBox: 1.00, pricePerBox: 15000 },
-  { id: 'tile_100_200',  name: '타일 100×200',  size: '100×200',  areaPerBox: 1.00, pricePerBox: 20000 },
-  { id: 'tile_pabrick',  name: '파벽돌',          size: '기타',      areaPerBox: 1.00, pricePerBox: 25000 },
+  { id: 'tile_1200_600', name: '타일 1200×600', size: '1200×600', tileW: 1200, tileH: 600, tilesPerBox:  2, areaPerBox: 1.44, pricePerBox: 60000 },
+  { id: 'tile_600_600',  name: '타일 600×600',  size: '600×600',  tileW:  600, tileH: 600, tilesPerBox:  4, areaPerBox: 1.44, pricePerBox: 30000 },
+  { id: 'tile_300_600',  name: '타일 300×600',  size: '300×600',  tileW:  300, tileH: 600, tilesPerBox:  8, areaPerBox: 1.44, pricePerBox: 30000 },
+  { id: 'tile_250_400',  name: '타일 250×400',  size: '250×400',  tileW:  250, tileH: 400, tilesPerBox: 14, areaPerBox: 1.44, pricePerBox: 14000 },
+  { id: 'tile_300_300_c',name: '타일 300×300(중국산)', size: '300×300', tileW: 300, tileH: 300, tilesPerBox: 16, areaPerBox: 1.44, pricePerBox: 14000 },
+  { id: 'tile_300_300_k',name: '타일 300×300(국산)',   size: '300×300', tileW: 300, tileH: 300, tilesPerBox: 16, areaPerBox: 1.44, pricePerBox: 20000 },
+  { id: 'tile_200_200',  name: '타일 200×200',  size: '200×200',  tileW:  200, tileH: 200, tilesPerBox: 36, areaPerBox: 1.44, pricePerBox: 25000 },
+  { id: 'tile_100_300',  name: '타일 100×300',  size: '100×300',  tileW:  100, tileH: 300, tilesPerBox: 33, areaPerBox: 1.00, pricePerBox: 15000 },
+  { id: 'tile_100_200',  name: '타일 100×200',  size: '100×200',  tileW:  100, tileH: 200, tilesPerBox: 50, areaPerBox: 1.00, pricePerBox: 20000 },
+  { id: 'tile_pabrick',  name: '파벽돌',          size: '기타',                                               areaPerBox: 1.00, pricePerBox: 25000 },
 ]
 
 // 바닥재 (단위: ㎡ 또는 BOX)
@@ -151,12 +151,13 @@ export const ETC_WOOD = [
 
 export const LIGHTING_TYPES = [
   '매입등 3"', '매입등 4"', '매입등 6"',
-  '직부등', 'T5', 'T7',
-  '면조명 300×1200', '면조명 600×600', '펜던트', '벽등', '기타',
+  '라인조명 T5', '라인조명 T7',
+  '평판등 300×1200', '평판등 600×600',
+  '펜던트', '벽등', '기타',
 ]
 
-export const WRAPPING_WIDTHS = [30, 40, 50, 60, 80, 90, 100, 120, 150, 200]
-export const WRAPPING_BOARD_LENGTH_M = 2.44  // 랩핑평판 1EA 길이
+export const WRAPPING_WIDTHS = [30, 45, 60, 80, 100, 120, 150, 200, 250, 300, 400, 600]
+export const WRAPPING_BOARD_LENGTH_M = 2.4   // 랩핑평판 1EA 길이 (2400mm)
 
 // ─────────────────────────────────────────────
 // 마감재 타입별 자동 레이어 규칙
