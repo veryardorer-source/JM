@@ -20,6 +20,98 @@ function getTrade(name) {
 
 const TRADE_ORDER = ['가설작업','설비작업','목작업','전기통신작업','소방작업','수장작업','창호작업','가구','기타']
 
+function getSfLabel(sf) {
+  const DIR = {
+    wallA:'벽A', wallB:'벽B', wallC:'벽C', wallD:'벽D',
+    wallN:'벽A', wallS:'벽B', wallE:'벽C', wallW:'벽D',
+    floor:'바닥', ceiling:'천장', wallExtra:'추가벽',
+  }
+  return sf.label || DIR[sf.direction] || sf.direction || ''
+}
+
+// ── 공통: 공종별 항목 그룹화 ─────────────────────────────
+// makeTradeSheet / makeDetailSheet 양쪽에서 동일하게 사용
+function buildTradeGroups(roomDataList, globalItems) {
+  const groups = {}
+  TRADE_ORDER.forEach(t => { groups[t] = [] })
+
+  roomDataList.forEach(rd => {
+    const roomLabel = rd.room.name
+
+    // 면 자재 항목
+    ;(rd.surfaceData || []).forEach(({ sf, items }) => {
+      items.forEach(item => {
+        const trade = getTrade(item.name)
+        if (!groups[trade]) groups[trade] = []
+        groups[trade].push({
+          name: item.name, spec: item.spec || '', unit: item.unit,
+          qty: item.qty, matU: item.unitPrice || 0, matT: item.cost || 0,
+          remark: `${roomLabel} ${getSfLabel(sf)}`,
+        })
+      })
+    })
+
+    // 칸막이벽 구조 자재 항목
+    ;(rd.partitionData || []).forEach(({ partition, items }) => {
+      items.forEach(item => {
+        const trade = getTrade(item.name)
+        if (!groups[trade]) groups[trade] = []
+        groups[trade].push({
+          name: item.name, spec: item.spec || '', unit: item.unit,
+          qty: item.qty, matU: item.unitPrice || 0, matT: item.cost || 0,
+          remark: `${roomLabel} ${partition.name || '칸막이'}`,
+        })
+      })
+    })
+
+    // 도어 항목
+    ;(rd.doorItems || []).forEach(item => {
+      groups['창호작업'].push({
+        name: item.name, spec: '', unit: item.unit,
+        qty: item.qty, matU: item.unitPrice || 0, matT: item.cost || 0,
+        remark: roomLabel,
+      })
+    })
+
+    // 조명 항목 (단가 미산출)
+    ;(rd.lightingItems || []).forEach(item => {
+      const isLine = item.name.includes('T5') || item.name.includes('T7')
+      const spec = isLine ? `${Math.round((item.lengthM || 0) * 1000)}mm` : (item.spec || '')
+      groups['전기통신작업'].push({
+        name: item.name, spec, unit: isLine ? 'm' : 'EA',
+        qty: isLine ? (item.lengthM || 0) : (item.qty || 0),
+        matU: 0, matT: 0, remark: roomLabel,
+      })
+    })
+
+    // 랩핑평판(몰딩) 항목 (단가 미산출)
+    ;(rd.moldingItems || []).forEach(item => {
+      groups['목작업'].push({
+        name: item.name, spec: '', unit: 'EA',
+        qty: item.qty || 0, matU: 0, matT: 0,
+        remark: `${roomLabel} ${(item.lengthM || 0).toFixed(2)}m`,
+      })
+    })
+  })
+
+  // 공통 항목 (글로벌)
+  ;(globalItems || []).forEach(gi => {
+    if (!gi.enabled || !gi.name) return
+    const trade = gi.trade || '기타'
+    if (!groups[trade]) groups[trade] = []
+    groups[trade].push({
+      name: gi.name, spec: gi.spec || '', unit: gi.unit,
+      qty: gi.qty || 0,
+      matU: gi.matUnitPrice || 0, matT: (gi.matUnitPrice || 0) * (gi.qty || 0),
+      labU: gi.labUnitPrice || 0, labT: (gi.labUnitPrice || 0) * (gi.qty || 0),
+      expU: gi.expUnitPrice || 0, expT: (gi.expUnitPrice || 0) * (gi.qty || 0),
+      remark: gi.remark || '', isGlobal: true,
+    })
+  })
+
+  return groups
+}
+
 // ── 스타일 헬퍼 ──────────────────────────────
 const CLR = {
   headerBg:  '1E4078', headerFg: 'FFFFFF',
@@ -51,7 +143,7 @@ function styleCell(cell, { fill, bold, size, color, fgColor, align, numFmt, bord
 
 function numCell(ws, r, c, val, opts = {}) {
   const cell = ws.getCell(r, c)
-  cell.value = val || 0
+  cell.value = (val == null ? 0 : val)
   styleCell(cell, { numFmt: '#,##0', align: 'right', ...opts })
 }
 function txtCell(ws, r, c, val, opts = {}) {
@@ -69,27 +161,18 @@ function inputCell(ws, r, c, opts = {}) {
   cell.value = 0
   styleCell(cell, { numFmt: '#,##0', align: 'right', fill: CLR.inputBg, ...opts })
 }
-function emptyRow(ws, r, cols = 9) {
-  for (let c = 1; c <= cols; c++) {
-    const cell = ws.getCell(r, c)
-    cell.value = ''
-    cell.border = mkBorder()
-  }
-}
 
 // ── 시트1: 내역서(요약) ───────────────────────
 function makeSummarySheet(wb, project, matTotal) {
   const ws = wb.addWorksheet('내역서(요약)')
   ws.properties.defaultRowHeight = 16
 
-  // 컬럼 너비: A품명 B규격 C수량 D단위 E재료비 F노무비 G경비 H합계 I비고
   ws.columns = [
     { width: 18 }, { width: 12 }, { width: 7 }, { width: 6 },
     { width: 14 }, { width: 14 }, { width: 14 }, { width: 14 }, { width: 14 },
   ]
 
   let r = 1
-  // 타이틀
   ws.mergeCells(r, 1, r, 9)
   const titleCell = ws.getCell(r, 1)
   titleCell.value = '내  역  서'
@@ -98,7 +181,6 @@ function makeSummarySheet(wb, project, matTotal) {
   ws.getRow(r).height = 32
   r++; r++
 
-  // 프로젝트 정보
   const now = new Date()
   const dateStr = `${now.getFullYear()}년 ${now.getMonth()+1}월 ${now.getDate()}일`
   const info = [
@@ -117,12 +199,10 @@ function makeSummarySheet(wb, project, matTotal) {
   })
   r++
 
-  // "아래와 같이 견적합니다."
   ws.mergeCells(r, 1, r, 9)
   txtCell(ws, r, 1, '아래와 같이 견적합니다.', { bold: true })
   r++; r++
 
-  // 테이블 헤더
   const hdrs = ['품  명','규  격','수 량','단위','재  료  비','노  무  비','경  비','합  계','비  고']
   hdrs.forEach((h, i) => {
     const cell = ws.getCell(r, i + 1)
@@ -132,20 +212,18 @@ function makeSummarySheet(wb, project, matTotal) {
   ws.getRow(r).height = 20
   r++
 
-  // 순공사비 행
   const sunRow = r
   ws.mergeCells(r, 1, r, 2)
   txtCell(ws, r, 1, '순 공 사 비', { fill: CLR.tradeBg, bold: true, align: 'center' })
   numCell(ws, r, 3, 1, { fill: CLR.tradeBg, align: 'center' })
   txtCell(ws, r, 4, '식', { fill: CLR.tradeBg, align: 'center' })
   numCell(ws, r, 5, matTotal, { fill: CLR.tradeBg, bold: true })
-  inputCell(ws, r, 6)  // 노무비 입력
-  inputCell(ws, r, 7)  // 경비 입력
+  inputCell(ws, r, 6)
+  inputCell(ws, r, 7)
   fmtCell(ws, r, 8, `E${r}+F${r}+G${r}`, { fill: CLR.tradeBg })
   txtCell(ws, r, 9, '', { fill: CLR.tradeBg })
   r += 4
 
-  // 직접공사비 계
   const 직접Row = r
   ws.mergeCells(r, 1, r, 4)
   txtCell(ws, r, 1, '직 접 공 사 비 계', { fill: CLR.subtotalBg, bold: true, align: 'center' })
@@ -156,7 +234,6 @@ function makeSummarySheet(wb, project, matTotal) {
   txtCell(ws, r, 9, '', { fill: CLR.subtotalBg })
   r++
 
-  // 간접비 항목
   const indirect = [
     ['고용보험',    '1.01%', `ROUND(F${sunRow}*0.0101,0)`],
     ['산재보험',    '3.56%', `ROUND(F${sunRow}*0.0356,0)`],
@@ -175,7 +252,6 @@ function makeSummarySheet(wb, project, matTotal) {
     r++
   })
 
-  // 간접공사비 계
   const 간접Row = r
   const indSum = `SUM(${indirectRows.slice(0,4).map(ir=>`H${ir}`).join(',')})`
   ws.mergeCells(r, 1, r, 7)
@@ -185,7 +261,6 @@ function makeSummarySheet(wb, project, matTotal) {
   txtCell(ws, r, 9, '', { fill: CLR.subtotalBg })
   r++
 
-  // 총공사비
   const 총Row = r
   ws.mergeCells(r, 1, r, 7)
   txtCell(ws, r, 1, '총  공  사  비', { bold: true, align: 'center' })
@@ -194,7 +269,6 @@ function makeSummarySheet(wb, project, matTotal) {
   txtCell(ws, r, 9, '')
   r++
 
-  // 부가세
   const 부가Row = r
   ws.mergeCells(r, 1, r, 2)
   txtCell(ws, r, 1, '부  가  세', { align: 'center' })
@@ -205,7 +279,6 @@ function makeSummarySheet(wb, project, matTotal) {
   txtCell(ws, r, 9, '')
   r++
 
-  // 합계
   ws.mergeCells(r, 1, r, 7)
   txtCell(ws, r, 1, '[  합  계  ]', { fill: CLR.grandBg, bold: true, size: 12, align: 'center' })
   for (let c = 2; c <= 7; c++) txtCell(ws, r, c, '', { fill: CLR.grandBg })
@@ -214,14 +287,14 @@ function makeSummarySheet(wb, project, matTotal) {
   ws.getRow(r).height = 22
   r++; r++
 
-  // 특기사항
   ws.mergeCells(r, 1, r, 9)
   ws.getCell(r, 1).value = '특기사항 :'
   ws.getCell(r, 1).font = mkFont(false, 10)
 }
 
 // ── 시트2: 공종별 집계표 ──────────────────────
-function makeTradeSheet(wb, tradeMap) {
+// tradeGroups: buildTradeGroups() 결과 (공종 → 항목 배열)
+function makeTradeSheet(wb, tradeGroups) {
   const ws = wb.addWorksheet('공종별집계')
   ws.properties.defaultRowHeight = 16
   ws.columns = [
@@ -251,26 +324,29 @@ function makeTradeSheet(wb, tradeMap) {
 
   const dataRows = []
   TRADE_ORDER.forEach(trade => {
-    const mat = tradeMap[trade] || 0
-    if (mat === 0) return
+    const items = tradeGroups[trade] || []
+    if (items.length === 0) return
+    const matTotal = items.reduce((s, i) => s + (i.matT || 0), 0)
+    const labTotal = items.reduce((s, i) => s + (i.labT || 0), 0)
+    const expTotal = items.reduce((s, i) => s + (i.expT || 0), 0)
+
     txtCell(ws, r, 1, trade, { fill: CLR.tradeBg, bold: true })
     txtCell(ws, r, 2, '', { fill: CLR.tradeBg, align: 'center' })
     txtCell(ws, r, 3, '식', { fill: CLR.tradeBg, align: 'center' })
     numCell(ws, r, 4, 1, { fill: CLR.tradeBg, align: 'center' })
-    numCell(ws, r, 5, mat, { fill: CLR.tradeBg })
-    numCell(ws, r, 6, mat, { fill: CLR.tradeBg, bold: true })
-    inputCell(ws, r, 7)   // 노무비 단가
-    inputCell(ws, r, 8)   // 노무비 금액
-    inputCell(ws, r, 9)   // 경비 단가
-    inputCell(ws, r, 10)  // 경비 금액
-    fmtCell(ws, r, 11, `E${r}+G${r}+I${r}`)
-    fmtCell(ws, r, 12, `F${r}+H${r}+J${r}`)
-    txtCell(ws, r, 13, '')
+    numCell(ws, r, 5, matTotal, { fill: CLR.tradeBg })
+    numCell(ws, r, 6, matTotal, { fill: CLR.tradeBg, bold: true })
+    numCell(ws, r, 7, labTotal, { fill: CLR.tradeBg })
+    numCell(ws, r, 8, labTotal, { fill: CLR.tradeBg })
+    numCell(ws, r, 9, expTotal, { fill: CLR.tradeBg })
+    numCell(ws, r, 10, expTotal, { fill: CLR.tradeBg })
+    fmtCell(ws, r, 11, `E${r}+G${r}+I${r}`, { fill: CLR.tradeBg })
+    fmtCell(ws, r, 12, `F${r}+H${r}+J${r}`, { fill: CLR.tradeBg })
+    txtCell(ws, r, 13, '', { fill: CLR.tradeBg })
     dataRows.push(r)
     r++
   })
 
-  // 합계
   ws.mergeCells(r, 1, r, 3)
   txtCell(ws, r, 1, '합  계', { fill: CLR.subtotalBg, bold: true, align: 'center' })
   for (let c = 2; c <= 13; c++) txtCell(ws, r, c, '', { fill: CLR.subtotalBg })
@@ -284,7 +360,8 @@ function makeTradeSheet(wb, tradeMap) {
 }
 
 // ── 시트3: 내역서(상세) ───────────────────────
-function makeDetailSheet(wb, roomDataList, globalItems) {
+// tradeGroups: buildTradeGroups() 결과
+function makeDetailSheet(wb, tradeGroups) {
   const ws = wb.addWorksheet('내역서(상세)')
   ws.properties.defaultRowHeight = 15
   ws.columns = [
@@ -314,61 +391,6 @@ function makeDetailSheet(wb, roomDataList, globalItems) {
   ws.getRow(r).height = 28
   r++
 
-  // 공종별 그룹화
-  const tradeGroups = {}
-  TRADE_ORDER.forEach(t => { tradeGroups[t] = [] })
-
-  roomDataList.forEach(rd => {
-    const roomLabel = rd.room.name
-    rd.surfaceData.forEach(({ sf, items }) => {
-      items.forEach(item => {
-        const trade = getTrade(item.name)
-        if (!tradeGroups[trade]) tradeGroups[trade] = []
-        tradeGroups[trade].push({
-          name: item.name, spec: item.spec || '', unit: item.unit,
-          qty: item.qty, matU: item.unitPrice || 0, matT: item.cost || 0,
-          remark: `${roomLabel} ${sf.label}`,
-        })
-      })
-    })
-    rd.doorItems.forEach(item => {
-      tradeGroups['창호작업'].push({
-        name: item.name, spec: '', unit: item.unit,
-        qty: item.qty, matU: item.unitPrice || 0, matT: item.cost || 0,
-        remark: roomLabel,
-      })
-    })
-    rd.lightingItems.forEach(item => {
-      const lineTypes = ['라인조명 T5', '라인조명 T7']
-      const spec = lineTypes.includes(item.name) ? `${Math.round(item.lengthM * 1000)}mm` : (item.spec || '')
-      tradeGroups['전기통신작업'].push({
-        name: item.name, spec, unit: 'EA',
-        qty: item.qty, matU: 0, matT: 0, remark: roomLabel,
-      })
-    })
-    rd.moldingItems.forEach(item => {
-      tradeGroups['목작업'].push({
-        name: item.name, spec: '', unit: 'EA',
-        qty: item.qty, matU: 0, matT: 0,
-        remark: `${roomLabel} ${item.lengthM?.toFixed(2)}m`,
-      })
-    })
-  })
-
-  ;(globalItems || []).forEach(gi => {
-    if (!gi.enabled || !gi.name) return
-    const trade = gi.trade || '기타'
-    if (!tradeGroups[trade]) tradeGroups[trade] = []
-    tradeGroups[trade].push({
-      name: gi.name, spec: gi.spec || '', unit: gi.unit,
-      qty: gi.qty || 0,
-      matU: gi.matUnitPrice || 0, matT: (gi.matUnitPrice||0)*(gi.qty||0),
-      labU: gi.labUnitPrice || 0, labT: (gi.labUnitPrice||0)*(gi.qty||0),
-      expU: gi.expUnitPrice || 0, expT: (gi.expUnitPrice||0)*(gi.qty||0),
-      remark: gi.remark || '', isGlobal: true,
-    })
-  })
-
   const subtotalRefs = {}
   let tradeNum = 1
 
@@ -392,25 +414,33 @@ function makeDetailSheet(wb, roomDataList, globalItems) {
       txtCell(ws, r, 3, item.spec || '')
       txtCell(ws, r, 4, item.unit, { align: 'center' })
       numCell(ws, r, 5, item.qty, { align: 'center' })
-      item.matU > 0 ? numCell(ws, r, 6, item.matU) : txtCell(ws, r, 6, '-', { align: 'center' })
-      item.matT > 0 ? numCell(ws, r, 7, item.matT) : txtCell(ws, r, 7, '-', { align: 'center' })
-      if (item.isGlobal && item.labU > 0) {
-        numCell(ws, r, 8, item.labU); numCell(ws, r, 9, item.labT)
+      // 재료비
+      numCell(ws, r, 6, item.matU || 0)
+      numCell(ws, r, 7, item.matT || 0)
+      // 노무비
+      if (item.isGlobal && (item.labU || 0) > 0) {
+        numCell(ws, r, 8, item.labU)
+        numCell(ws, r, 9, item.labT)
       } else {
-        txtCell(ws, r, 8, '-', { align: 'center' }); txtCell(ws, r, 9, '-', { align: 'center' })
+        numCell(ws, r, 8, 0)
+        numCell(ws, r, 9, 0)
       }
-      if (item.isGlobal && item.expU > 0) {
-        numCell(ws, r, 10, item.expU); numCell(ws, r, 11, item.expT)
+      // 경비
+      if (item.isGlobal && (item.expU || 0) > 0) {
+        numCell(ws, r, 10, item.expU)
+        numCell(ws, r, 11, item.expT)
       } else {
-        txtCell(ws, r, 10, '-', { align: 'center' }); txtCell(ws, r, 11, '-', { align: 'center' })
+        numCell(ws, r, 10, 0)
+        numCell(ws, r, 11, 0)
       }
-      txtCell(ws, r, 12, '-', { align: 'center' })
-      txtCell(ws, r, 13, '-', { align: 'center' })
+      // 합계 수식
+      fmtCell(ws, r, 12, `F${r}+H${r}+J${r}`)
+      fmtCell(ws, r, 13, `G${r}+I${r}+K${r}`)
       txtCell(ws, r, 14, item.remark || '')
       r++
     })
 
-    // 노무비 입력행 (자재 항목만)
+    // 노무비 입력행 (자재 항목 있을 때)
     const hasManual = items.some(it => !it.isGlobal)
     if (hasManual) {
       itemRows.push(r)
@@ -419,7 +449,8 @@ function makeDetailSheet(wb, roomDataList, globalItems) {
       txtCell(ws, r, 3, '', { fill: CLR.inputBg })
       txtCell(ws, r, 4, '인', { fill: CLR.inputBg, align: 'center' })
       inputCell(ws, r, 5)
-      txtCell(ws, r, 6, '-', { align: 'center' }); txtCell(ws, r, 7, '-', { align: 'center' })
+      numCell(ws, r, 6, 0)
+      numCell(ws, r, 7, 0)
       inputCell(ws, r, 8)
       fmtCell(ws, r, 9, `H${r}*E${r}`)
       inputCell(ws, r, 10)
@@ -450,41 +481,31 @@ function makeDetailSheet(wb, roomDataList, globalItems) {
     r++; r++
   })
 
-  // 합계 행
+  // 전체 합계 행
   const subRows = Object.values(subtotalRefs)
   const mk = col => subRows.length > 0 ? `SUM(${subRows.map(sr=>`${col}${sr}`).join(',')})` : '0'
   ws.mergeCells(r, 1, r, 5)
-  txtCell(ws, r, 1, '[합  계]', { fill: CLR.subtotalBg, bold: true, align: 'center' })
-  for (let c = 2; c <= 5; c++) txtCell(ws, r, c, '', { fill: CLR.subtotalBg })
+  txtCell(ws, r, 1, '[합  계]', { fill: CLR.grandBg, bold: true, align: 'center' })
+  for (let c = 2; c <= 5; c++) txtCell(ws, r, c, '', { fill: CLR.grandBg })
   ;['F','G','H','I','J','K','L','M'].forEach((col, i) => {
-    fmtCell(ws, r, 6 + i, mk(col), { fill: CLR.subtotalBg })
+    fmtCell(ws, r, 6 + i, mk(col), { fill: CLR.grandBg, bold: true })
   })
-  txtCell(ws, r, 14, '', { fill: CLR.subtotalBg })
+  txtCell(ws, r, 14, '', { fill: CLR.grandBg })
 }
 
 // ── 메인 내보내기 ─────────────────────────────
 export async function exportToExcel(project, roomDataList, grandAggregate, grandTotal, globalItems) {
   try {
-    const tradeMap = {}
-    TRADE_ORDER.forEach(t => { tradeMap[t] = 0 })
-    roomDataList.forEach(rd => {
-      rd.surfaceData.forEach(({ items }) =>
-        items.forEach(i => { const t = getTrade(i.name); tradeMap[t] = (tradeMap[t]||0) + i.cost })
-      )
-      rd.doorItems.forEach(d => { tradeMap['창호작업'] = (tradeMap['창호작업']||0) + d.cost })
-    })
-    ;(globalItems||[]).forEach(gi => {
-      if (!gi.enabled || !gi.name) return
-      tradeMap[gi.trade||'기타'] = (tradeMap[gi.trade||'기타']||0) + (gi.matUnitPrice||0)*(gi.qty||0)
-    })
+    // 공종별 그룹 (시트2·3 공통 사용)
+    const tradeGroups = buildTradeGroups(roomDataList, globalItems)
 
     const wb = new ExcelJS.Workbook()
     wb.creator = 'JM건축인테리어'
     wb.created = new Date()
 
     makeSummarySheet(wb, project, grandTotal)
-    makeTradeSheet(wb, tradeMap)
-    makeDetailSheet(wb, roomDataList, globalItems)
+    makeTradeSheet(wb, tradeGroups)
+    makeDetailSheet(wb, tradeGroups)
 
     const siteName = project.siteName || '견적'
     const dateStr = new Date().toISOString().slice(0,10).replace(/-/g,'')
