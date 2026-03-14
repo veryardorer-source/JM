@@ -213,8 +213,11 @@ export function calcSurfaceCost(room, sf) {
         filmGroups[key].cost += sec.sectionCost
       })
       Object.values(filmGroups).forEach(group => {
+        const displayName = group.filmName === '인테리어필름'
+          ? '인테리어필름'
+          : `인테리어필름(${group.filmName})`
         items.push({
-          name: group.filmName,
+          name: displayName,
           spec: sf.label,
           surfaceLabel: sf.label,
           sections: group.sections,
