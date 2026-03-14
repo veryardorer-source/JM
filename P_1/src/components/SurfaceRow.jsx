@@ -136,22 +136,6 @@ export default function SurfaceRow({ room, sf }) {
             </select>
           </label>
         )}
-        {/* 칸막이벽 옵션 (벽면만) */}
-        {isWall && sf.finishType !== 'none' && (
-          <label style={styles.inlineLabel}>벽 구조
-            <select value={sf.wallType || 'normal'} onChange={e => upd({ wallType: e.target.value })} style={styles.selectSm}>
-              <option value="normal">일반벽</option>
-              <option value="partition">칸막이벽 (합판 포함)</option>
-            </select>
-          </label>
-        )}
-        {isWall && sf.wallType === 'partition' && (
-          <label style={styles.inlineLabel}>합판 종류
-            <select value={sf.hapanId || 'hp_normal_11'} onChange={e => upd({ hapanId: e.target.value })} style={styles.selectSm}>
-              {HAPAN.map(h => <option key={h.id} value={h.id}>{h.name}</option>)}
-            </select>
-          </label>
-        )}
         {/* 흡음재 옵션 (벽면만) */}
         {isWall && sf.finishType !== 'none' && (
           <label style={styles.inlineLabel}>흡음재

@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { useStore } from '../store/useStore.js'
 import { calcSurfaceCost } from '../utils/surfaceCost.js'
+import { calcPartitionCost } from '../utils/partitionCost.js'
 import { generatePDF } from '../utils/pdfGenerator.js'
 import { calcMoldingLengthM, calcMoldingEA } from '../utils/molding.js'
 import { calcLinearCombo } from '../utils/calculations.js'
@@ -79,17 +80,20 @@ export default function Summary() {
     // 조명 항목
     const lightingItems = (room.lightings || [])
       .filter(l => l.qty > 0)
-      .map(l => ({
-        name: l.type,
-        spec: l.spec || '',
-        qty: l.qty,
-        unit: 'EA',
-        lengthM: l.lengthM || 0,
-        totalLengthMm: l.totalLengthMm || 0,
-        unitPrice: 0,
-        cost: 0,
-        isLighting: true,
-      }))
+      .map(l => {
+        const totalLengthMm = (l.totalLengthMm > 0 ? l.totalLengthMm : (l.lengthM || 0) * 1000)
+        return {
+          name: l.type,
+          spec: l.spec || '',
+          qty: l.qty,
+          unit: 'EA',
+          lengthM: l.lengthM || 0,
+          totalLengthMm,
+          unitPrice: 0,
+          cost: 0,
+          isLighting: true,
+        }
+      })
 
     // 랩핑평판(몰딩) 항목 - 벽면 + 가벽
     const wallMoldings = (room.moldings || []).map(m => {
@@ -106,13 +110,22 @@ export default function Summary() {
     )
     const moldingItems = [...wallMoldings, ...partMoldings].filter(m => m.qty > 0)
 
-    const allItems = [...surfaceData.flatMap(d => d.items), ...doorItems, ...lightingItems, ...moldingItems]
+    // 칸막이벽 항목
+    const partitionData = (room.partitions || [])
+      .map(p => {
+        const result = calcPartitionCost(room, p)
+        return { partition: p, items: result.items, total: result.total }
+      })
+      .filter(pd => pd.items.length > 0)
+
+    const allItems = [...surfaceData.flatMap(d => d.items), ...doorItems, ...lightingItems, ...moldingItems, ...partitionData.flatMap(pd => pd.items)]
     const roomAggregate = aggregateItems(allItems)
     const roomTotal = surfaceData.reduce((s, d) => s + d.total, 0)
       + doorItems.reduce((s, d) => s + d.cost, 0)
+      + partitionData.reduce((s, pd) => s + pd.total, 0)
 
-    return { room, surfaceData, doorItems, lightingItems, moldingItems, roomAggregate, roomTotal }
-  }).filter(r => r.surfaceData.length > 0 || r.doorItems.length > 0 || r.lightingItems.length > 0 || r.moldingItems.length > 0)
+    return { room, surfaceData, doorItems, lightingItems, moldingItems, partitionData, roomAggregate, roomTotal }
+  }).filter(r => r.surfaceData.length > 0 || r.doorItems.length > 0 || r.lightingItems.length > 0 || r.moldingItems.length > 0 || r.partitionData.length > 0)
 
   const grandAggregate = aggregateItems(roomData.flatMap(r => r.roomAggregate))
   const grandTotal = roomData.reduce((s, r) => s + r.roomTotal, 0)
@@ -138,7 +151,7 @@ export default function Summary() {
       ) : (
         <>
           {/* ── 실별 블록 ── */}
-          {roomData.map(({ room, surfaceData, doorItems, lightingItems, moldingItems, roomAggregate, roomTotal }) => (
+          {roomData.map(({ room, surfaceData, doorItems, lightingItems, moldingItems, partitionData, roomAggregate, roomTotal }) => (
             <div key={room.id} style={s.roomBlock}>
               {/* 실 헤더 */}
               <div style={s.roomHeader} onClick={() => toggleRoom(room.id)}>
@@ -232,7 +245,7 @@ export default function Summary() {
                       <table style={s.table}>
                         <tbody>
                           {lightingItems.map((item, i) => {
-                            const isLinear = item.name.startsWith('T5') || item.name.startsWith('T7')
+                            const isLinear = item.name.includes('T5') || item.name.includes('T7')
                             const combo = isLinear && item.totalLengthMm > 0
                               ? calcLinearCombo(item.totalLengthMm) : null
                             return (
@@ -264,6 +277,33 @@ export default function Summary() {
                       </table>
                     </div>
                   )}
+
+                  {/* 칸막이벽 */}
+                  {partitionData.length > 0 && partitionData.map(({ partition, items, total }) => (
+                    <div key={partition.id} style={s.surfaceBlock}>
+                      <div style={{ ...s.surfaceHeader, borderLeftColor: '#4a9a6a' }}>
+                        <span style={s.collapseIconSm}>―</span>
+                        <span style={s.surfaceName}>칸막이 {partition.name}</span>
+                        <span style={s.surfaceCostHint}>{partition.lengthM}m × H{partition.heightM > 0 ? partition.heightM : room.heightM}m</span>
+                        {total > 0 && <span style={{ ...s.surfaceCostHint, marginLeft: 'auto' }}>{Math.round(total).toLocaleString()}원</span>}
+                      </div>
+                      <table style={s.table}>
+                        <tbody>
+                          {items.map((item, i) => (
+                            <tr key={i} style={s.itemRow}>
+                              <td style={s.tdName}>
+                                <span style={{ ...s.filmBadge, background: '#4a9a6a' }}>칸막이</span>
+                                {item.name}
+                                {item.spec ? <span style={s.spec}> {item.spec}</span> : ''}
+                              </td>
+                              <td style={s.tdQty}>{item.qty > 0 ? `${item.qty} ${item.unit}` : '-'}</td>
+                              <td style={s.tdCost}>{item.cost > 0 ? Math.round(item.cost).toLocaleString() : '-'}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  ))}
 
                   {/* 실 자재 합계 */}
                   <div style={s.aggBlock}>

@@ -5,7 +5,7 @@ import Summary from './components/Summary.jsx'
 import GlobalItems from './components/GlobalItems.jsx'
 
 export default function App() {
-  const { rooms, addRoom } = useStore()
+  const { rooms, addRoom, loadSampleData } = useStore()
 
   return (
     <div style={styles.wrap}>
@@ -14,6 +14,7 @@ export default function App() {
         <div style={styles.headerInner}>
           <h1 style={styles.logo}>인테리어 견적 프로그램</h1>
           <span style={styles.version}>v1.0</span>
+          <button onClick={loadSampleData} style={styles.sampleBtn}>샘플 데이터</button>
         </div>
       </header>
 
@@ -78,6 +79,12 @@ const styles = {
   },
   sectionTitle: {
     fontSize: 14, fontWeight: 700, color: '#333',
+  },
+  sampleBtn: {
+    marginLeft: 'auto',
+    fontSize: 11, padding: '4px 10px',
+    background: 'rgba(255,255,255,0.15)', color: '#fff',
+    border: '1px solid rgba(255,255,255,0.3)', borderRadius: 4, cursor: 'pointer',
   },
   addBtn: {
     fontSize: 12, padding: '6px 14px',

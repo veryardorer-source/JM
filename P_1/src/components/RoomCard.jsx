@@ -3,6 +3,7 @@ import { useStore } from '../store/useStore.js'
 import SurfaceRow from './SurfaceRow.jsx'
 import { calcSurfaceCost } from '../utils/surfaceCost.js'
 import LightingSection from './LightingSection.jsx'
+import PartitionSection from './PartitionSection.jsx'
 
 const DOOR_TYPES = [
   '방문', 'ABS도어', '강화도어', '양문형도어', '양개문',
@@ -105,6 +106,9 @@ export default function RoomCard({ room }) {
               </div>
             )}
           </div>
+
+          {/* 신규 칸막이벽 */}
+          <PartitionSection room={room} />
 
           {/* 조명 – 실 하단 */}
           <LightingSection room={room} />

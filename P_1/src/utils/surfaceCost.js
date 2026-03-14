@@ -108,20 +108,6 @@ export function calcSurfaceCost(room, sf) {
     })
   }
 
-  // ── 합판 (칸막이벽) ─────────────────────────────
-  if (isWall && sf.wallType === 'partition') {
-    const hapan = HAPAN.find(h => h.id === sf.hapanId) || HAPAN.find(h => h.id === 'hp_normal_11')
-    const { sheets, cost } = calcBoard(area, hapan.areaPerSheet, hapan.pricePerSheet)
-    items.push({
-      name: hapan.name,
-      spec: '',
-      qty: sheets,
-      unit: '장',
-      unitPrice: hapan.pricePerSheet,
-      cost,
-    })
-  }
-
   // ── 흡음재 ──────────────────────────────────────
   if (sf.insulationType && sf.insulationType !== 'none') {
     const ins = INSULATION.find(i => i.id === sf.insulationType)

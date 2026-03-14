@@ -403,6 +403,111 @@ export const useStore = create(
         }
       ),
     })),
+
+  // 칸막이벽 CRUD
+  addPartition: (roomId) =>
+    set((s) => ({
+      rooms: s.rooms.map((r) =>
+        r.id !== roomId ? r : {
+          ...r,
+          partitions: [...(r.partitions || []), {
+            id: `part_${Date.now()}_${Math.random()}`,
+            name: `칸막이 ${(r.partitions || []).length + 1}`,
+            lengthM: 0,
+            heightM: 0,       // 0 = 실 마감높이 사용
+            hapanId: 'hp_normal_4',
+            finishType: 'none',
+            finishMaterialId: '',
+            seokgoType: 'sg_normal',
+            mdfId: 'mdf_9',
+            insulationType: 'none',
+            filmPricePerM: 5000,
+            moldings: [],
+          }],
+        }
+      ),
+    })),
+
+  updatePartition: (roomId, partitionId, fields) =>
+    set((s) => ({
+      rooms: s.rooms.map((r) =>
+        r.id !== roomId ? r : {
+          ...r,
+          partitions: (r.partitions || []).map((p) =>
+            p.id !== partitionId ? p : { ...p, ...fields }
+          ),
+        }
+      ),
+    })),
+
+  deletePartition: (roomId, partitionId) =>
+    set((s) => ({
+      rooms: s.rooms.map((r) =>
+        r.id !== roomId ? r : {
+          ...r,
+          partitions: (r.partitions || []).filter((p) => p.id !== partitionId),
+        }
+      ),
+    })),
+
+  // 테스트 데이터 불러오기
+  loadSampleData: () => set(() => ({
+    project: {
+      siteName: '샘플 현장 (테스트용)',
+      clientName: '홍길동',
+      manager: '김담당',
+      date: new Date().toISOString().slice(0, 10),
+    },
+    rooms: [
+      {
+        id: 'sample_room_1',
+        name: '사무실',
+        widthM: 5,
+        depthM: 4,
+        heightM: 2.4,
+        slabHeightM: 2.7,
+        doors: [
+          { id: 'sample_door_1', type: '방문', widthM: 0.9, heightM: 2.1, qty: 1, unitPrice: 150000 },
+        ],
+        lightings: [
+          { id: 'sample_light_1', type: '매입등 3"', spec: 'LED 7W', qty: 6, lengthM: 0, totalLengthMm: 0 },
+          { id: 'sample_light_2', type: '라인조명 T5', spec: '', qty: 2, lengthM: 0, totalLengthMm: 2400 },
+        ],
+        moldings: [],
+        surfaces: [
+          { id: 'sf_s1_floor',   label: '바닥',  direction: 'floor',   finishType: 'flooring', finishMaterialId: 'fl_deco_600', seokgoType: 'sg_normal', mdfId: 'mdf_9', filmPricePerM: 5000, filmSections: [], wallType: 'normal', hapanId: 'hp_normal_11', insulationType: 'none', moldings: [], enabled: true },
+          { id: 'sf_s1_ceiling', label: '천장',  direction: 'ceiling', finishType: 'tex',       finishMaterialId: 'tex_600_600', seokgoType: 'sg_normal', mdfId: 'mdf_9', filmPricePerM: 5000, filmSections: [], wallType: 'normal', hapanId: 'hp_normal_11', insulationType: 'none', moldings: [], enabled: true },
+          { id: 'sf_s1_wallA',   label: '벽A',   direction: 'wallA',   finishType: 'wallpaper', finishMaterialId: 'wp_silk_j',  seokgoType: 'sg_normal', mdfId: 'mdf_9', filmPricePerM: 5000, filmSections: [], wallType: 'normal', hapanId: 'hp_normal_11', insulationType: 'none', moldings: [{ id: 'mold_s1_wA_1', moldType: '걸레받이', widthMm: 80, lengthM: 0, itemWidthM: 0, itemHeightM: 0, qty: 1 }], enabled: true },
+          { id: 'sf_s1_wallB',   label: '벽B',   direction: 'wallB',   finishType: 'wallpaper', finishMaterialId: 'wp_silk_j',  seokgoType: 'sg_normal', mdfId: 'mdf_9', filmPricePerM: 5000, filmSections: [], wallType: 'normal', hapanId: 'hp_normal_11', insulationType: 'none', moldings: [{ id: 'mold_s1_wB_1', moldType: '걸레받이', widthMm: 80, lengthM: 0, itemWidthM: 0, itemHeightM: 0, qty: 1 }], enabled: true },
+          { id: 'sf_s1_wallC',   label: '벽C',   direction: 'wallC',   finishType: 'film',      finishMaterialId: '',           seokgoType: 'sg_normal', mdfId: 'mdf_9', filmPricePerM: 5000, filmSections: [{ id: 'fsc1', widthMm: 1220, patternRepeatMm: 0, lossM: 0.3, sectionM: 2.8, sectionCost: 14000, filmName: '화이트무광' }], wallType: 'normal', hapanId: 'hp_normal_11', insulationType: 'none', moldings: [], enabled: true },
+          { id: 'sf_s1_wallD',   label: '벽D',   direction: 'wallD',   finishType: 'wallpaper', finishMaterialId: 'wp_silk_j',  seokgoType: 'sg_normal', mdfId: 'mdf_9', filmPricePerM: 5000, filmSections: [], wallType: 'normal', hapanId: 'hp_normal_11', insulationType: 'none', moldings: [], enabled: true },
+        ],
+      },
+      {
+        id: 'sample_room_2',
+        name: '회의실',
+        widthM: 4,
+        depthM: 3,
+        heightM: 2.4,
+        slabHeightM: 0,
+        doors: [
+          { id: 'sample_door_2', type: '방문', widthM: 0.9, heightM: 2.1, qty: 1, unitPrice: 150000 },
+        ],
+        lightings: [
+          { id: 'sample_light_3', type: '평판등 600×600', spec: 'LED 40W', qty: 4, lengthM: 0, totalLengthMm: 0 },
+        ],
+        moldings: [],
+        surfaces: [
+          { id: 'sf_s2_floor',   label: '바닥',  direction: 'floor',   finishType: 'flooring', finishMaterialId: 'fl_deco_600', seokgoType: 'sg_normal', mdfId: 'mdf_9', filmPricePerM: 5000, filmSections: [], wallType: 'normal', hapanId: 'hp_normal_11', insulationType: 'none', moldings: [], enabled: true },
+          { id: 'sf_s2_ceiling', label: '천장',  direction: 'ceiling', finishType: 'wallpaper', finishMaterialId: 'wp_ceil_silk', seokgoType: 'sg_normal', mdfId: 'mdf_9', filmPricePerM: 5000, filmSections: [], wallType: 'normal', hapanId: 'hp_normal_11', insulationType: 'none', moldings: [], enabled: true },
+          { id: 'sf_s2_wallA',   label: '벽A',   direction: 'wallA',   finishType: 'wallpaper', finishMaterialId: 'wp_silk_b',  seokgoType: 'sg_normal', mdfId: 'mdf_9', filmPricePerM: 5000, filmSections: [], wallType: 'normal', hapanId: 'hp_normal_11', insulationType: 'none', moldings: [{ id: 'mold_s2_wA_1', moldType: '걸레받이', widthMm: 80, lengthM: 0, itemWidthM: 0, itemHeightM: 0, qty: 1 }], enabled: true },
+          { id: 'sf_s2_wallB',   label: '벽B',   direction: 'wallB',   finishType: 'wallpaper', finishMaterialId: 'wp_silk_b',  seokgoType: 'sg_normal', mdfId: 'mdf_9', filmPricePerM: 5000, filmSections: [], wallType: 'normal', hapanId: 'hp_normal_11', insulationType: 'none', moldings: [], enabled: true },
+          { id: 'sf_s2_wallC',   label: '벽C',   direction: 'wallC',   finishType: 'wallpaper', finishMaterialId: 'wp_silk_b',  seokgoType: 'sg_normal', mdfId: 'mdf_9', filmPricePerM: 5000, filmSections: [], wallType: 'normal', hapanId: 'hp_normal_11', insulationType: 'none', moldings: [], enabled: true },
+          { id: 'sf_s2_wallD',   label: '벽D',   direction: 'wallD',   finishType: 'wallpaper', finishMaterialId: 'wp_silk_b',  seokgoType: 'sg_normal', mdfId: 'mdf_9', filmPricePerM: 5000, filmSections: [], wallType: 'normal', hapanId: 'hp_normal_11', insulationType: 'none', moldings: [], enabled: true },
+        ],
+      },
+    ],
+  })),
   }),
   {
     name: 'interior-estimate-store',
