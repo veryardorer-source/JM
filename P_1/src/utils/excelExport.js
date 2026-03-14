@@ -1,7 +1,7 @@
 // ─────────────────────────────────────────────
-// 엑셀 내보내기 – JM건축인테리어 견적서 양식
+// 엑셀 내보내기 – exceljs 기반
 // ─────────────────────────────────────────────
-import * as XLSX from 'xlsx'
+import ExcelJS from 'exceljs'
 
 // ── 공종 분류 ─────────────────────────────────
 function getTrade(name) {
@@ -15,355 +15,322 @@ function getTrade(name) {
   if (/도어|방문|ABS|강화|양문|현관|미서기|폴딩|중문|창호|유리/.test(name)) return '창호작업'
   if (/환풍기|배관|배수|급수|설비/.test(name))                    return '설비작업'
   if (/가구/.test(name))                                          return '가구'
-  if (/블라인드/.test(name))                                      return '기타'
   return '기타'
 }
 
 const TRADE_ORDER = ['가설작업','설비작업','목작업','전기통신작업','소방작업','수장작업','창호작업','가구','기타']
 
-// ── 셀 스타일 헬퍼 ────────────────────────────
-const B = (s='thin', rgb='999999') => ({ style: s, color: { rgb } })
-const borderAll  = { top: B(), bottom: B(), left: B(), right: B() }
-const borderBold = { top: B('medium','000000'), bottom: B('medium','000000'), left: B('medium','000000'), right: B('medium','000000') }
-const borderB    = { ...borderAll, bottom: B('medium','000000') }
-const borderT    = { ...borderAll, top: B('medium','000000') }
+// ── 스타일 헬퍼 ──────────────────────────────
+const CLR = {
+  headerBg:  '1E4078', headerFg: 'FFFFFF',
+  tradeBg:   'EEF4FB', subtotalBg: 'D9E1F2',
+  grandBg:   'FFFF00', inputBg:    'FFFDE7',
+  formulaBg: 'EDF7EF', white:      'FFFFFF',
+  border:    '999999', borderDark: '000000',
+}
 
-const FILL_HEADER  = { fgColor: { rgb: 'DCE6F1' } }
-const FILL_TRADE   = { fgColor: { rgb: 'EEF4FB' } }
-const FILL_SUBTOT  = { fgColor: { rgb: 'D9E1F2' } }
-const FILL_GRAND   = { fgColor: { rgb: 'FFFF00' } }
-const FILL_EMPTY   = { fgColor: { rgb: 'FFFDE7' } }  // 노무비/경비 입력 칸 (연노란)
-const FILL_FORMULA = { fgColor: { rgb: 'EDF7EF' } }  // 수식 자동계산 칸 (연초록)
+function mkFill(hex) {
+  return { type: 'pattern', pattern: 'solid', fgColor: { argb: 'FF' + hex } }
+}
+function mkBorder(color = CLR.border, thickness = 'thin') {
+  const b = { style: thickness, color: { argb: 'FF' + color } }
+  return { top: b, bottom: b, left: b, right: b }
+}
+function mkFont(bold = false, size = 10, color = null) {
+  return { name: '맑은 고딕', size, bold, ...(color ? { color: { argb: 'FF' + color } } : {}) }
+}
 
-const AL = { horizontal: 'left' }
-const AC = { horizontal: 'center' }
-const AR = { horizontal: 'right' }
+function styleCell(cell, { fill, bold, size, color, fgColor, align, numFmt, border } = {}) {
+  if (fill)   cell.fill   = mkFill(fill)
+  cell.border = mkBorder(border || CLR.border)
+  cell.font   = mkFont(bold || false, size || 10, fgColor || null)
+  cell.alignment = { horizontal: align || 'left', vertical: 'middle', wrapText: false }
+  if (numFmt) cell.numFmt = numFmt
+  if (color)  cell.font.color = { argb: 'FF' + color }
+}
 
-function cs(v, fill, align = AL, bold = false, sz = 10) {
-  return {
-    v: v ?? '',
-    t: typeof v === 'number' ? 'n' : 's',
-    s: { border: borderAll, fill, font: { sz, bold }, alignment: align },
+function numCell(ws, r, c, val, opts = {}) {
+  const cell = ws.getCell(r, c)
+  cell.value = val || 0
+  styleCell(cell, { numFmt: '#,##0', align: 'right', ...opts })
+}
+function txtCell(ws, r, c, val, opts = {}) {
+  const cell = ws.getCell(r, c)
+  cell.value = val ?? ''
+  styleCell(cell, { align: 'left', ...opts })
+}
+function fmtCell(ws, r, c, formula, opts = {}) {
+  const cell = ws.getCell(r, c)
+  cell.value = { formula }
+  styleCell(cell, { numFmt: '#,##0', align: 'right', fill: CLR.formulaBg, ...opts })
+}
+function inputCell(ws, r, c, opts = {}) {
+  const cell = ws.getCell(r, c)
+  cell.value = 0
+  styleCell(cell, { numFmt: '#,##0', align: 'right', fill: CLR.inputBg, ...opts })
+}
+function emptyRow(ws, r, cols = 9) {
+  for (let c = 1; c <= cols; c++) {
+    const cell = ws.getCell(r, c)
+    cell.value = ''
+    cell.border = mkBorder()
   }
 }
-function cn(v, fill, bold = false) {
-  return {
-    v: v || 0,
-    t: 'n',
-    s: { border: borderAll, fill, font: { sz: 10, bold }, alignment: AR, numFmt: '#,##0' },
-  }
-}
-function cf(formula, fill) {
-  return {
-    f: formula,
-    t: 'n',
-    s: { border: borderAll, fill: fill || FILL_FORMULA, font: { sz: 10 }, alignment: AR, numFmt: '#,##0' },
-  }
-}
-function ce(fill = FILL_EMPTY) {
-  return { v: 0, t: 'n', s: { border: borderAll, fill, font: { sz: 10 } }, z: '#,##0' }
-}
 
-// 컬럼 주소 (0-based → A,B,C...)
-const CL = (n) => String.fromCharCode(65 + n)
-const CR = (col, row) => `${CL(col)}${row}`
+// ── 시트1: 내역서(요약) ───────────────────────
+function makeSummarySheet(wb, project, matTotal) {
+  const ws = wb.addWorksheet('내역서(요약)')
+  ws.properties.defaultRowHeight = 16
 
-// 숫자→한글 금액
-function numToKorean(n) {
-  const units = ['', '일', '이', '삼', '사', '오', '육', '칠', '팔', '구']
-  const parts = ['', '십', '백', '천']
-  const bigParts = ['', '만', '억', '조']
-  let str = '', num = Math.round(n)
-  if (num === 0) return '영'
-  let bi = 0
-  while (num > 0) {
-    const chunk = num % 10000
-    if (chunk > 0) {
-      let s = ''
-      for (let i = 3; i >= 0; i--) {
-        const d = Math.floor(chunk / Math.pow(10, i)) % 10
-        if (d > 0) s += (d === 1 && i > 0 ? '' : units[d]) + parts[i]
-      }
-      str = s + bigParts[bi] + str
-    }
-    num = Math.floor(num / 10000)
-    bi++
-  }
-  return '일금 ' + str + '원정'
-}
+  // 컬럼 너비: A품명 B규격 C수량 D단위 E재료비 F노무비 G경비 H합계 I비고
+  ws.columns = [
+    { width: 18 }, { width: 12 }, { width: 7 }, { width: 6 },
+    { width: 14 }, { width: 14 }, { width: 14 }, { width: 14 }, { width: 14 },
+  ]
 
-// ── 워크시트에 셀 직접 쓰기 ──────────────────
-function setCell(ws, col, row, cell) {
-  const addr = CR(col, row)
-  ws[addr] = cell
-  if (!ws['!ref']) {
-    ws['!ref'] = `A1:A1`
-  }
-  // ref 확장
-  const ref = XLSX.utils.decode_range(ws['!ref'])
-  if (col > ref.e.c) ref.e.c = col
-  if (row - 1 > ref.e.r) ref.e.r = row - 1
-  ws['!ref'] = XLSX.utils.encode_range(ref)
-}
-
-function initWs() {
-  return { '!ref': 'A1:N1', '!merges': [], '!cols': [] }
-}
-
-function merge(ws, r1, c1, r2, c2) {
-  ws['!merges'].push({ s: { r: r1 - 1, c: c1 }, e: { r: r2 - 1, c: c2 } })
-}
-
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// 시트1: 내역서 (요약)
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// 컬럼: 품명(A) 규격(B) 수량(C) 단위(D) 재료비(E) 노무비(F) 경비(G) 합계(H) 비고(I)
-function makeSummarySheet(project, matTotal, detailSheetName) {
-  const ws = initWs()
   let r = 1
-
   // 타이틀
-  merge(ws, r, 0, r, 8)
-  setCell(ws, 0, r, { v: '내  역  서', t: 's', s: { font: { sz: 20, bold: true }, alignment: AC, border: borderAll } })
-  r += 2
+  ws.mergeCells(r, 1, r, 9)
+  const titleCell = ws.getCell(r, 1)
+  titleCell.value = '내  역  서'
+  titleCell.font = mkFont(true, 20)
+  titleCell.alignment = { horizontal: 'center', vertical: 'middle' }
+  ws.getRow(r).height = 32
+  r++; r++
 
   // 프로젝트 정보
   const now = new Date()
-  const dateStr = `${now.getFullYear()}년 ${now.getMonth() + 1}월 ${now.getDate()}일`
-  const infoRows = [
+  const dateStr = `${now.getFullYear()}년 ${now.getMonth()+1}월 ${now.getDate()}일`
+  const info = [
     ['수  신', project.clientName || '', '작  성  일', dateStr],
     ['공  사  명', project.siteName || '', '', ''],
     ['담  당', project.manager || '', '', ''],
   ]
-  infoRows.forEach(([k1, v1, k2, v2]) => {
-    merge(ws, r, 0, r, 0)
-    merge(ws, r, 1, r, 4)
-    merge(ws, r, 5, r, 5)
-    merge(ws, r, 6, r, 8)
-    setCell(ws, 0, r, { v: k1, t: 's', s: { border: borderAll, font: { sz: 10, bold: true } } })
-    setCell(ws, 1, r, { v: v1, t: 's', s: { border: borderAll, font: { sz: 10 } } })
-    setCell(ws, 5, r, { v: k2, t: 's', s: { border: borderAll, font: { sz: 10, bold: true } } })
-    setCell(ws, 6, r, { v: v2, t: 's', s: { border: borderAll, font: { sz: 10 } } })
+  info.forEach(([k1, v1, k2, v2]) => {
+    ws.mergeCells(r, 2, r, 5)
+    ws.mergeCells(r, 7, r, 9)
+    txtCell(ws, r, 1, k1, { bold: true, fill: 'DCE6F1', align: 'center' })
+    txtCell(ws, r, 2, v1)
+    txtCell(ws, r, 6, k2, { bold: true, fill: 'DCE6F1', align: 'center' })
+    txtCell(ws, r, 7, v2)
     r++
   })
   r++
 
   // "아래와 같이 견적합니다."
-  merge(ws, r, 0, r, 8)
-  setCell(ws, 0, r, { v: '아래와 같이 견적합니다.', t: 's', s: { font: { sz: 10, bold: true }, alignment: AL, border: borderAll } })
+  ws.mergeCells(r, 1, r, 9)
+  txtCell(ws, r, 1, '아래와 같이 견적합니다.', { bold: true })
   r++; r++
 
   // 테이블 헤더
-  const hdrs = ['품  명', '규  격', '수 량', '단위', '재  료  비', '노  무  비', '경  비', '합  계', '비  고']
-  hdrs.forEach((h, i) => setCell(ws, i, r, cs(h, FILL_HEADER, AC, true, 10)))
+  const hdrs = ['품  명','규  격','수 량','단위','재  료  비','노  무  비','경  비','합  계','비  고']
+  hdrs.forEach((h, i) => {
+    const cell = ws.getCell(r, i + 1)
+    cell.value = h
+    styleCell(cell, { fill: CLR.headerBg, fgColor: CLR.headerFg, bold: true, align: 'center' })
+  })
+  ws.getRow(r).height = 20
   r++
 
   // 순공사비 행
-  const labRef = `F${r}`  // 노무비 셀 (사용자 입력)
-  const expRef = `G${r}`  // 경비 셀 (사용자 입력)
-  setCell(ws, 0, r, cs('순 공 사 비', FILL_TRADE, AC, true))
-  setCell(ws, 1, r, cs('', FILL_TRADE, AC))
-  setCell(ws, 2, r, cn(1, FILL_TRADE))
-  setCell(ws, 3, r, cs('식', FILL_TRADE, AC))
-  setCell(ws, 4, r, cn(matTotal, FILL_TRADE, true))
-  setCell(ws, 5, r, ce(FILL_EMPTY))   // 노무비 입력
-  setCell(ws, 6, r, ce(FILL_EMPTY))   // 경비 입력
-  setCell(ws, 7, r, cf(`E${r}+F${r}+G${r}`, FILL_FORMULA))
-  setCell(ws, 8, r, ce())
-  const 순공사비Row = r
+  const sunRow = r
+  ws.mergeCells(r, 1, r, 2)
+  txtCell(ws, r, 1, '순 공 사 비', { fill: CLR.tradeBg, bold: true, align: 'center' })
+  numCell(ws, r, 3, 1, { fill: CLR.tradeBg, align: 'center' })
+  txtCell(ws, r, 4, '식', { fill: CLR.tradeBg, align: 'center' })
+  numCell(ws, r, 5, matTotal, { fill: CLR.tradeBg, bold: true })
+  inputCell(ws, r, 6)  // 노무비 입력
+  inputCell(ws, r, 7)  // 경비 입력
+  fmtCell(ws, r, 8, `E${r}+F${r}+G${r}`, { fill: CLR.tradeBg })
+  txtCell(ws, r, 9, '', { fill: CLR.tradeBg })
   r += 4
 
   // 직접공사비 계
-  for (let i = 0; i < 9; i++) setCell(ws, i, r, cs('', FILL_SUBTOT, AC))
-  setCell(ws, 0, r, cs('직 접 공 사 비 계', FILL_SUBTOT, AC, true))
-  setCell(ws, 4, r, cn(matTotal, FILL_SUBTOT, true))
-  setCell(ws, 5, r, cf(`F${순공사비Row}`, FILL_SUBTOT))
-  setCell(ws, 6, r, cf(`G${순공사비Row}`, FILL_SUBTOT))
-  setCell(ws, 7, r, cf(`H${순공사비Row}`, FILL_SUBTOT))
   const 직접Row = r
+  ws.mergeCells(r, 1, r, 4)
+  txtCell(ws, r, 1, '직 접 공 사 비 계', { fill: CLR.subtotalBg, bold: true, align: 'center' })
+  numCell(ws, r, 5, matTotal, { fill: CLR.subtotalBg, bold: true })
+  fmtCell(ws, r, 6, `F${sunRow}`, { fill: CLR.subtotalBg })
+  fmtCell(ws, r, 7, `G${sunRow}`, { fill: CLR.subtotalBg })
+  fmtCell(ws, r, 8, `H${sunRow}`, { fill: CLR.subtotalBg })
+  txtCell(ws, r, 9, '', { fill: CLR.subtotalBg })
   r++
 
-  // 간접비 항목들
-  const 노무비Row = 순공사비Row
-  const indirectItems = [
-    ['고용보험', '1.01%', `ROUND(F${노무비Row}*0.0101,0)`],
-    ['산재보험', '3.56%', `ROUND(F${노무비Row}*0.0356,0)`],
-    ['일반관리비', '5%',   `ROUND(H${직접Row}*0.05,0)`],
-    ['이윤', '10%',        `ROUND(H${직접Row}*0.1,0)`],
-    ['단수정리', '',       null],
+  // 간접비 항목
+  const indirect = [
+    ['고용보험',    '1.01%', `ROUND(F${sunRow}*0.0101,0)`],
+    ['산재보험',    '3.56%', `ROUND(F${sunRow}*0.0356,0)`],
+    ['일반관리비',  '5%',    `ROUND(H${직접Row}*0.05,0)`],
+    ['이윤',       '10%',   `ROUND(H${직접Row}*0.1,0)`],
+    ['단수정리',    '',      null],
   ]
   const indirectRows = []
-  indirectItems.forEach(([name, spec, formula]) => {
-    setCell(ws, 0, r, cs(name, {}, AL, false))
-    setCell(ws, 1, r, cs(spec, {}, AC, false))
-    for (let i = 2; i < 7; i++) setCell(ws, i, r, cs('', {}, AC))
-    if (formula) {
-      setCell(ws, 7, r, cf(formula))
-    } else {
-      setCell(ws, 7, r, cs('천단위절사', {}, AR))
-    }
-    setCell(ws, 8, r, cs('', {}, AC))
+  indirect.forEach(([name, spec, formula]) => {
+    for (let c = 1; c <= 9; c++) txtCell(ws, r, c, '')
+    txtCell(ws, r, 1, name)
+    txtCell(ws, r, 2, spec, { align: 'center' })
+    if (formula) fmtCell(ws, r, 8, formula)
+    else txtCell(ws, r, 8, '천단위절사', { align: 'right' })
     indirectRows.push(r)
     r++
   })
 
   // 간접공사비 계
-  for (let i = 0; i < 9; i++) setCell(ws, i, r, cs('', FILL_SUBTOT, AC))
-  setCell(ws, 0, r, cs('간 접 공 사 비 계', FILL_SUBTOT, AC, true))
-  const indirectSumFormula = `SUM(${indirectRows.filter((_,i)=>i<4).map(ir=>`H${ir}`).join(',')})`
-  setCell(ws, 7, r, cf(indirectSumFormula, FILL_SUBTOT))
   const 간접Row = r
+  const indSum = `SUM(${indirectRows.slice(0,4).map(ir=>`H${ir}`).join(',')})`
+  ws.mergeCells(r, 1, r, 7)
+  txtCell(ws, r, 1, '간 접 공 사 비 계', { fill: CLR.subtotalBg, bold: true, align: 'center' })
+  for (let c = 2; c <= 7; c++) txtCell(ws, r, c, '', { fill: CLR.subtotalBg })
+  fmtCell(ws, r, 8, indSum, { fill: CLR.subtotalBg })
+  txtCell(ws, r, 9, '', { fill: CLR.subtotalBg })
   r++
 
   // 총공사비
-  for (let i = 0; i < 9; i++) setCell(ws, i, r, cs('', {}, AC))
-  setCell(ws, 0, r, cs('총  공  사  비', {}, AC, true))
-  setCell(ws, 7, r, cf(`FLOOR(H${직접Row}+H${간접Row},1000)`, FILL_FORMULA))
-  const 총공사비Row = r
+  const 총Row = r
+  ws.mergeCells(r, 1, r, 7)
+  txtCell(ws, r, 1, '총  공  사  비', { bold: true, align: 'center' })
+  for (let c = 2; c <= 7; c++) txtCell(ws, r, c, '')
+  fmtCell(ws, r, 8, `FLOOR(H${직접Row}+H${간접Row},1000)`)
+  txtCell(ws, r, 9, '')
   r++
 
   // 부가세
-  for (let i = 0; i < 9; i++) setCell(ws, i, r, cs('', {}, AC))
-  setCell(ws, 0, r, cs('부  가  세', {}, AC))
-  setCell(ws, 1, r, cs('10%', {}, AC))
-  setCell(ws, 7, r, cf(`ROUND(H${총공사비Row}*0.1,-3)`, FILL_FORMULA))
-  const 부가세Row = r
+  const 부가Row = r
+  ws.mergeCells(r, 1, r, 2)
+  txtCell(ws, r, 1, '부  가  세', { align: 'center' })
+  txtCell(ws, r, 2, '', { align: 'center' })
+  txtCell(ws, r, 3, '10%', { align: 'center' })
+  for (let c = 4; c <= 7; c++) txtCell(ws, r, c, '')
+  fmtCell(ws, r, 8, `ROUND(H${총Row}*0.1,-3)`)
+  txtCell(ws, r, 9, '')
   r++
 
   // 합계
-  const grandFill = FILL_GRAND
-  for (let i = 0; i < 9; i++) setCell(ws, i, r, cs('', grandFill, AC, true))
-  setCell(ws, 0, r, cs('[  합  계  ]', grandFill, AC, true, 12))
-  setCell(ws, 7, r, cf(`H${총공사비Row}+H${부가세Row}`, { ...grandFill }))
-  r++
+  ws.mergeCells(r, 1, r, 7)
+  txtCell(ws, r, 1, '[  합  계  ]', { fill: CLR.grandBg, bold: true, size: 12, align: 'center' })
+  for (let c = 2; c <= 7; c++) txtCell(ws, r, c, '', { fill: CLR.grandBg })
+  fmtCell(ws, r, 8, `H${총Row}+H${부가Row}`, { fill: CLR.grandBg, bold: true, size: 12 })
+  txtCell(ws, r, 9, '', { fill: CLR.grandBg })
+  ws.getRow(r).height = 22
+  r++; r++
 
   // 특기사항
-  r++
-  merge(ws, r, 0, r, 8)
-  setCell(ws, 0, r, { v: '특기사항 :', t: 's', s: { font: { sz: 10 }, alignment: AL } })
-
-  ws['!cols'] = [
-    { wch: 18 }, { wch: 12 }, { wch: 6 }, { wch: 5 },
-    { wch: 13 }, { wch: 13 }, { wch: 13 }, { wch: 13 }, { wch: 14 },
-  ]
-  return ws
+  ws.mergeCells(r, 1, r, 9)
+  ws.getCell(r, 1).value = '특기사항 :'
+  ws.getCell(r, 1).font = mkFont(false, 10)
 }
 
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// 시트2: 공종별 집계표
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// 컬럼: 품명(A) 규격(B) 단위(C) 수량(D) 재료비단가(E) 재료비금액(F) 노무비단가(G) 노무비금액(H) 경비단가(I) 경비금액(J) 합계단가(K) 합계금액(L) 비고(M)
-function makeTradeSheet(tradeMap) {
-  const ws = initWs()
+// ── 시트2: 공종별 집계표 ──────────────────────
+function makeTradeSheet(wb, tradeMap) {
+  const ws = wb.addWorksheet('공종별집계')
+  ws.properties.defaultRowHeight = 16
+  ws.columns = [
+    {width:20},{width:12},{width:6},{width:6},
+    {width:12},{width:12},{width:12},{width:12},
+    {width:12},{width:12},{width:12},{width:12},{width:16},
+  ]
+
   let r = 1
+  ws.mergeCells(r, 1, r, 13)
+  const t = ws.getCell(r, 1)
+  t.value = '공  종  별  집  계  표'
+  t.font = mkFont(true, 16)
+  t.alignment = { horizontal: 'center', vertical: 'middle' }
+  ws.getRow(r).height = 28
+  r++; r++
 
-  merge(ws, r, 0, r, 12)
-  setCell(ws, 0, r, { v: '공  종  별  집  계  표', t: 's', s: { font: { sz: 16, bold: true }, alignment: AC } })
-  r += 2
-
-  // 헤더
-  const H = ['품  명','규  격','단위','수량','재료비\n단가','재료비\n금액','노무비\n단가','노무비\n금액','경  비\n단가','경  비\n금액','합계\n단가','합계\n금액','비고']
-  H.forEach((h, i) => setCell(ws, i, r, { ...cs(h, FILL_HEADER, AC, true, 10), s: { ...cs(h, FILL_HEADER, AC, true).s, alignment: { horizontal: 'center', wrapText: true } } }))
+  const hdrs = ['품  명','규  격','단위','수량','재료비\n단가','재료비\n금액','노무비\n단가','노무비\n금액','경비\n단가','경비\n금액','합계\n단가','합계\n금액','비고']
+  hdrs.forEach((h, i) => {
+    const cell = ws.getCell(r, i + 1)
+    cell.value = h
+    styleCell(cell, { fill: CLR.headerBg, fgColor: CLR.headerFg, bold: true, align: 'center' })
+    cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }
+  })
+  ws.getRow(r).height = 28
   r++
 
-  let totalMat = 0
   const dataRows = []
-
   TRADE_ORDER.forEach(trade => {
     const mat = tradeMap[trade] || 0
     if (mat === 0) return
-    totalMat += mat
-
-    setCell(ws, 0, r, cs(trade, FILL_TRADE, AL, true))
-    setCell(ws, 1, r, cs('', FILL_TRADE, AC))
-    setCell(ws, 2, r, cs('식', FILL_TRADE, AC))
-    setCell(ws, 3, r, cn(1, FILL_TRADE))
-    setCell(ws, 4, r, cn(mat, FILL_TRADE))
-    setCell(ws, 5, r, cn(mat, FILL_TRADE, true))
-    setCell(ws, 6, r, ce(FILL_EMPTY))
-    setCell(ws, 7, r, ce(FILL_EMPTY))
-    setCell(ws, 8, r, ce(FILL_EMPTY))
-    setCell(ws, 9, r, ce(FILL_EMPTY))
-    setCell(ws, 10, r, cf(`E${r}+G${r}+I${r}`, FILL_FORMULA))
-    setCell(ws, 11, r, cf(`F${r}+H${r}+J${r}`, FILL_FORMULA))
-    setCell(ws, 12, r, cs('', {}, AC))
+    txtCell(ws, r, 1, trade, { fill: CLR.tradeBg, bold: true })
+    txtCell(ws, r, 2, '', { fill: CLR.tradeBg, align: 'center' })
+    txtCell(ws, r, 3, '식', { fill: CLR.tradeBg, align: 'center' })
+    numCell(ws, r, 4, 1, { fill: CLR.tradeBg, align: 'center' })
+    numCell(ws, r, 5, mat, { fill: CLR.tradeBg })
+    numCell(ws, r, 6, mat, { fill: CLR.tradeBg, bold: true })
+    inputCell(ws, r, 7)   // 노무비 단가
+    inputCell(ws, r, 8)   // 노무비 금액
+    inputCell(ws, r, 9)   // 경비 단가
+    inputCell(ws, r, 10)  // 경비 금액
+    fmtCell(ws, r, 11, `E${r}+G${r}+I${r}`)
+    fmtCell(ws, r, 12, `F${r}+H${r}+J${r}`)
+    txtCell(ws, r, 13, '')
     dataRows.push(r)
     r++
   })
 
-  // 전체 항목 (실 외)
-  // (globalItems는 tradeMap에 포함되어 있음)
-
   // 합계
-  for (let i = 0; i < 13; i++) setCell(ws, i, r, cs('', FILL_SUBTOT, AC, true))
-  setCell(ws, 0, r, cs('합  계', FILL_SUBTOT, AC, true))
+  ws.mergeCells(r, 1, r, 3)
+  txtCell(ws, r, 1, '합  계', { fill: CLR.subtotalBg, bold: true, align: 'center' })
+  for (let c = 2; c <= 13; c++) txtCell(ws, r, c, '', { fill: CLR.subtotalBg })
   if (dataRows.length > 0) {
-    setCell(ws, 5, r, cf(`SUM(${dataRows.map(dr=>`F${dr}`).join(',')})`, FILL_SUBTOT))
-    setCell(ws, 7, r, cf(`SUM(${dataRows.map(dr=>`H${dr}`).join(',')})`, FILL_SUBTOT))
-    setCell(ws, 9, r, cf(`SUM(${dataRows.map(dr=>`J${dr}`).join(',')})`, FILL_SUBTOT))
-    setCell(ws, 11, r, cf(`SUM(${dataRows.map(dr=>`L${dr}`).join(',')})`, FILL_SUBTOT))
+    const mk = col => `SUM(${dataRows.map(dr=>`${col}${dr}`).join(',')})`
+    fmtCell(ws, r, 6, mk('F'), { fill: CLR.subtotalBg })
+    fmtCell(ws, r, 8, mk('H'), { fill: CLR.subtotalBg })
+    fmtCell(ws, r, 10, mk('J'), { fill: CLR.subtotalBg })
+    fmtCell(ws, r, 12, mk('L'), { fill: CLR.subtotalBg })
   }
-
-  ws['!cols'] = [
-    {wch:18},{wch:10},{wch:5},{wch:5},
-    {wch:11},{wch:11},{wch:11},{wch:11},
-    {wch:11},{wch:11},{wch:11},{wch:11},{wch:14},
-  ]
-  return ws
 }
 
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// 시트3: 내역서 (상세)
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// 컬럼: 항목(A) 품명(B) 규격(C) 단위(D) 수량(E)
-//       재료비단가(F) 재료비금액(G) 노무비단가(H) 노무비금액(I)
-//       경비단가(J) 경비금액(K) 합계단가(L) 합계금액(M) 비고(N)
-function makeDetailSheet(roomDataList, globalItems) {
-  const ws = initWs()
+// ── 시트3: 내역서(상세) ───────────────────────
+function makeDetailSheet(wb, roomDataList, globalItems) {
+  const ws = wb.addWorksheet('내역서(상세)')
+  ws.properties.defaultRowHeight = 15
+  ws.columns = [
+    {width:12},{width:26},{width:20},{width:6},{width:7},
+    {width:11},{width:11},{width:11},{width:11},
+    {width:11},{width:11},{width:11},{width:11},{width:18},
+  ]
+
   let r = 1
+  ws.mergeCells(r, 1, r, 14)
+  const t = ws.getCell(r, 1)
+  t.value = '[내  역  서]'
+  t.font = mkFont(true, 16)
+  t.alignment = { horizontal: 'center', vertical: 'middle' }
+  ws.getRow(r).height = 28
+  r++; r++
 
-  merge(ws, r, 0, r, 13)
-  setCell(ws, 0, r, { v: '[내  역  서]', t: 's', s: { font: { sz: 16, bold: true }, alignment: AC } })
-  r += 2
-
-  // 헤더 행
   const hdrs = ['항목','품명','규격','단위','수량',
-    '재료비\n단가','재료비\n금액',
-    '노무비\n단가','노무비\n금액',
-    '경비\n단가','경비\n금액',
-    '합계\n단가','합계\n금액','비고']
+    '재료비\n단가','재료비\n금액','노무비\n단가','노무비\n금액',
+    '경비\n단가','경비\n금액','합계\n단가','합계\n금액','비고']
   hdrs.forEach((h, i) => {
-    ws[CR(i, r)] = {
-      v: h, t: 's',
-      s: { border: borderAll, fill: FILL_HEADER, font: { sz: 10, bold: true }, alignment: { horizontal: 'center', wrapText: true } }
-    }
+    const cell = ws.getCell(r, i + 1)
+    cell.value = h
+    styleCell(cell, { fill: CLR.headerBg, fgColor: CLR.headerFg, bold: true, align: 'center' })
+    cell.alignment = { horizontal: 'center', vertical: 'middle', wrapText: true }
   })
+  ws.getRow(r).height = 28
   r++
 
-  // 공종별로 아이템 그룹화
+  // 공종별 그룹화
   const tradeGroups = {}
   TRADE_ORDER.forEach(t => { tradeGroups[t] = [] })
 
-  // 실별 자재 항목 수집
   roomDataList.forEach(rd => {
     const roomLabel = rd.room.name
-
     rd.surfaceData.forEach(({ sf, items }) => {
       items.forEach(item => {
         const trade = getTrade(item.name)
         if (!tradeGroups[trade]) tradeGroups[trade] = []
         tradeGroups[trade].push({
-          name: item.name,
-          spec: item.spec || '',
-          unit: item.unit,
-          qty: item.qty,
-          matU: item.unitPrice || 0,
-          matT: item.cost || 0,
+          name: item.name, spec: item.spec || '', unit: item.unit,
+          qty: item.qty, matU: item.unitPrice || 0, matT: item.cost || 0,
           remark: `${roomLabel} ${sf.label}`,
         })
       })
     })
-
     rd.doorItems.forEach(item => {
       tradeGroups['창호작업'].push({
         name: item.name, spec: '', unit: item.unit,
@@ -371,173 +338,135 @@ function makeDetailSheet(roomDataList, globalItems) {
         remark: roomLabel,
       })
     })
-
     rd.lightingItems.forEach(item => {
+      const lineTypes = ['라인조명 T5', '라인조명 T7']
+      const spec = lineTypes.includes(item.name) ? `${Math.round(item.lengthM * 1000)}mm` : (item.spec || '')
       tradeGroups['전기통신작업'].push({
-        name: item.name, spec: item.spec || '', unit: 'EA',
-        qty: item.qty, matU: 0, matT: 0,
-        remark: roomLabel,
+        name: item.name, spec, unit: 'EA',
+        qty: item.qty, matU: 0, matT: 0, remark: roomLabel,
       })
     })
-
     rd.moldingItems.forEach(item => {
       tradeGroups['목작업'].push({
         name: item.name, spec: '', unit: 'EA',
         qty: item.qty, matU: 0, matT: 0,
-        remark: `${roomLabel} ${item.lengthM?.toFixed(1)}m`,
+        remark: `${roomLabel} ${item.lengthM?.toFixed(2)}m`,
       })
     })
   })
 
-  // 전체 항목 (실 외) 수집
   ;(globalItems || []).forEach(gi => {
     if (!gi.enabled || !gi.name) return
     const trade = gi.trade || '기타'
     if (!tradeGroups[trade]) tradeGroups[trade] = []
-    const matT = (gi.matUnitPrice || 0) * (gi.qty || 0)
     tradeGroups[trade].push({
       name: gi.name, spec: gi.spec || '', unit: gi.unit,
       qty: gi.qty || 0,
-      matU: gi.matUnitPrice || 0, matT,
-      labU: gi.labUnitPrice || 0, labT: (gi.labUnitPrice || 0) * (gi.qty || 0),
-      expU: gi.expUnitPrice || 0, expT: (gi.expUnitPrice || 0) * (gi.qty || 0),
-      remark: gi.remark || '',
-      isGlobal: true,
+      matU: gi.matUnitPrice || 0, matT: (gi.matUnitPrice||0)*(gi.qty||0),
+      labU: gi.labUnitPrice || 0, labT: (gi.labUnitPrice||0)*(gi.qty||0),
+      expU: gi.expUnitPrice || 0, expT: (gi.expUnitPrice||0)*(gi.qty||0),
+      remark: gi.remark || '', isGlobal: true,
     })
   })
 
-  // 공종별 행 작성
-  const tradeSubtotalRefs = {}
+  const subtotalRefs = {}
   let tradeNum = 1
 
   TRADE_ORDER.forEach(trade => {
-    const items = (tradeGroups[trade] || [])
+    const items = tradeGroups[trade] || []
     if (items.length === 0) return
 
-    const tradeStartRow = r
+    // 공종 헤더
+    ws.mergeCells(r, 1, r, 14)
+    const th = ws.getCell(r, 1)
+    th.value = `${tradeNum}  ${trade}`
+    styleCell(th, { fill: CLR.tradeBg, bold: true })
+    ws.getRow(r).height = 18
+    r++; tradeNum++
 
-    // 공종 헤더 행
-    merge(ws, r, 0, r, 13)
-    setCell(ws, 0, r, {
-      v: `${tradeNum}  ${trade}`, t: 's',
-      s: { border: borderAll, fill: FILL_TRADE, font: { sz: 10, bold: true }, alignment: AL }
-    })
-    r++
-    tradeNum++
-
-    // 자재 항목 행
     const itemRows = []
     items.forEach(item => {
       itemRows.push(r)
-
-      setCell(ws, 0, r, cs('', {}, AC))            // 항목
-      setCell(ws, 1, r, cs(item.name, {}, AL))     // 품명
-      setCell(ws, 2, r, cs(item.spec || '', {}, AL)) // 규격
-      setCell(ws, 3, r, cs(item.unit, {}, AC))     // 단위
-      setCell(ws, 4, r, cn(item.qty, {}))           // 수량
-
-      // 재료비
-      setCell(ws, 5, r, item.matU > 0 ? cn(item.matU, {}) : cs('-', {}, AC))
-      setCell(ws, 6, r, item.matT > 0 ? cn(item.matT, {}) : cs('-', {}, AC))
-
-      // 노무비 (전체항목은 값 있으면 표시, 아니면 빈칸)
+      txtCell(ws, r, 1, '')
+      txtCell(ws, r, 2, item.name)
+      txtCell(ws, r, 3, item.spec || '')
+      txtCell(ws, r, 4, item.unit, { align: 'center' })
+      numCell(ws, r, 5, item.qty, { align: 'center' })
+      item.matU > 0 ? numCell(ws, r, 6, item.matU) : txtCell(ws, r, 6, '-', { align: 'center' })
+      item.matT > 0 ? numCell(ws, r, 7, item.matT) : txtCell(ws, r, 7, '-', { align: 'center' })
       if (item.isGlobal && item.labU > 0) {
-        setCell(ws, 7, r, cn(item.labU, {}))
-        setCell(ws, 8, r, cn(item.labT, {}))
+        numCell(ws, r, 8, item.labU); numCell(ws, r, 9, item.labT)
       } else {
-        setCell(ws, 7, r, cs('-', {}, AC))
-        setCell(ws, 8, r, cs('-', {}, AC))
+        txtCell(ws, r, 8, '-', { align: 'center' }); txtCell(ws, r, 9, '-', { align: 'center' })
       }
-
-      // 경비
       if (item.isGlobal && item.expU > 0) {
-        setCell(ws, 9, r, cn(item.expU, {}))
-        setCell(ws, 10, r, cn(item.expT, {}))
+        numCell(ws, r, 10, item.expU); numCell(ws, r, 11, item.expT)
       } else {
-        setCell(ws, 9, r, cs('-', {}, AC))
-        setCell(ws, 10, r, cs('-', {}, AC))
+        txtCell(ws, r, 10, '-', { align: 'center' }); txtCell(ws, r, 11, '-', { align: 'center' })
       }
-
-      // 합계
-      setCell(ws, 11, r, cs('-', {}, AC))
-      setCell(ws, 12, r, cs('-', {}, AC))
-      setCell(ws, 13, r, cs(item.remark || '', {}, AL)) // 비고
+      txtCell(ws, r, 12, '-', { align: 'center' })
+      txtCell(ws, r, 13, '-', { align: 'center' })
+      txtCell(ws, r, 14, item.remark || '')
       r++
     })
 
-    // 노무비 행 (입력용 빈칸) - 전체항목이 아닌 경우만
-    const hasManualItems = items.some(it => !it.isGlobal)
-    if (hasManualItems) {
-      setCell(ws, 0, r, cs('', {}, AC))
-      setCell(ws, 1, r, cs('노무비', FILL_EMPTY, AL, true))
-      setCell(ws, 2, r, cs('', FILL_EMPTY, AC))
-      setCell(ws, 3, r, cs('인', FILL_EMPTY, AC))
-      setCell(ws, 4, r, ce(FILL_EMPTY))       // 수량(인원) – 입력
-      setCell(ws, 5, r, cs('-', {}, AC))
-      setCell(ws, 6, r, cs('-', {}, AC))
-      setCell(ws, 7, r, ce(FILL_EMPTY))       // 노무비 단가(일당) – 입력
-      setCell(ws, 8, r, cf(`H${r}*E${r}`, FILL_FORMULA))  // 노무비 금액 (자동)
-      setCell(ws, 9, r, ce(FILL_EMPTY))       // 경비 단가 – 입력
-      setCell(ws, 10, r, cf(`J${r}*E${r}`, FILL_FORMULA)) // 경비 금액 (자동)
-      setCell(ws, 11, r, cf(`H${r}+J${r}`, FILL_FORMULA))
-      setCell(ws, 12, r, cf(`I${r}+K${r}`, FILL_FORMULA))
-      setCell(ws, 13, r, cs('', {}, AC))
+    // 노무비 입력행 (자재 항목만)
+    const hasManual = items.some(it => !it.isGlobal)
+    if (hasManual) {
       itemRows.push(r)
+      txtCell(ws, r, 1, '')
+      txtCell(ws, r, 2, '노무비', { fill: CLR.inputBg, bold: true })
+      txtCell(ws, r, 3, '', { fill: CLR.inputBg })
+      txtCell(ws, r, 4, '인', { fill: CLR.inputBg, align: 'center' })
+      inputCell(ws, r, 5)
+      txtCell(ws, r, 6, '-', { align: 'center' }); txtCell(ws, r, 7, '-', { align: 'center' })
+      inputCell(ws, r, 8)
+      fmtCell(ws, r, 9, `H${r}*E${r}`)
+      inputCell(ws, r, 10)
+      fmtCell(ws, r, 11, `J${r}*E${r}`)
+      fmtCell(ws, r, 12, `H${r}+J${r}`)
+      fmtCell(ws, r, 13, `I${r}+K${r}`)
+      txtCell(ws, r, 14, '')
       r++
     }
 
-    // [소 계] 행
-    const matSumF = `SUM(${itemRows.map(ir => `G${ir}`).join(',')})`
-    const labSumF = `SUM(${itemRows.map(ir => `I${ir}`).join(',')})`
-    const expSumF = `SUM(${itemRows.map(ir => `K${ir}`).join(',')})`
-
-    for (let i = 0; i < 14; i++) setCell(ws, i, r, cs('', FILL_SUBTOT, AC, true))
-    setCell(ws, 1, r, cs('[소  계]', FILL_SUBTOT, AC, true))
-    setCell(ws, 5, r, cf(matSumF.replace(/G/g,'F'), FILL_SUBTOT))  // 재료비 단가 소계
-    setCell(ws, 6, r, cf(matSumF, FILL_SUBTOT))
-    setCell(ws, 7, r, cf(labSumF.replace(/I/g,'H'), FILL_SUBTOT))
-    setCell(ws, 8, r, cf(labSumF, FILL_SUBTOT))
-    setCell(ws, 9, r, cf(expSumF.replace(/K/g,'J'), FILL_SUBTOT))
-    setCell(ws, 10, r, cf(expSumF, FILL_SUBTOT))
-    setCell(ws, 11, r, cf(`F${r}+H${r}+J${r}`, FILL_SUBTOT))
-    setCell(ws, 12, r, cf(`G${r}+I${r}+K${r}`, FILL_SUBTOT))
-    tradeSubtotalRefs[trade] = r
-    r++
-    r++ // 공종 간 빈 줄
+    // 소계 행
+    const matF = `SUM(${itemRows.map(ir=>`G${ir}`).join(',')})`
+    const labF = `SUM(${itemRows.map(ir=>`I${ir}`).join(',')})`
+    const expF = `SUM(${itemRows.map(ir=>`K${ir}`).join(',')})`
+    ws.mergeCells(r, 1, r, 5)
+    txtCell(ws, r, 1, '[소  계]', { fill: CLR.subtotalBg, bold: true, align: 'center' })
+    for (let c = 2; c <= 5; c++) txtCell(ws, r, c, '', { fill: CLR.subtotalBg })
+    fmtCell(ws, r, 6, matF.replace(/G/g,'F'), { fill: CLR.subtotalBg })
+    fmtCell(ws, r, 7, matF, { fill: CLR.subtotalBg })
+    fmtCell(ws, r, 8, labF.replace(/I/g,'H'), { fill: CLR.subtotalBg })
+    fmtCell(ws, r, 9, labF, { fill: CLR.subtotalBg })
+    fmtCell(ws, r, 10, expF.replace(/K/g,'J'), { fill: CLR.subtotalBg })
+    fmtCell(ws, r, 11, expF, { fill: CLR.subtotalBg })
+    fmtCell(ws, r, 12, `F${r}+H${r}+J${r}`, { fill: CLR.subtotalBg })
+    fmtCell(ws, r, 13, `G${r}+I${r}+K${r}`, { fill: CLR.subtotalBg })
+    txtCell(ws, r, 14, '', { fill: CLR.subtotalBg })
+    subtotalRefs[trade] = r
+    r++; r++
   })
 
-  // [합 계] 행
-  const subRows = Object.values(tradeSubtotalRefs)
-  const makeSum = (col) => subRows.length > 0 ? `SUM(${subRows.map(sr=>`${col}${sr}`).join(',')})` : '0'
-
-  for (let i = 0; i < 14; i++) setCell(ws, i, r, cs('', FILL_SUBTOT, AC, true))
-  setCell(ws, 1, r, cs('[합  계]', FILL_SUBTOT, AC, true))
-  setCell(ws, 5, r, cf(makeSum('F'), FILL_SUBTOT))
-  setCell(ws, 6, r, cf(makeSum('G'), FILL_SUBTOT))
-  setCell(ws, 7, r, cf(makeSum('H'), FILL_SUBTOT))
-  setCell(ws, 8, r, cf(makeSum('I'), FILL_SUBTOT))
-  setCell(ws, 9, r, cf(makeSum('J'), FILL_SUBTOT))
-  setCell(ws, 10, r, cf(makeSum('K'), FILL_SUBTOT))
-  setCell(ws, 11, r, cf(makeSum('L'), FILL_SUBTOT))
-  setCell(ws, 12, r, cf(makeSum('M'), FILL_SUBTOT))
-
-  ws['!cols'] = [
-    {wch:12},{wch:26},{wch:20},{wch:5},{wch:6},
-    {wch:10},{wch:10},{wch:10},{wch:10},
-    {wch:10},{wch:10},{wch:10},{wch:10},{wch:16},
-  ]
-  return { ws, tradeSubtotalRefs }
+  // 합계 행
+  const subRows = Object.values(subtotalRefs)
+  const mk = col => subRows.length > 0 ? `SUM(${subRows.map(sr=>`${col}${sr}`).join(',')})` : '0'
+  ws.mergeCells(r, 1, r, 5)
+  txtCell(ws, r, 1, '[합  계]', { fill: CLR.subtotalBg, bold: true, align: 'center' })
+  for (let c = 2; c <= 5; c++) txtCell(ws, r, c, '', { fill: CLR.subtotalBg })
+  ;['F','G','H','I','J','K','L','M'].forEach((col, i) => {
+    fmtCell(ws, r, 6 + i, mk(col), { fill: CLR.subtotalBg })
+  })
+  txtCell(ws, r, 14, '', { fill: CLR.subtotalBg })
 }
 
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-// 메인 내보내기
-// ━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-export function exportToExcel(project, roomDataList, grandAggregate, grandTotal, globalItems) {
+// ── 메인 내보내기 ─────────────────────────────
+export async function exportToExcel(project, roomDataList, grandAggregate, grandTotal, globalItems) {
   try {
-    // 공종별 재료비 집계
     const tradeMap = {}
     TRADE_ORDER.forEach(t => { tradeMap[t] = 0 })
-
     roomDataList.forEach(rd => {
       rd.surfaceData.forEach(({ items }) =>
         items.forEach(i => { const t = getTrade(i.name); tradeMap[t] = (tradeMap[t]||0) + i.cost })
@@ -546,42 +475,31 @@ export function exportToExcel(project, roomDataList, grandAggregate, grandTotal,
     })
     ;(globalItems||[]).forEach(gi => {
       if (!gi.enabled || !gi.name) return
-      const t = gi.trade || '기타'
-      const mat = (gi.matUnitPrice||0)*(gi.qty||0)
-      tradeMap[t] = (tradeMap[t]||0) + mat
+      tradeMap[gi.trade||'기타'] = (tradeMap[gi.trade||'기타']||0) + (gi.matUnitPrice||0)*(gi.qty||0)
     })
 
-    const wb = XLSX.utils.book_new()
+    const wb = new ExcelJS.Workbook()
+    wb.creator = 'JM건축인테리어'
+    wb.created = new Date()
 
-    const { ws: detailWs } = makeDetailSheet(roomDataList, globalItems)
-    const summaryWs = makeSummarySheet(project, grandTotal)
-    const tradeWs   = makeTradeSheet(tradeMap)
-
-    XLSX.utils.book_append_sheet(wb, summaryWs, '내역서(요약)')
-    XLSX.utils.book_append_sheet(wb, tradeWs,   '공종별집계')
-    XLSX.utils.book_append_sheet(wb, detailWs,  '내역서(상세)')
+    makeSummarySheet(wb, project, grandTotal)
+    makeTradeSheet(wb, tradeMap)
+    makeDetailSheet(wb, roomDataList, globalItems)
 
     const siteName = project.siteName || '견적'
-    const dateStr  = new Date().toISOString().slice(0,10).replace(/-/g,'')
-    const filename  = `${siteName}_견적서_${dateStr}.xlsx`
+    const dateStr = new Date().toISOString().slice(0,10).replace(/-/g,'')
+    const filename = `${siteName}_견적서_${dateStr}.xlsx`
 
-    const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'binary', cellStyles: true })
-    const buf   = new ArrayBuffer(wbout.length)
-    const view  = new Uint8Array(buf)
-    for (let i = 0; i < wbout.length; i++) view[i] = wbout.charCodeAt(i) & 0xFF
-
-    const blob = new Blob([buf], { type: 'application/octet-stream' })
-    const url  = URL.createObjectURL(blob)
-    const a    = document.createElement('a')
+    const buffer = await wb.xlsx.writeBuffer()
+    const blob = new Blob([buffer], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
     a.style.display = 'none'
-    a.href     = url
+    a.href = url
     a.download = filename
     document.body.appendChild(a)
     a.click()
-    setTimeout(() => {
-      document.body.removeChild(a)
-      URL.revokeObjectURL(url)
-    }, 200)
+    setTimeout(() => { document.body.removeChild(a); URL.revokeObjectURL(url) }, 200)
   } catch (e) {
     console.error('엑셀 내보내기 오류:', e)
     alert('엑셀 내보내기 오류: ' + e.message)

@@ -141,7 +141,7 @@ export default function Summary() {
         <h2 style={s.title}>자재 집계</h2>
         <div style={{ display: 'flex', gap: 6 }}>
           <button
-            onClick={() => exportToExcel(project, roomData, grandAggregate, grandTotal, globalItems)}
+            onClick={() => exportToExcel(project, roomData, grandAggregate, grandTotal, globalItems).catch(e => alert('오류: ' + e.message))}
             style={s.xlsBtn}>엑셀 내보내기</button>
           <button onClick={() => generatePDF(project, rooms, grandAggregate, grandTotal)} style={s.pdfBtn}>인쇄 / PDF</button>
         </div>
@@ -364,7 +364,6 @@ function SurfaceItemRow({ item }) {
       <>
         <tr style={s.itemRowFilm}>
           <td style={s.tdName}>
-            <span style={s.filmBadge}>필름</span>
             <strong>{item.name}</strong>
             {item.sections?.length > 0
               ? <span style={s.secCount}> {item.sections.length}구간</span>
