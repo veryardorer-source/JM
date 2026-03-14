@@ -61,7 +61,7 @@ function cf(formula, fill) {
   }
 }
 function ce(fill = FILL_EMPTY) {
-  return { v: '', t: 's', s: { border: borderAll, fill, font: { sz: 10 } } }
+  return { v: 0, t: 'n', s: { border: borderAll, fill, font: { sz: 10 } }, z: '#,##0' }
 }
 
 // 컬럼 주소 (0-based → A,B,C...)
@@ -565,7 +565,7 @@ export function exportToExcel(project, roomDataList, grandAggregate, grandTotal,
     const dateStr  = new Date().toISOString().slice(0,10).replace(/-/g,'')
     const filename  = `${siteName}_견적서_${dateStr}.xlsx`
 
-    const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'binary' })
+    const wbout = XLSX.write(wb, { bookType: 'xlsx', type: 'binary', cellStyles: true })
     const buf   = new ArrayBuffer(wbout.length)
     const view  = new Uint8Array(buf)
     for (let i = 0; i < wbout.length; i++) view[i] = wbout.charCodeAt(i) & 0xFF

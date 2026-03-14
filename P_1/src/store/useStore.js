@@ -192,6 +192,9 @@ export const useStore = create(
             heightM: 2.1,
             qty: 1,
             unitPrice: 0,
+            modelNo: '',   // 제품번호·모델
+            color: '',     // 색상·무늬
+            glass: '없음', // 유리 포함 여부
           }],
         }
       ),

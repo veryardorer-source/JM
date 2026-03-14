@@ -83,24 +83,50 @@ export default function RoomCard({ room }) {
                   <span style={{ width: 30 }}></span>
                 </div>
                 {(room.doors || []).map(door => (
-                  <div key={door.id} style={styles.doorRow}>
-                    <select value={door.type} onChange={e => updateDoor(room.id, door.id, { type: e.target.value })} style={{ ...styles.doorInput, width: 90 }}>
-                      {DOOR_TYPES.map(t => <option key={t}>{t}</option>)}
-                    </select>
-                    <input type="number" min="0" step="1" value={door.widthM ? Math.round(door.widthM * 1000) : ''}
-                      onChange={e => updateDoor(room.id, door.id, { widthM: Number(e.target.value) / 1000 })}
-                      style={{ ...styles.doorInput, width: 70 }} />
-                    <input type="number" min="0" step="1" value={door.heightM ? Math.round(door.heightM * 1000) : ''}
-                      onChange={e => updateDoor(room.id, door.id, { heightM: Number(e.target.value) / 1000 })}
-                      style={{ ...styles.doorInput, width: 70 }} />
-                    <input type="number" min="1" value={door.qty}
-                      onChange={e => updateDoor(room.id, door.id, { qty: Number(e.target.value) })}
-                      style={{ ...styles.doorInput, width: 50 }} />
-                    <input type="number" min="0" value={door.unitPrice || ''}
-                      placeholder="단가 입력"
-                      onChange={e => updateDoor(room.id, door.id, { unitPrice: Number(e.target.value) })}
-                      style={{ ...styles.doorInput, flex: 1 }} />
-                    <button onClick={() => deleteDoor(room.id, door.id)} style={styles.btnRed}>✕</button>
+                  <div key={door.id} style={styles.doorCard}>
+                    {/* 1행: 기본 치수 */}
+                    <div style={styles.doorRow}>
+                      <select value={door.type} onChange={e => updateDoor(room.id, door.id, { type: e.target.value })} style={{ ...styles.doorInput, width: 90 }}>
+                        {DOOR_TYPES.map(t => <option key={t}>{t}</option>)}
+                      </select>
+                      <input type="number" min="0" step="1" value={door.widthM ? Math.round(door.widthM * 1000) : ''}
+                        onChange={e => updateDoor(room.id, door.id, { widthM: Number(e.target.value) / 1000 })}
+                        style={{ ...styles.doorInput, width: 70 }} />
+                      <input type="number" min="0" step="1" value={door.heightM ? Math.round(door.heightM * 1000) : ''}
+                        onChange={e => updateDoor(room.id, door.id, { heightM: Number(e.target.value) / 1000 })}
+                        style={{ ...styles.doorInput, width: 70 }} />
+                      <input type="number" min="1" value={door.qty}
+                        onChange={e => updateDoor(room.id, door.id, { qty: Number(e.target.value) })}
+                        style={{ ...styles.doorInput, width: 50 }} />
+                      <input type="number" min="0" value={door.unitPrice || ''}
+                        placeholder="단가 입력"
+                        onChange={e => updateDoor(room.id, door.id, { unitPrice: Number(e.target.value) })}
+                        style={{ ...styles.doorInput, flex: 1 }} />
+                      <button onClick={() => deleteDoor(room.id, door.id)} style={styles.btnRed}>✕</button>
+                    </div>
+                    {/* 2행: 제품 상세 */}
+                    <div style={styles.doorDetail}>
+                      <input
+                        value={door.modelNo || ''}
+                        placeholder="제품번호·모델명"
+                        onChange={e => updateDoor(room.id, door.id, { modelNo: e.target.value })}
+                        style={{ ...styles.doorInput, flex: 2, fontSize: 11 }} />
+                      <input
+                        value={door.color || ''}
+                        placeholder="색상·무늬"
+                        onChange={e => updateDoor(room.id, door.id, { color: e.target.value })}
+                        style={{ ...styles.doorInput, flex: 1, fontSize: 11 }} />
+                      <select
+                        value={door.glass || '없음'}
+                        onChange={e => updateDoor(room.id, door.id, { glass: e.target.value })}
+                        style={{ ...styles.doorInput, width: 100, fontSize: 11 }}>
+                        <option>없음</option>
+                        <option>일반유리</option>
+                        <option>강화유리</option>
+                        <option>반투명유리</option>
+                        <option>기타유리</option>
+                      </select>
+                    </div>
                   </div>
                 ))}
               </div>
@@ -209,7 +235,9 @@ const styles = {
     background: '#f0f4fa', border: '1px solid #c8d4e8',
     borderRadius: 4, cursor: 'pointer', color: '#1e4078', fontWeight: 600,
   },
-  doorTable: { display: 'flex', flexDirection: 'column', gap: 4 },
+  doorTable: { display: 'flex', flexDirection: 'column', gap: 6 },
+  doorCard: { display: 'flex', flexDirection: 'column', gap: 4, background: '#f8f9fc', borderRadius: 4, padding: '5px 4px', border: '1px solid #e8edf5' },
+  doorDetail: { display: 'flex', gap: 6, alignItems: 'center', paddingLeft: 2 },
   doorTableHead: {
     display: 'flex', gap: 6, alignItems: 'center',
     fontSize: 10, color: '#aaa', fontWeight: 600,
