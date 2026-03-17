@@ -1,10 +1,12 @@
 import { useState, useRef } from 'react'
 import { useStore } from '../store/useStore.js'
-import { analyzeFloorPlan } from '../utils/claudeApi.js'
+import { analyzeFloorPlan, checkLlmMux } from '../utils/claudeApi.js'
 
 const API_KEY_STORAGE = 'ip_claude_api_key'
 const API_MODE_STORAGE = 'ip_claude_api_mode'  // 'direct' | 'llmmux'
 const LLM_MUX_URL = 'http://localhost:8317'
+const LLM_MUX_MODEL_STORAGE = 'ip_llmmux_model'
+const DEFAULT_LLM_MUX_MODEL = 'anthropic/claude-3-5-sonnet-20241022'
 
 export default function FloorPlanAnalyzer() {
   const { addRoomWithData } = useStore()
@@ -12,6 +14,9 @@ export default function FloorPlanAnalyzer() {
   const [mode, setMode] = useState(() => localStorage.getItem(API_MODE_STORAGE) || 'direct')
   const [apiKey, setApiKey] = useState(() => localStorage.getItem(API_KEY_STORAGE) || '')
   const [apiKeySaved, setApiKeySaved] = useState(!!localStorage.getItem(API_KEY_STORAGE))
+  const [llmMuxModel, setLlmMuxModel] = useState(() => localStorage.getItem(LLM_MUX_MODEL_STORAGE) || DEFAULT_LLM_MUX_MODEL)
+  const [muxStatus, setMuxStatus] = useState(null) // null | 'ok' | 'error'
+  const [muxStatusMsg, setMuxStatusMsg] = useState('')
 
   function handleModeChange(m) {
     setMode(m)
@@ -60,7 +65,7 @@ export default function FloorPlanAnalyzer() {
   }
 
   async function handleAnalyze() {
-    if (!apiKey.trim()) { alert('API 키를 입력하세요.'); return }
+    if (mode === 'direct' && !apiKey.trim()) { alert('API 키를 입력하세요.'); return }
     if (!file) { alert('도면 파일을 선택하세요.'); return }
 
     setLoading(true)
@@ -70,7 +75,7 @@ export default function FloorPlanAnalyzer() {
     try {
       const base64 = await toBase64(file)
       const baseURL = mode === 'llmmux' ? LLM_MUX_URL : ''
-      const data = await analyzeFloorPlan(apiKey.trim(), base64, file.type, baseURL)
+      const data = await analyzeFloorPlan(apiKey.trim(), base64, file.type, baseURL, llmMuxModel)
       setResult(data)
       setSelected(data.rooms.map((_, i) => i)) // 전체 선택
     } catch (e) {
@@ -133,9 +138,54 @@ export default function FloorPlanAnalyzer() {
         </div>
         {mode === 'llmmux' && (
           <div style={s.llmmuxInfo}>
-            llm-mux가 <code style={s.code}>localhost:8317</code>에서 실행 중이어야 합니다.<br/>
-            설치: <code style={s.code}>curl -fsSL https://raw.githubusercontent.com/nghyane/llm-mux/main/install.sh | bash</code><br/>
-            실행: <code style={s.code}>llm-mux login claude</code> → <code style={s.code}>llm-mux</code>
+            <b>llm-mux 사용 조건:</b> 로컬(<code style={s.code}>npm run dev</code>)에서만 작동합니다.<br/>
+            ① <code style={s.code}>llm-mux login claude</code> &nbsp;② <code style={s.code}>llm-mux</code> 실행<br/><br/>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 8, flexWrap: 'wrap', marginBottom: 6 }}>
+              <span style={{ fontSize: 11, fontWeight: 700 }}>모델명:</span>
+              <input
+                value={llmMuxModel}
+                onChange={e => { setLlmMuxModel(e.target.value); localStorage.setItem(LLM_MUX_MODEL_STORAGE, e.target.value) }}
+                style={{ ...s.code, border: '1px solid #ccc', padding: '3px 6px', borderRadius: 3, width: 280, fontSize: 11 }}
+                placeholder="모델명 직접 입력"
+              />
+              <select onChange={e => { if (e.target.value) { setLlmMuxModel(e.target.value); localStorage.setItem(LLM_MUX_MODEL_STORAGE, e.target.value) }}} style={{ fontSize: 11, padding: '3px 5px', border: '1px solid #ccc', borderRadius: 3 }}>
+                <option value="">-- 추천 모델 선택 --</option>
+                <option value="anthropic/claude-3-5-sonnet-20241022">anthropic/claude-3-5-sonnet-20241022</option>
+                <option value="claude/claude-3-5-sonnet-20241022">claude/claude-3-5-sonnet-20241022</option>
+                <option value="claude-3-5-sonnet-20241022">claude-3-5-sonnet-20241022</option>
+                <option value="claude-3-5-sonnet">claude-3-5-sonnet</option>
+                <option value="claude-sonnet-4-5">claude-sonnet-4-5</option>
+                <option value="claude">claude</option>
+              </select>
+              <button onClick={async () => {
+                setMuxStatus(null); setMuxStatusMsg('확인 중...')
+                try {
+                  const data = await checkLlmMux(LLM_MUX_URL)
+                  const list = data.data || data.models || (Array.isArray(data) ? data : [])
+                  const ids = list.map(m => m.id || m.name || m).filter(Boolean)
+                  if (ids.length > 0) {
+                    // 자동으로 첫 번째 claude 모델 선택
+                    const auto = ids.find(id => /claude/i.test(id)) || ids[0]
+                    setLlmMuxModel(auto)
+                    localStorage.setItem(LLM_MUX_MODEL_STORAGE, auto)
+                    setMuxStatus('ok')
+                    setMuxStatusMsg(`연결 성공! 사용 가능한 모델: ${ids.join(', ')} → "${auto}" 자동 선택`)
+                  } else {
+                    setMuxStatus('ok')
+                    setMuxStatusMsg(`연결 성공 (${data.format || ''}). 응답: ${JSON.stringify(data).slice(0, 200)}`)
+                  }
+                } catch(e) {
+                  setMuxStatus('error'); setMuxStatusMsg(`연결 실패: ${e.message}`)
+                }
+              }} style={{ fontSize: 11, padding: '3px 10px', background: '#1e4078', color: '#fff', border: 'none', borderRadius: 4, cursor: 'pointer', whiteSpace: 'nowrap' }}>
+                연결 테스트
+              </button>
+            </div>
+            {muxStatusMsg && (
+              <div style={{ fontSize: 11, color: muxStatus === 'ok' ? '#2a7a4a' : muxStatus === 'error' ? '#c00' : '#888', marginTop: 2 }}>
+                {muxStatusMsg}
+              </div>
+            )}
           </div>
         )}
       </div>
