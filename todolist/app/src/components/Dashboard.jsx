@@ -54,7 +54,7 @@ export default function Dashboard({ onTabChange }) {
   const { projects, tasks, payments, recurring, toggleTaskStatus, deleteTask, completeRecurring, uncompleteRecurring } = useStore()
 
   const today = new Date().toISOString().slice(0, 10)
-  const activeProjects = projects.filter(p => p.status !== '완료')
+  const activeProjects = projects.filter(p => p.status === '진행중')
   const todayTasks = tasks.filter(t => t.status !== '완료' && (isToday(t.dueDate) || (!t.dueDate)))
   const urgentTasks = tasks.filter(t => t.status !== '완료' && t.dueDate && (isUrgent(t.dueDate) || isOverdue(t.dueDate)) && !isToday(t.dueDate))
   // 오늘 해당하는 반복 업무
@@ -77,15 +77,6 @@ export default function Dashboard({ onTabChange }) {
           <div className="text-sm text-gray-500 mt-1">기한 초과</div>
         </div>
       </div>
-
-      {/* 수금 현황 */}
-      <section>
-        <div className="flex items-center justify-between mb-3">
-          <h2 className="text-base font-semibold text-gray-700">수금 현황</h2>
-          <button onClick={() => onTabChange('payments')} className="text-xs text-blue-500 hover:underline">관리</button>
-        </div>
-        <PaymentSummary payments={payments} projects={projects} />
-      </section>
 
       {/* 진행 중인 현장 */}
       <section>
@@ -173,6 +164,15 @@ export default function Dashboard({ onTabChange }) {
           <TaskList tasks={urgentTasks} onToggle={toggleTaskStatus} onDelete={deleteTask} projects={projects} />
         </section>
       )}
+
+      {/* 수금 현황 */}
+      <section>
+        <div className="flex items-center justify-between mb-3">
+          <h2 className="text-base font-semibold text-gray-700">수금 현황</h2>
+          <button onClick={() => onTabChange('payments')} className="text-xs text-blue-500 hover:underline">관리</button>
+        </div>
+        <PaymentSummary payments={payments} projects={projects} />
+      </section>
     </div>
   )
 }

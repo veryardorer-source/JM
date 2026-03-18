@@ -18,12 +18,13 @@ const TYPE_COLOR = {
   '디자인의뢰': 'bg-purple-50 text-purple-600 border-purple-200',
 }
 
-const STATUS_OPTIONS = ['진행중', '대기', '완료', '보류', '취소']
+const STATUS_OPTIONS = ['진행중', '대기', '완료', '보류', '중단', '취소']
 const STATUS_COLOR = {
   '진행중': 'bg-blue-100 text-blue-700',
   '대기':   'bg-gray-100 text-gray-600',
   '완료':   'bg-green-100 text-green-700',
   '보류':   'bg-yellow-100 text-yellow-700',
+  '중단':   'bg-orange-100 text-orange-700',
   '취소':   'bg-red-100 text-red-600',
 }
 
@@ -138,7 +139,7 @@ export default function Projects() {
       {/* 필터 + 추가 */}
       <div className="flex items-center justify-between gap-2">
         <div className="flex gap-1.5 flex-wrap">
-          {['전체', '진행중', '대기', '완료', '보류', '취소'].map(f => (
+          {['전체', '진행중', '대기', '완료', '보류', '중단', '취소'].map(f => (
             <button key={f} onClick={() => setFilter(f)}
               className={`px-3 py-1.5 rounded-lg text-xs font-medium transition-colors ${filter === f ? 'bg-blue-500 text-white' : 'bg-white text-gray-500 border border-gray-200 hover:bg-gray-50'}`}>
               {f}
@@ -164,7 +165,7 @@ export default function Projects() {
             const isOpen = selectedId === p.id
 
             return (
-              <div key={p.id} className={`bg-white rounded-xl shadow-sm border overflow-hidden ${p.status === '취소' ? 'border-red-100 opacity-60' : 'border-gray-100'}`}>
+              <div key={p.id} className={`bg-white rounded-xl shadow-sm border overflow-hidden ${p.status === '취소' ? 'border-red-100 opacity-60' : p.status === '중단' ? 'border-orange-200 opacity-70' : 'border-gray-100'}`}>
                 {/* 카드 헤더 */}
                 <div className="px-4 py-4 cursor-pointer" onClick={() => setSelectedId(isOpen ? null : p.id)}>
                   <div className="flex items-start justify-between">
@@ -284,9 +285,17 @@ export default function Projects() {
                       )}
                     </div>
 
-                    {/* 수정/삭제 */}
+                    {/* 수정/중단/마감/삭제 */}
                     <div className="flex gap-2 pt-1">
                       <button onClick={e => openEdit(p, e)} className="flex-1 border border-gray-200 text-gray-600 rounded-lg py-2 text-sm hover:bg-gray-50">수정</button>
+                      <button onClick={e => { e.stopPropagation(); updateProject(p.id, { status: p.status === '중단' ? '진행중' : '중단' }) }}
+                        className={`flex-1 border rounded-lg py-2 text-sm transition-colors ${p.status === '중단' ? 'bg-orange-100 border-orange-300 text-orange-700 font-medium' : 'border-orange-200 text-orange-400 hover:bg-orange-50'}`}>
+                        {p.status === '중단' ? '중단 해제' : '중단'}
+                      </button>
+                      <button onClick={e => { e.stopPropagation(); updateProject(p.id, { status: p.status === '완료' ? '진행중' : '완료' }) }}
+                        className={`flex-1 border rounded-lg py-2 text-sm transition-colors ${p.status === '완료' ? 'bg-green-100 border-green-300 text-green-700 font-medium' : 'border-green-200 text-green-500 hover:bg-green-50'}`}>
+                        {p.status === '완료' ? '완료 해제' : '마감'}
+                      </button>
                       <button onClick={e => { e.stopPropagation(); if (confirm(`"${p.name}" 현장을 삭제할까요?`)) { deleteProject(p.id); setSelectedId(null) } }}
                         className="flex-1 border border-red-100 text-red-400 rounded-lg py-2 text-sm hover:bg-red-50">삭제</button>
                     </div>

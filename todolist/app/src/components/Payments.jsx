@@ -6,8 +6,21 @@ const PAYMENT_TYPES = ['계약금', '중도금', '잔금', '기타']
 function formatAmount(n) {
   if (!n && n !== 0) return '-'
   const num = Number(n)
-  if (num >= 100000000) return `${(num / 100000000).toFixed(num % 100000000 === 0 ? 0 : 1)}억`
-  if (num >= 10000) return `${Math.floor(num / 10000)}만원`
+  if (num >= 100000000) {
+    const 억 = Math.floor(num / 100000000)
+    const rem억 = num % 100000000
+    const 만 = Math.floor(rem억 / 10000)
+    const 원 = rem억 % 10000
+    if (rem억 === 0) return `${억}억`
+    if (원 === 0) return `${억}억 ${만.toLocaleString()}만원`
+    return `${억}억 ${만.toLocaleString()}만 ${원.toLocaleString()}원`
+  }
+  if (num >= 10000) {
+    const 만 = Math.floor(num / 10000)
+    const 원 = num % 10000
+    if (원 === 0) return `${만.toLocaleString()}만원`
+    return `${만.toLocaleString()}만 ${원.toLocaleString()}원`
+  }
   return `${num.toLocaleString()}원`
 }
 
