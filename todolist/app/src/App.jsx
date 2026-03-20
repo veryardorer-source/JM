@@ -408,40 +408,19 @@ export default function App() {
   const dayStr = dayNames[dateObj.getDay()]
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
-      <header className="bg-white border-b border-gray-100 sticky top-0 z-40">
-        <div className="max-w-2xl mx-auto px-4 py-3 flex items-center justify-between">
-          <div>
-            <h1 className="text-base font-bold text-gray-800">JM 업무관리</h1>
-            <div className="text-xs text-gray-400">{dateStr} ({dayStr})</div>
-          </div>
-          <div className="flex items-center gap-2">
-            {alertCount > 0 && (
-              <div className="bg-red-50 border border-red-100 text-red-500 text-xs px-3 py-1.5 rounded-full font-medium">
-                ⚠ {alertCount}건
-              </div>
-            )}
-            <button
-              onClick={() => setShowBackup(true)}
-              className="w-8 h-8 flex items-center justify-center rounded-lg text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
-              title="백업 / 복원"
-            >
-              💾
-            </button>
-          </div>
+    <div className="min-h-screen bg-gray-50 flex">
+
+      {/* 왼쪽 사이드바 */}
+      <nav className="fixed left-0 top-0 bottom-0 w-[100px] bg-white border-r border-gray-100 z-40 flex flex-col">
+        {/* 로고 */}
+        <div className="px-2 py-4 border-b border-gray-100 flex flex-col items-center gap-0.5">
+          <div className="text-base font-extrabold text-blue-600 leading-none">JM</div>
+          <div className="text-xs text-gray-400 leading-none mt-0.5">{dateStr}</div>
+          <div className="text-xs text-gray-400 leading-none">({dayStr})</div>
         </div>
-      </header>
 
-      <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-5 pb-24">
-        {activeTab === 'dashboard' && <Dashboard onTabChange={setActiveTab} />}
-        {activeTab === 'projects' && <Projects />}
-        {activeTab === 'payments' && <Payments />}
-        {activeTab === 'tasks' && <Tasks />}
-        {activeTab === 'hr' && <HR />}
-      </main>
-
-      <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 z-40">
-        <div className="max-w-2xl mx-auto flex">
+        {/* 탭 목록 */}
+        <div className="flex-1 flex flex-col py-2 gap-0.5">
           {TABS.map(tab => {
             let badge = 0
             if (tab.id === 'payments') badge = overduePayments.length
@@ -450,19 +429,61 @@ export default function App() {
               <button
                 key={tab.id}
                 onClick={() => setActiveTab(tab.id)}
-                className={`flex-1 flex flex-col items-center justify-center py-3 gap-0.5 transition-colors relative ${activeTab === tab.id ? 'text-blue-500' : 'text-gray-400 hover:text-gray-600'}`}
+                className={`relative flex flex-col items-center justify-center py-3 mx-2 rounded-xl gap-1 transition-colors ${
+                  activeTab === tab.id
+                    ? 'bg-blue-50 text-blue-500'
+                    : 'text-gray-400 hover:text-gray-600 hover:bg-gray-50'
+                }`}
               >
-                <span className="text-xl leading-none">{tab.icon}</span>
-                <span className={`text-[11px] font-medium ${activeTab === tab.id ? 'text-blue-500' : 'text-gray-400'}`}>{tab.label}</span>
+                <span className="text-2xl leading-none">{tab.icon}</span>
+                <span className="text-xs font-medium leading-none">{tab.label}</span>
                 {badge > 0 && (
-                  <span className="absolute top-1.5 right-[calc(50%-14px)] bg-red-500 text-white text-[10px] font-bold w-4 h-4 rounded-full flex items-center justify-center">{badge}</span>
+                  <span className="absolute top-1.5 right-2 bg-red-500 text-white text-[9px] font-bold w-4 h-4 rounded-full flex items-center justify-center">
+                    {badge}
+                  </span>
                 )}
-                {activeTab === tab.id && <div className="absolute bottom-0 w-10 h-0.5 bg-blue-500 rounded-t-full" />}
               </button>
             )
           })}
         </div>
+
+        {/* 백업 버튼 + 알림 */}
+        <div className="px-2 py-3 border-t border-gray-100 flex flex-col items-center gap-2">
+          {alertCount > 0 && (
+            <div className="text-[10px] font-bold text-red-400 bg-red-50 rounded-lg px-2 py-1 w-full text-center">
+              ⚠ {alertCount}건
+            </div>
+          )}
+          <button
+            onClick={() => setShowBackup(true)}
+            className="w-full flex flex-col items-center gap-0.5 py-2 rounded-xl text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition-colors"
+            title="백업 / 복원"
+          >
+            <span className="text-lg leading-none">💾</span>
+            <span className="text-[10px]">백업</span>
+          </button>
+        </div>
       </nav>
+
+      {/* 콘텐츠 영역 */}
+      <div className="flex-1 ml-[100px] flex flex-col min-h-screen">
+        <header className="bg-white border-b border-gray-100 sticky top-0 z-30">
+          <div className="max-w-2xl mx-auto px-4 py-3">
+            <h1 className="text-base font-bold text-gray-800">
+              {TABS.find(t => t.id === activeTab)?.label || 'JM 업무관리'}
+            </h1>
+            <div className="text-xs text-gray-400">{dateStr} ({dayStr})</div>
+          </div>
+        </header>
+
+        <main className="flex-1 max-w-2xl mx-auto w-full px-4 py-5">
+          {activeTab === 'dashboard' && <Dashboard onTabChange={setActiveTab} />}
+          {activeTab === 'projects' && <Projects />}
+          {activeTab === 'payments' && <Payments />}
+          {activeTab === 'tasks' && <Tasks />}
+          {activeTab === 'hr' && <HR />}
+        </main>
+      </div>
 
       {showBackup && <BackupModal onClose={() => setShowBackup(false)} />}
     </div>
