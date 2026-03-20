@@ -56,6 +56,9 @@ const STORAGE_KEYS = {
   TASKS: 'jm_tasks_v2',
   PAYMENTS: 'jm_payments_v1',
   RECURRING: 'jm_recurring_v1',
+  EMPLOYEES: 'jm_employees_v1',
+  PAYROLL: 'jm_payroll_v1',
+  LEAVE_RECORDS: 'jm_leave_records_v1',
 }
 
 function loadFromStorage(key, defaultValue) {
@@ -79,13 +82,19 @@ function saveToStorage(key, value) {
 async function fetchFromSupabase() {
   if (!supabase) return null
   try {
-    const [{ data: projects }, { data: tasks }, { data: payments }, { data: recurring }] = await Promise.all([
+    const [
+      { data: projects }, { data: tasks }, { data: payments }, { data: recurring },
+      { data: employees }, { data: payroll }, { data: leave_records },
+    ] = await Promise.all([
       supabase.from('projects').select('*'),
       supabase.from('tasks').select('*'),
       supabase.from('payments').select('*'),
       supabase.from('recurring').select('*'),
+      supabase.from('employees').select('*'),
+      supabase.from('payroll').select('*'),
+      supabase.from('leave_records').select('*'),
     ])
-    return { projects, tasks, payments, recurring }
+    return { projects, tasks, payments, recurring, employees, payroll, leave_records }
   } catch (e) {
     console.error('Supabase 로드 실패:', e)
     return null
@@ -111,10 +120,13 @@ async function deleteFromSupabase(table, id) {
 }
 
 // ── 전역 상태 ────────────────────────────────────────────────────
-let globalProjects = loadFromStorage(STORAGE_KEYS.PROJECTS, INITIAL_PROJECTS)
-let globalTasks    = loadFromStorage(STORAGE_KEYS.TASKS, INITIAL_TASKS)
-let globalPayments = loadFromStorage(STORAGE_KEYS.PAYMENTS, INITIAL_PAYMENTS)
-let globalRecurring = loadFromStorage(STORAGE_KEYS.RECURRING, INITIAL_RECURRING)
+let globalProjects    = loadFromStorage(STORAGE_KEYS.PROJECTS,      INITIAL_PROJECTS)
+let globalTasks       = loadFromStorage(STORAGE_KEYS.TASKS,         INITIAL_TASKS)
+let globalPayments    = loadFromStorage(STORAGE_KEYS.PAYMENTS,      INITIAL_PAYMENTS)
+let globalRecurring   = loadFromStorage(STORAGE_KEYS.RECURRING,     INITIAL_RECURRING)
+let globalEmployees   = loadFromStorage(STORAGE_KEYS.EMPLOYEES,     [])
+let globalPayroll     = loadFromStorage(STORAGE_KEYS.PAYROLL,       [])
+let globalLeaveRecords = loadFromStorage(STORAGE_KEYS.LEAVE_RECORDS, [])
 let initialized = false
 
 let listeners = []
@@ -127,10 +139,13 @@ async function initFromSupabase() {
   const data = await fetchFromSupabase()
   if (!data) return
   // localStorage에 데이터가 없을 때만 Supabase 데이터를 사용
-  if (!globalProjects.length && data.projects?.length)  { globalProjects  = data.projects;  saveToStorage(STORAGE_KEYS.PROJECTS,  data.projects) }
-  if (!globalTasks.length    && data.tasks?.length)     { globalTasks      = data.tasks;     saveToStorage(STORAGE_KEYS.TASKS,     data.tasks) }
-  if (!globalPayments.length && data.payments?.length)  { globalPayments   = data.payments;  saveToStorage(STORAGE_KEYS.PAYMENTS,  data.payments) }
-  if (!globalRecurring.length && data.recurring?.length) { globalRecurring = data.recurring; saveToStorage(STORAGE_KEYS.RECURRING, data.recurring) }
+  if (!globalProjects.length  && data.projects?.length)      { globalProjects     = data.projects;      saveToStorage(STORAGE_KEYS.PROJECTS,      data.projects) }
+  if (!globalTasks.length     && data.tasks?.length)         { globalTasks        = data.tasks;         saveToStorage(STORAGE_KEYS.TASKS,         data.tasks) }
+  if (!globalPayments.length  && data.payments?.length)      { globalPayments      = data.payments;      saveToStorage(STORAGE_KEYS.PAYMENTS,      data.payments) }
+  if (!globalRecurring.length && data.recurring?.length)     { globalRecurring    = data.recurring;     saveToStorage(STORAGE_KEYS.RECURRING,     data.recurring) }
+  if (!globalEmployees.length && data.employees?.length)     { globalEmployees    = data.employees;     saveToStorage(STORAGE_KEYS.EMPLOYEES,     data.employees) }
+  if (!globalPayroll.length   && data.payroll?.length)       { globalPayroll      = data.payroll;       saveToStorage(STORAGE_KEYS.PAYROLL,       data.payroll) }
+  if (!globalLeaveRecords.length && data.leave_records?.length) { globalLeaveRecords = data.leave_records; saveToStorage(STORAGE_KEYS.LEAVE_RECORDS, data.leave_records) }
   notify()
 }
 
@@ -138,14 +153,20 @@ initFromSupabase()
 
 // 백업 JSON 전체 가져오기 (localStorage + Supabase 동기화)
 export async function importAll(data) {
-  globalProjects  = data.projects  || []
-  globalTasks     = data.tasks     || []
-  globalPayments  = data.payments  || []
-  globalRecurring = data.recurring || []
-  saveToStorage(STORAGE_KEYS.PROJECTS,  globalProjects)
-  saveToStorage(STORAGE_KEYS.TASKS,     globalTasks)
-  saveToStorage(STORAGE_KEYS.PAYMENTS,  globalPayments)
-  saveToStorage(STORAGE_KEYS.RECURRING, globalRecurring)
+  globalProjects     = data.projects     || []
+  globalTasks        = data.tasks        || []
+  globalPayments     = data.payments     || []
+  globalRecurring    = data.recurring    || []
+  globalEmployees    = data.employees    || []
+  globalPayroll      = data.payroll      || []
+  globalLeaveRecords = data.leaveRecords || []
+  saveToStorage(STORAGE_KEYS.PROJECTS,      globalProjects)
+  saveToStorage(STORAGE_KEYS.TASKS,         globalTasks)
+  saveToStorage(STORAGE_KEYS.PAYMENTS,      globalPayments)
+  saveToStorage(STORAGE_KEYS.RECURRING,     globalRecurring)
+  saveToStorage(STORAGE_KEYS.EMPLOYEES,     globalEmployees)
+  saveToStorage(STORAGE_KEYS.PAYROLL,       globalPayroll)
+  saveToStorage(STORAGE_KEYS.LEAVE_RECORDS, globalLeaveRecords)
   // Supabase에도 전체 업로드
   if (supabase) {
     await Promise.all([
@@ -153,6 +174,9 @@ export async function importAll(data) {
       ...globalTasks.map(r => upsertToSupabase('tasks', r)),
       ...globalPayments.map(r => upsertToSupabase('payments', r)),
       ...globalRecurring.map(r => upsertToSupabase('recurring', r)),
+      ...globalEmployees.map(r => upsertToSupabase('employees', r)),
+      ...globalPayroll.map(r => upsertToSupabase('payroll', r)),
+      ...globalLeaveRecords.map(r => upsertToSupabase('leave_records', r)),
     ])
   }
   notify()
@@ -173,10 +197,13 @@ export function useStore() {
     const handleFocus = async () => {
       const data = await fetchFromSupabase()
       if (!data) return
-      if (data.projects?.length)  { globalProjects  = data.projects;  saveToStorage(STORAGE_KEYS.PROJECTS,  data.projects) }
-      if (data.tasks?.length)     { globalTasks      = data.tasks;     saveToStorage(STORAGE_KEYS.TASKS,     data.tasks) }
-      if (data.payments?.length)  { globalPayments   = data.payments;  saveToStorage(STORAGE_KEYS.PAYMENTS,  data.payments) }
-      if (data.recurring?.length) { globalRecurring  = data.recurring; saveToStorage(STORAGE_KEYS.RECURRING, data.recurring) }
+      if (data.projects?.length)      { globalProjects     = data.projects;      saveToStorage(STORAGE_KEYS.PROJECTS,      data.projects) }
+      if (data.tasks?.length)         { globalTasks        = data.tasks;         saveToStorage(STORAGE_KEYS.TASKS,         data.tasks) }
+      if (data.payments?.length)      { globalPayments     = data.payments;      saveToStorage(STORAGE_KEYS.PAYMENTS,      data.payments) }
+      if (data.recurring?.length)     { globalRecurring    = data.recurring;     saveToStorage(STORAGE_KEYS.RECURRING,     data.recurring) }
+      if (data.employees?.length)     { globalEmployees    = data.employees;     saveToStorage(STORAGE_KEYS.EMPLOYEES,     data.employees) }
+      if (data.payroll?.length)       { globalPayroll      = data.payroll;       saveToStorage(STORAGE_KEYS.PAYROLL,       data.payroll) }
+      if (data.leave_records?.length) { globalLeaveRecords = data.leave_records; saveToStorage(STORAGE_KEYS.LEAVE_RECORDS, data.leave_records) }
       notify()
     }
     window.addEventListener('focus', handleFocus)
@@ -336,14 +363,88 @@ export function useStore() {
     notify()
   }, [])
 
+  // ── 직원 ────────────────────────────────────────────
+  const addEmployee = useCallback((emp) => {
+    const newEmp = { id: Date.now().toString(), status: '재직', ...emp }
+    globalEmployees = [...globalEmployees, newEmp]
+    saveToStorage(STORAGE_KEYS.EMPLOYEES, globalEmployees)
+    upsertToSupabase('employees', newEmp)
+    notify()
+  }, [])
+
+  const updateEmployee = useCallback((id, updates) => {
+    globalEmployees = globalEmployees.map(e => e.id === id ? { ...e, ...updates } : e)
+    saveToStorage(STORAGE_KEYS.EMPLOYEES, globalEmployees)
+    const updated = globalEmployees.find(e => e.id === id)
+    if (updated) upsertToSupabase('employees', updated)
+    notify()
+  }, [])
+
+  const deleteEmployee = useCallback((id) => {
+    globalEmployees    = globalEmployees.filter(e => e.id !== id)
+    globalPayroll      = globalPayroll.filter(p => p.employeeId !== id)
+    globalLeaveRecords = globalLeaveRecords.filter(r => r.employeeId !== id)
+    saveToStorage(STORAGE_KEYS.EMPLOYEES,     globalEmployees)
+    saveToStorage(STORAGE_KEYS.PAYROLL,       globalPayroll)
+    saveToStorage(STORAGE_KEYS.LEAVE_RECORDS, globalLeaveRecords)
+    deleteFromSupabase('employees', id)
+    notify()
+  }, [])
+
+  // ── 급여 ────────────────────────────────────────────
+  const addPayroll = useCallback((item) => {
+    const newItem = { id: Date.now().toString(), ...item }
+    globalPayroll = [...globalPayroll, newItem]
+    saveToStorage(STORAGE_KEYS.PAYROLL, globalPayroll)
+    upsertToSupabase('payroll', newItem)
+    notify()
+  }, [])
+
+  const updatePayroll = useCallback((id, updates) => {
+    globalPayroll = globalPayroll.map(p => p.id === id ? { ...p, ...updates } : p)
+    saveToStorage(STORAGE_KEYS.PAYROLL, globalPayroll)
+    const updated = globalPayroll.find(p => p.id === id)
+    if (updated) upsertToSupabase('payroll', updated)
+    notify()
+  }, [])
+
+  const deletePayroll = useCallback((id) => {
+    globalPayroll = globalPayroll.filter(p => p.id !== id)
+    saveToStorage(STORAGE_KEYS.PAYROLL, globalPayroll)
+    deleteFromSupabase('payroll', id)
+    notify()
+  }, [])
+
+  // ── 연차 기록 ────────────────────────────────────────
+  const addLeaveRecord = useCallback((record) => {
+    const newRecord = { id: Date.now().toString(), ...record }
+    globalLeaveRecords = [...globalLeaveRecords, newRecord]
+    saveToStorage(STORAGE_KEYS.LEAVE_RECORDS, globalLeaveRecords)
+    upsertToSupabase('leave_records', newRecord)
+    notify()
+  }, [])
+
+  const deleteLeaveRecord = useCallback((id) => {
+    globalLeaveRecords = globalLeaveRecords.filter(r => r.id !== id)
+    saveToStorage(STORAGE_KEYS.LEAVE_RECORDS, globalLeaveRecords)
+    deleteFromSupabase('leave_records', id)
+    notify()
+  }, [])
+
   return {
     projects: globalProjects,
     tasks: globalTasks,
     payments: globalPayments,
     recurring: globalRecurring,
+    employees: globalEmployees,
+    payroll: globalPayroll,
+    leaveRecords: globalLeaveRecords,
     addProject, updateProject, deleteProject, toggleStage,
     addTask, updateTask, deleteTask, toggleTaskStatus,
     addPayment, updatePayment, deletePayment,
     addRecurring, updateRecurring, deleteRecurring, completeRecurring, uncompleteRecurring,
+    addEmployee, updateEmployee, deleteEmployee,
+    addPayroll, updatePayroll, deletePayroll,
+    addLeaveRecord, deleteLeaveRecord,
   }
 }

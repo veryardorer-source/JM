@@ -4,6 +4,7 @@ import Dashboard from './components/Dashboard'
 import Projects from './components/Projects'
 import Tasks from './components/Tasks'
 import Payments from './components/Payments'
+import HR from './components/HR'
 import { useStore, importAll } from './store/useStore'
 
 const TABS = [
@@ -11,13 +12,17 @@ const TABS = [
   { id: 'projects', label: '현장', icon: '🏗' },
   { id: 'payments', label: '수금', icon: '💳' },
   { id: 'tasks', label: '할일', icon: '✅' },
+  { id: 'hr', label: '노무', icon: '👥' },
 ]
 
 const STORAGE_KEYS = {
-  PROJECTS:  'jm_projects_v2',
-  TASKS:     'jm_tasks_v2',
-  PAYMENTS:  'jm_payments_v1',
-  RECURRING: 'jm_recurring_v1',
+  PROJECTS:      'jm_projects_v2',
+  TASKS:         'jm_tasks_v2',
+  PAYMENTS:      'jm_payments_v1',
+  RECURRING:     'jm_recurring_v1',
+  EMPLOYEES:     'jm_employees_v1',
+  PAYROLL:       'jm_payroll_v1',
+  LEAVE_RECORDS: 'jm_leave_records_v1',
 }
 
 function BackupModal({ onClose }) {
@@ -31,10 +36,13 @@ function BackupModal({ onClose }) {
     const data = {
       version: 1,
       exportedAt: new Date().toISOString(),
-      projects:  JSON.parse(localStorage.getItem(STORAGE_KEYS.PROJECTS)  || '[]'),
-      tasks:     JSON.parse(localStorage.getItem(STORAGE_KEYS.TASKS)     || '[]'),
-      payments:  JSON.parse(localStorage.getItem(STORAGE_KEYS.PAYMENTS)  || '[]'),
-      recurring: JSON.parse(localStorage.getItem(STORAGE_KEYS.RECURRING) || '[]'),
+      projects:     JSON.parse(localStorage.getItem(STORAGE_KEYS.PROJECTS)      || '[]'),
+      tasks:        JSON.parse(localStorage.getItem(STORAGE_KEYS.TASKS)         || '[]'),
+      payments:     JSON.parse(localStorage.getItem(STORAGE_KEYS.PAYMENTS)      || '[]'),
+      recurring:    JSON.parse(localStorage.getItem(STORAGE_KEYS.RECURRING)     || '[]'),
+      employees:    JSON.parse(localStorage.getItem(STORAGE_KEYS.EMPLOYEES)     || '[]'),
+      payroll:      JSON.parse(localStorage.getItem(STORAGE_KEYS.PAYROLL)       || '[]'),
+      leaveRecords: JSON.parse(localStorage.getItem(STORAGE_KEYS.LEAVE_RECORDS) || '[]'),
     }
     const json = JSON.stringify(data, null, 2)
     const blob = new Blob([json], { type: 'application/json' })
@@ -50,10 +58,13 @@ function BackupModal({ onClose }) {
   }
 
   async function handleExportExcel() {
-    const projects  = JSON.parse(localStorage.getItem(STORAGE_KEYS.PROJECTS)  || '[]')
-    const tasks     = JSON.parse(localStorage.getItem(STORAGE_KEYS.TASKS)     || '[]')
-    const payments  = JSON.parse(localStorage.getItem(STORAGE_KEYS.PAYMENTS)  || '[]')
-    const recurring = JSON.parse(localStorage.getItem(STORAGE_KEYS.RECURRING) || '[]')
+    const projects     = JSON.parse(localStorage.getItem(STORAGE_KEYS.PROJECTS)      || '[]')
+    const tasks        = JSON.parse(localStorage.getItem(STORAGE_KEYS.TASKS)         || '[]')
+    const payments     = JSON.parse(localStorage.getItem(STORAGE_KEYS.PAYMENTS)      || '[]')
+    const recurring    = JSON.parse(localStorage.getItem(STORAGE_KEYS.RECURRING)     || '[]')
+    const employees    = JSON.parse(localStorage.getItem(STORAGE_KEYS.EMPLOYEES)     || '[]')
+    const payroll      = JSON.parse(localStorage.getItem(STORAGE_KEYS.PAYROLL)       || '[]')
+    const leaveRecords = JSON.parse(localStorage.getItem(STORAGE_KEYS.LEAVE_RECORDS) || '[]')
     const WEEKDAY   = ['일', '월', '화', '수', '목', '금', '토']
 
     const wb = new ExcelJS.Workbook()
@@ -215,6 +226,68 @@ function BackupModal({ onClose }) {
       if (r.priority === '높음') row.getCell('priority').font = { color: { argb: 'FFC42B1C' }, bold: true }
     })
 
+    // ── 시트5: 직원 ───────────────────────────────────────────────
+    const wsEmployee = wb.addWorksheet('직원')
+    wsEmployee.columns = [
+      { header: '이름',     key: 'name',         width: 12 },
+      { header: '고용형태', key: 'employeeType',  width: 10 },
+      { header: '직책',     key: 'position',      width: 10 },
+      { header: '재직상태', key: 'status',        width: 10 },
+      { header: '입사일',   key: 'hireDate',      width: 12 },
+      { header: '연락처',   key: 'phone',         width: 14 },
+      { header: '기본급',   key: 'baseSalary',    width: 16 },
+      { header: '일당',     key: 'dailyWage',     width: 12 },
+      { header: '메모',     key: 'memo',          width: 24 },
+    ]
+    styleHeader(wsEmployee.getRow(1), '1F5C9E')
+    wsEmployee.views = [{ state: 'frozen', ySplit: 1 }]
+    employees.forEach((e, i) => {
+      const row = wsEmployee.addRow({ ...e })
+      styleDataRow(row, i % 2 === 1)
+      wsEmployee.getCell(`G${i + 2}`).numFmt = '#,##0"원"'
+      wsEmployee.getCell(`H${i + 2}`).numFmt = '#,##0"원"'
+    })
+
+    // ── 시트6: 급여명세서 ─────────────────────────────────────────
+    const wsPayroll = wb.addWorksheet('급여명세서')
+    wsPayroll.columns = [
+      { header: '지급월',   key: 'yearMonth',         width: 10 },
+      { header: '이름',     key: 'name',              width: 12 },
+      { header: '고용형태', key: 'employeeType',       width: 10 },
+      { header: '총지급액', key: 'gross',              width: 16 },
+      { header: '국민연금', key: 'nationalPension',   width: 14 },
+      { header: '건강보험', key: 'healthInsurance',   width: 14 },
+      { header: '장기요양', key: 'longTermCare',      width: 12 },
+      { header: '고용보험', key: 'employmentInsurance', width: 12 },
+      { header: '소득세',   key: 'incomeTax',         width: 12 },
+      { header: '지방소득세', key: 'localIncomeTax',  width: 12 },
+      { header: '원천징수', key: 'withholdingTax',   width: 12 },
+      { header: '총공제액', key: 'totalDeduction',    width: 14 },
+      { header: '실수령액', key: 'netPay',            width: 16 },
+      { header: '지급여부', key: 'isPaid',            width: 10 },
+      { header: '지급일',   key: 'paidDate',          width: 12 },
+    ]
+    styleHeader(wsPayroll.getRow(1), '1F5C9E')
+    wsPayroll.views = [{ state: 'frozen', ySplit: 1 }]
+    payroll.forEach((pr, i) => {
+      const emp = employees.find(e => e.id === pr.employeeId)
+      const row = wsPayroll.addRow({
+        yearMonth: pr.yearMonth, name: emp?.name || '', employeeType: emp?.employeeType || '',
+        gross: pr.gross, nationalPension: pr.nationalPension, healthInsurance: pr.healthInsurance,
+        longTermCare: pr.longTermCare, employmentInsurance: pr.employmentInsurance,
+        incomeTax: pr.incomeTax, localIncomeTax: pr.localIncomeTax,
+        withholdingTax: pr.withholdingTax, totalDeduction: pr.totalDeduction,
+        netPay: pr.netPay, isPaid: pr.isPaid ? '완료' : '미지급', paidDate: pr.paidDate,
+      })
+      styleDataRow(row, i % 2 === 1)
+      ;['gross','nationalPension','healthInsurance','longTermCare','employmentInsurance','incomeTax','localIncomeTax','withholdingTax','totalDeduction','netPay'].forEach(k => {
+        const cell = row.getCell(k)
+        if (cell) cell.numFmt = '#,##0"원"'
+      })
+      if (pr.isPaid) row.getCell('isPaid').font = { color: { argb: 'FF107C10' }, bold: true }
+    })
+    wsPayroll.autoFilter = { from: 'A1', to: 'O1' }
+
     // 파일 다운로드
     const buf = await wb.xlsx.writeBuffer()
     const blob = new Blob([buf], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
@@ -364,6 +437,7 @@ export default function App() {
         {activeTab === 'projects' && <Projects />}
         {activeTab === 'payments' && <Payments />}
         {activeTab === 'tasks' && <Tasks />}
+        {activeTab === 'hr' && <HR />}
       </main>
 
       <nav className="fixed bottom-0 left-0 right-0 bg-white border-t border-gray-100 z-40">
