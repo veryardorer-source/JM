@@ -132,20 +132,20 @@ let initialized = false
 let listeners = []
 function notify() { listeners.forEach(fn => fn()) }
 
-// 앱 시작 시 Supabase에서 최신 데이터 로드
+// 앱 시작 시 Supabase에서 최신 데이터 로드 (Supabase가 연결된 경우 항상 우선)
 async function initFromSupabase() {
   if (initialized || !supabase) return
   initialized = true
   const data = await fetchFromSupabase()
   if (!data) return
-  // localStorage에 데이터가 없을 때만 Supabase 데이터를 사용
-  if (!globalProjects.length  && data.projects?.length)      { globalProjects     = data.projects;      saveToStorage(STORAGE_KEYS.PROJECTS,      data.projects) }
-  if (!globalTasks.length     && data.tasks?.length)         { globalTasks        = data.tasks;         saveToStorage(STORAGE_KEYS.TASKS,         data.tasks) }
-  if (!globalPayments.length  && data.payments?.length)      { globalPayments      = data.payments;      saveToStorage(STORAGE_KEYS.PAYMENTS,      data.payments) }
-  if (!globalRecurring.length && data.recurring?.length)     { globalRecurring    = data.recurring;     saveToStorage(STORAGE_KEYS.RECURRING,     data.recurring) }
-  if (!globalEmployees.length && data.employees?.length)     { globalEmployees    = data.employees;     saveToStorage(STORAGE_KEYS.EMPLOYEES,     data.employees) }
-  if (!globalPayroll.length   && data.payroll?.length)       { globalPayroll      = data.payroll;       saveToStorage(STORAGE_KEYS.PAYROLL,       data.payroll) }
-  if (!globalLeaveRecords.length && data.leave_records?.length) { globalLeaveRecords = data.leave_records; saveToStorage(STORAGE_KEYS.LEAVE_RECORDS, data.leave_records) }
+  // Supabase에 데이터가 있으면 항상 우선 적용 (실제 데이터 > 샘플 데이터)
+  if (data.projects?.length)      { globalProjects      = data.projects;      saveToStorage(STORAGE_KEYS.PROJECTS,      data.projects) }
+  if (data.tasks?.length)         { globalTasks         = data.tasks;         saveToStorage(STORAGE_KEYS.TASKS,         data.tasks) }
+  if (data.payments?.length)      { globalPayments      = data.payments;      saveToStorage(STORAGE_KEYS.PAYMENTS,      data.payments) }
+  if (data.recurring?.length)     { globalRecurring     = data.recurring;     saveToStorage(STORAGE_KEYS.RECURRING,     data.recurring) }
+  if (data.employees?.length)     { globalEmployees     = data.employees;     saveToStorage(STORAGE_KEYS.EMPLOYEES,     data.employees) }
+  if (data.payroll?.length)       { globalPayroll       = data.payroll;       saveToStorage(STORAGE_KEYS.PAYROLL,       data.payroll) }
+  if (data.leave_records?.length) { globalLeaveRecords  = data.leave_records; saveToStorage(STORAGE_KEYS.LEAVE_RECORDS, data.leave_records) }
   notify()
 }
 
