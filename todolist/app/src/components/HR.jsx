@@ -489,7 +489,7 @@ function EmployeeModal({ employee, onSave, onClose }) {
           </div>
 
           {/* 부양가족 (소득세 계산용) */}
-          {form.employeeType === '정규직' && (
+          {form.employeeType !== '프리랜서' && (
             <div className="grid grid-cols-2 gap-3">
               <div>
                 <label className="text-xs font-medium text-gray-500 mb-1 block">부양가족 수 (본인 포함)</label>
