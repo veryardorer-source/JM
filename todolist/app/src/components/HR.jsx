@@ -114,8 +114,11 @@ function calcPayroll(employee, form, rates) {
   const nonTaxable = mealNonTax + transportNonTax
   const taxable = gross - nonTaxable
 
-  const nationalPension = Math.floor(Math.min(insBase, r.pensionCap) * (r.pensionRate / 100) / 10) * 10
-  const healthInsurance = Math.floor(insBase * (r.healthRate / 100) / 10) * 10
+  // 건강보험·국민연금: 고지액 우선, 없으면 자동계산
+  const billedPension = Number(form.billedNationalPension)
+  const billedHealth = Number(form.billedHealthInsurance)
+  const nationalPension = billedPension > 0 ? billedPension : Math.floor(Math.min(insBase, r.pensionCap) * (r.pensionRate / 100) / 10) * 10
+  const healthInsurance = billedHealth > 0 ? billedHealth : Math.floor(insBase * (r.healthRate / 100) / 10) * 10
   const longTermCare = Math.floor(healthInsurance * (r.longTermRate / 100) / 10) * 10
   const employmentInsurance = Math.floor(insBase * (r.employmentRate / 100) / 10) * 10
   const incomeTax = calcIncomeTax(taxable)
@@ -290,6 +293,7 @@ function EmployeeModal({ employee, onSave, onClose }) {
     hireDate: '', phone: '', status: '재직', memo: '',
     workStartTime: '09:00', workEndTime: '18:00', breakHours: 1,
     workDaysOfWeek: [1, 2, 3, 4, 5],
+    billedHealthInsurance: '', billedNationalPension: '',
     terminationDate: '', terminationReason: '',
     ...(employee || {}),
   })
@@ -315,6 +319,8 @@ function EmployeeModal({ employee, onSave, onClose }) {
       dailyWage: Number(form.dailyWage) || 0,
       breakHours: Number(form.breakHours) || 1,
       workDaysOfWeek: form.workDaysOfWeek || [1, 2, 3, 4, 5],
+      billedHealthInsurance: Number(form.billedHealthInsurance) || 0,
+      billedNationalPension: Number(form.billedNationalPension) || 0,
     })
   }
 
@@ -522,6 +528,24 @@ function EmployeeModal({ employee, onSave, onClose }) {
                 <div className="text-[11px] text-green-600">각 20만원 한도 비과세 적용</div>
               </div>
 
+              {/* 4대보험 고지액 */}
+              <div className="bg-blue-50 rounded-xl p-4 space-y-3">
+                <div className="text-xs font-semibold text-blue-700">4대보험 고지액 <span className="font-normal text-blue-400">(공단 고지서 기준)</span></div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="text-xs text-gray-500 mb-1 block">건강보험 (원/월)</label>
+                    <input type="number" value={form.billedHealthInsurance || ''} onChange={e => set('billedHealthInsurance', e.target.value)}
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-400 bg-white" placeholder="미입력시 자동계산" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500 mb-1 block">국민연금 (원/월)</label>
+                    <input type="number" value={form.billedNationalPension || ''} onChange={e => set('billedNationalPension', e.target.value)}
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-400 bg-white" placeholder="미입력시 자동계산" />
+                  </div>
+                </div>
+                <div className="text-[11px] text-blue-500">고지액 입력 시 해당 금액으로 공제, 미입력 시 요율 자동계산</div>
+              </div>
+
               {/* 상여금 설정 */}
               <div className="bg-amber-50 rounded-xl p-4 space-y-3">
                 <div className="text-xs font-semibold text-amber-700">상여금 설정 <span className="font-normal text-amber-500">(급여명세서 생성 시 자동 채워짐)</span></div>
@@ -607,6 +631,8 @@ function PayrollModal({ employee, payroll, yearMonth, rates, overtimeRecord, onS
     bonus: 0, bonusType: '일반상여',
     mealAllowance: employee?.mealAllowance || 0,
     transportAllowance: employee?.transportAllowance || 0,
+    billedHealthInsurance: employee?.billedHealthInsurance || 0,
+    billedNationalPension: employee?.billedNationalPension || 0,
     programDeduction: 0, absentDeduction: 0,
     healthRetirementAdj: 0, longTermRetirementAdj: 0,
     yearEndTax: 0, yearEndLocalTax: 0,
@@ -630,6 +656,8 @@ function PayrollModal({ employee, payroll, yearMonth, rates, overtimeRecord, onS
       bonusType: form.bonusType || '일반상여',
       mealAllowance: Number(form.mealAllowance) || 0,
       transportAllowance: Number(form.transportAllowance) || 0,
+      billedHealthInsurance: Number(form.billedHealthInsurance) || 0,
+      billedNationalPension: Number(form.billedNationalPension) || 0,
       programDeduction: Number(form.programDeduction) || 0,
       absentDeduction: Number(form.absentDeduction) || 0,
       healthRetirementAdj: Number(form.healthRetirementAdj) || 0,
@@ -740,6 +768,25 @@ function PayrollModal({ employee, payroll, yearMonth, rates, overtimeRecord, onS
             )}
           </div>
 
+          {/* 4대보험 고지액 조정 */}
+          {!isFreelancer && !isDaily && (
+            <div className="bg-blue-50 rounded-xl p-4">
+              <div className="text-xs font-semibold text-blue-700 mb-3">4대보험 고지액 <span className="font-normal text-blue-400">(0이면 요율 자동계산)</span></div>
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <label className="text-xs text-gray-500 mb-1 block">건강보험</label>
+                  <input type="number" value={form.billedHealthInsurance} onChange={e => set('billedHealthInsurance', e.target.value)}
+                    className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm text-right outline-none focus:border-blue-400 bg-white" />
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 mb-1 block">국민연금</label>
+                  <input type="number" value={form.billedNationalPension} onChange={e => set('billedNationalPension', e.target.value)}
+                    className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm text-right outline-none focus:border-blue-400 bg-white" />
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* 추가 공제 항목 */}
           {!isFreelancer && !isDaily && (
             <div className="bg-red-50 rounded-xl p-4">
@@ -797,8 +844,8 @@ function PayrollModal({ employee, payroll, yearMonth, rates, overtimeRecord, onS
                 </div>
               ) : (
                 <>
-                  {calc.nationalPension > 0 && <div className="flex justify-between text-xs text-gray-500"><span>국민연금 (4.75%)</span><span>{won(calc.nationalPension)}</span></div>}
-                  {calc.healthInsurance > 0 && <div className="flex justify-between text-xs text-gray-500"><span>건강보험 (3.595%)</span><span>{won(calc.healthInsurance)}</span></div>}
+                  {calc.nationalPension > 0 && <div className="flex justify-between text-xs text-gray-500"><span>국민연금 {Number(form.billedNationalPension) > 0 ? '(고지액)' : '(4.75%)'}</span><span>{won(calc.nationalPension)}</span></div>}
+                  {calc.healthInsurance > 0 && <div className="flex justify-between text-xs text-gray-500"><span>건강보험 {Number(form.billedHealthInsurance) > 0 ? '(고지액)' : '(3.595%)'}</span><span>{won(calc.healthInsurance)}</span></div>}
                   {calc.longTermCare > 0 && <div className="flex justify-between text-xs text-gray-500"><span>장기요양보험</span><span>{won(calc.longTermCare)}</span></div>}
                   {calc.employmentInsurance > 0 && <div className="flex justify-between text-xs text-gray-500"><span>고용보험 (0.9%)</span><span>{won(calc.employmentInsurance)}</span></div>}
                   {calc.incomeTax > 0 && <div className="flex justify-between text-xs text-gray-500"><span>소득세</span><span>{won(calc.incomeTax)}</span></div>}
