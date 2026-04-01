@@ -16,31 +16,31 @@ const WORK_PRESETS = {
     workStartTime: '09:00', workEndTime: '18:00', breakHours: 1,
     workDaysOfWeek: [1, 2, 3, 4, 5],
     label: '09~18시 · 휴게1h · 월~금',
-    baseHours: 209, overtimeHours: 32.5875, totalHours: 241.5875,
-    desc: '소정 209h + 연장 32.6h = 241.6h/월',
+    baseHours: 209,
   },
   '현장': {
     workStartTime: '07:00', workEndTime: '19:00', breakHours: 2,
     workDaysOfWeek: [1, 2, 3, 4, 5, 6],
     label: '07~19시 · 휴게2h · 월~토(격주)',
-    baseHours: 209, overtimeHours: 61.95, totalHours: 270.95,
-    desc: '소정 209h + 연장 62.0h = 271.0h/월',
-  },
-  '본사(계약직)': {
-    workStartTime: '09:00', workEndTime: '19:00', breakHours: 1,
-    workDaysOfWeek: [1, 2, 3, 4, 5],
-    label: '09~19시 · 휴게1h · 월~금',
-    baseHours: 209, overtimeHours: 0, totalHours: 209,
-    desc: '소정 209h/월',
-  },
-  '현장(계약직)': {
-    workStartTime: '09:00', workEndTime: '18:00', breakHours: 1,
-    workDaysOfWeek: [1, 2, 3, 4, 5],
-    label: '09~18시 · 휴게1h · 월~금',
-    baseHours: 209, overtimeHours: 0, totalHours: 209,
-    desc: '소정 209h/월',
+    baseHours: 209,
   },
   '직접설정': null,
+}
+
+// 계약형태 + 근무형태 → 연장시간
+function getPresetOvertime(contractType, workPreset) {
+  if (contractType !== '포괄연봉제') return 0
+  if (workPreset === '본사') return 32.5875
+  if (workPreset === '현장') return 61.95
+  return 0
+}
+
+function getPresetDesc(contractType, workPreset) {
+  const preset = WORK_PRESETS[workPreset]
+  if (!preset) return ''
+  const ot = getPresetOvertime(contractType, workPreset)
+  if (ot > 0) return `소정 ${preset.baseHours}h + 포괄연장 ${ot.toFixed(1)}h = ${(preset.baseHours + ot).toFixed(1)}h/월`
+  return `소정 ${preset.baseHours}h/월 (연장 별도)`
 }
 
 // ── 4대보험 요율 (localStorage 저장) ─────────────────────────────────
@@ -479,11 +479,14 @@ function EmployeeModal({ employee, onSave, onClose }) {
                   ))}
                 </div>
 
-                {/* 선택된 프리셋 정보 또는 직접 설정 */}
+                {/* 선택된 프리셋 정보 */}
                 {form.workPreset && form.workPreset !== '직접설정' && WORK_PRESETS[form.workPreset] && (
                   <div className="bg-white rounded-lg px-3 py-2.5 text-xs border border-indigo-100 space-y-1">
                     <div className="text-indigo-600 font-medium">{WORK_PRESETS[form.workPreset].label}</div>
-                    <div className="text-indigo-700 font-bold">{WORK_PRESETS[form.workPreset].desc}</div>
+                    <div className="text-indigo-700 font-bold">{getPresetDesc(form.contractType, form.workPreset)}</div>
+                    {form.contractType !== '포괄연봉제' && (
+                      <div className="text-gray-400">일반계약: 추가근무 발생 시 추가근무 탭에서 입력</div>
+                    )}
                   </div>
                 )}
 
@@ -1830,7 +1833,7 @@ export default function HR() {
                         {emp.contractType === '포괄연봉제' && emp.hourlyWage > 0 && <div className="text-gray-400">통상시급 {won(emp.hourlyWage)}</div>}
                         {(emp.workPreset || emp.workStartTime) && (
                           <div className="text-gray-400">
-                            {emp.workPreset && emp.workPreset !== '직접설정' ? `[${emp.workPreset}] ` : ''}{emp.workStartTime}~{emp.workEndTime} · {WORK_PRESETS[emp.workPreset]?.desc || `소정 ${calcMonthlyWorkHours(emp).toFixed(1)}h/월`}
+                            {emp.workPreset && emp.workPreset !== '직접설정' ? `[${emp.workPreset}] ` : ''}{emp.workStartTime}~{emp.workEndTime} · {getPresetDesc(emp.contractType, emp.workPreset) || `소정 ${calcMonthlyWorkHours(emp).toFixed(1)}h/월`}
                           </div>
                         )}
                       </div>
