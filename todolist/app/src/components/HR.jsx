@@ -334,7 +334,7 @@ function EmployeeModal({ employee, onSave, onClose }) {
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
   const [showWageCalc, setShowWageCalc] = useState(false)
 
-  const monthlyTotal = (Number(form.baseSalary) || 0) + (Number(form.comprehensiveOvertimePay) || 0)
+  const monthlyTotal = (Number(form.baseSalary) || 0) + (Number(form.comprehensiveOvertimePay) || 0) + (Number(form.positionAllowance) || 0) + (Number(form.mealAllowance) || 0) + (Number(form.transportAllowance) || 0)
 
   function handleSubmit(e) {
     e.preventDefault()
@@ -510,12 +510,12 @@ function EmployeeModal({ employee, onSave, onClose }) {
                   return (
                     <div className="space-y-1.5">
                       <div className="bg-indigo-50 rounded-lg px-3 py-2 flex justify-between text-xs text-indigo-700 font-semibold">
-                        <span>월 합계 (기본급+포괄연장수당)</span>
+                        <span>월 급여</span>
                         <span>{won(monthlyTotal)}</span>
                       </div>
                       <div className="bg-blue-100 rounded-lg px-3 py-2 text-xs text-blue-800 font-bold">
                         <div className="flex justify-between">
-                          <span>연봉 (×12{totalBonus > 0 ? ' + 상여' : ''})</span>
+                          <span>연봉 (월급여×12{totalBonus > 0 ? ' + 상여' : ''})</span>
                           <span>{won(annual)}</span>
                         </div>
                       </div>
@@ -1776,10 +1776,9 @@ export default function HR() {
                     </div>
                     <div className="text-xs text-gray-400 mt-0.5">{emp.position}{emp.phone ? ` · ${emp.phone}` : ''}</div>
                     {(emp.baseSalary > 0 || emp.dailyWage > 0) && (() => {
-                      const monthlyPay = (emp.baseSalary || 0) + (emp.comprehensiveOvertimePay || 0)
+                      const monthlyTotal = (emp.baseSalary || 0) + (emp.comprehensiveOvertimePay || 0) + (emp.positionAllowance || 0) + (emp.mealAllowance || 0) + (emp.transportAllowance || 0)
                       const totalBonus = (emp.seollalBonus || 0) + (emp.chuseokBonus || 0) + (emp.summerBonus || 0)
-                      const annualBase = monthlyPay * 12 + totalBonus
-                      const monthlyTotal = monthlyPay + (emp.positionAllowance || 0) + (emp.mealAllowance || 0) + (emp.transportAllowance || 0)
+                      const annualBase = monthlyTotal * 12 + totalBonus
                       return (
                         <div className="text-xs text-gray-500 mt-1.5 space-y-0.5">
                           {emp.employeeType !== '일용직' && (
