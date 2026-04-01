@@ -1,7 +1,8 @@
 import styles from './Layout.module.css';
 
 const NAV_ITEMS = [
-  { key: 'write', icon: '✏️', label: '새 글 쓰기' },
+  { key: 'ai', icon: '🤖', label: 'AI 글쓰기' },
+  { key: 'write', icon: '✏️', label: '직접 글쓰기' },
   { key: 'drafts', icon: '📝', label: '임시저장' },
   { key: 'posted', icon: '✅', label: '발행 목록' },
   { key: 'settings', icon: '⚙️', label: '설정' },

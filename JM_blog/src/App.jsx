@@ -1,5 +1,6 @@
 import { useState, useEffect } from 'react';
 import Layout from './components/Layout';
+import AIWriter from './components/AIWriter';
 import PostEditor from './components/PostEditor';
 import DraftList from './components/DraftList';
 import PostedList from './components/PostedList';
@@ -8,7 +9,7 @@ import { getAuth } from './utils/storage';
 import './App.css';
 
 export default function App() {
-  const [page, setPage] = useState('write');
+  const [page, setPage] = useState('ai');
   const [editDraft, setEditDraft] = useState(null);
   const [auth, setAuth] = useState(getAuth());
 
@@ -24,6 +25,8 @@ export default function App() {
 
   const renderPage = () => {
     switch (page) {
+      case 'ai':
+        return <AIWriter onNav={handleNav} />;
       case 'write':
         return (
           <PostEditor
@@ -38,7 +41,7 @@ export default function App() {
       case 'posted':
         return <PostedList />;
       case 'settings':
-        return <Settings onAuthChange={setAuth} />;
+        return <Settings />;
       default:
         return null;
     }

@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback } from 'react';
 import { v4 as uuidv4 } from 'uuid';
-import { saveDraft, addPosted, getAuth, getSettings } from '../utils/storage';
-import { postToBlog } from '../utils/naverApi';
+import { saveDraft, addPosted, getSettings } from '../utils/storage';
+import { puppeteerPost, getCookieStatus } from '../utils/naverApi';
 import styles from './PostEditor.module.css';
 
 const TOOLBAR = [
@@ -92,22 +92,29 @@ export default function PostEditor({ draft, onSaved, onNav }) {
       setStatus({ type: 'error', text: '내용을 입력해주세요.' });
       return;
     }
-    const auth = getAuth();
-    if (!auth.accessToken) {
-      setStatus({ type: 'error', text: '⚠️ 네이버 로그인이 필요합니다. 설정에서 로그인해주세요.' });
+    // 쿠키 로그인 상태 확인
+    try {
+      const status = await getCookieStatus();
+      if (!status.loggedIn) {
+        setStatus({ type: 'error', text: '네이버 로그인이 필요합니다. 설정에서 먼저 로그인해주세요.' });
+        return;
+      }
+    } catch {
+      setStatus({ type: 'error', text: '서버 연결 실패. 서버가 실행 중인지 확인해주세요.' });
       return;
     }
+    const settings = getSettings();
     setPosting(true);
-    setStatus({ type: 'info', text: '📤 포스팅 중...' });
+    setStatus({ type: 'info', text: '네이버 블로그에 발행 중... (브라우저가 열릴 수 있습니다)' });
     try {
-      await postToBlog({
-        accessToken: auth.accessToken,
+      const result = await puppeteerPost({
+        naverId: settings.naverId || '',
         title,
-        contents: content,
+        content,
         tags,
         isPublic,
       });
-      addPosted({ id, title, tags, isPublic, preview: content.replace(/<[^>]+>/g, '').slice(0, 100) });
+      addPosted({ id, title, tags, isPublic, preview: content.replace(/<[^>]+>/g, '').slice(0, 100), url: result.url });
       setStatus({ type: 'success', text: '🎉 포스팅 성공! 네이버 블로그에 발행되었습니다.' });
     } catch (e) {
       setStatus({ type: 'error', text: `포스팅 실패: ${e.message}` });

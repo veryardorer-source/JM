@@ -46,3 +46,38 @@ export const generateNaverAuthUrl = (clientId, redirectUri, state) => {
   });
   return `https://nid.naver.com/oauth2.0/authorize?${params.toString()}`;
 };
+
+// 쿠키 기반 로그인 상태 확인
+export const getCookieStatus = async () => {
+  const res = await fetch(`${API_BASE}/auth/cookie-status`);
+  return res.json();
+};
+
+// 브라우저 열어서 수동 로그인
+export const browserLogin = async () => {
+  const res = await fetch(`${API_BASE}/auth/browser-login`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || '로그인 실패');
+  return data;
+};
+
+// 쿠키 삭제 (로그아웃)
+export const cookieLogout = async () => {
+  const res = await fetch(`${API_BASE}/auth/cookie-logout`, { method: 'POST' });
+  return res.json();
+};
+
+// Puppeteer 자동 발행 (쿠키 사용)
+export const puppeteerPost = async ({ naverId, title, content, tags, isPublic }) => {
+  const res = await fetch(`${API_BASE}/blog/puppeteer-post`, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ naverId, title, content, tags, isPublic }),
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data.error || '자동 발행 실패');
+  return data;
+};
