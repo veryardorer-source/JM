@@ -5,9 +5,10 @@ import { useStore } from '../store/useStore'
 const EMPLOYEE_TYPES = ['정규직', '프리랜서', '일용직']
 const POSITIONS = ['대표', '실장', '팀장', '디자이너', '시공팀장', '시공팀원', '경리', '기타']
 const LEAVE_TYPES = ['연차', '반차', '병가', '경조사', '기타']
-const HR_TABS = ['인사관리', '급여명세서', '연차관리']
+const HR_TABS = ['인사관리', '급여명세서', '추가근무', '급여대장', '연차관리', '4대보험', '원천세']
 const CONTRACT_TYPES = ['포괄연봉제', '일반']
 const BONUS_TYPES = ['일반상여', '설날상여금', '추석상여금', '여름휴가비']
+const DAY_LABELS = ['일', '월', '화', '수', '목', '금', '토']
 
 // ── 4대보험 요율 (localStorage 저장) ─────────────────────────────────
 const RATES_KEY = 'jm_insurance_rates_v1'
@@ -97,8 +98,8 @@ function calcPayroll(employee, form, rates) {
   }
 
   // 정규직
-  const extra = Number(form.extraPay) || 0           // 연장추가수당
-  const position = Number(form.positionAllowance) || 0 // 직책수당
+  const extra = Number(form.extraPay) || 0
+  const position = Number(form.positionAllowance) || 0
   const programDed = Number(form.programDeduction) || 0
   const absentDed = Number(form.absentDeduction) || 0
   const healthAdj = Number(form.healthRetirementAdj) || 0
@@ -145,6 +146,28 @@ function calcAnnualLeave(hireDate, year) {
     return Math.min(Math.floor((ref - hire) / (30.44 * 24 * 60 * 60 * 1000)), 11)
   }
   return Math.min(15 + Math.floor((yearsWorked - 1) / 2), 25)
+}
+
+// ── 월 소정근로시간 계산 ─────────────────────────────────────────────
+function calcMonthlyWorkHours(emp) {
+  if (!emp || !emp.workStartTime || !emp.workEndTime) return 209
+  const [sh, sm] = emp.workStartTime.split(':').map(Number)
+  const [eh, em] = emp.workEndTime.split(':').map(Number)
+  const dailyHours = (eh * 60 + em - sh * 60 - sm) / 60 - (Number(emp.breakHours) || 1)
+  const workDayCount = (emp.workDaysOfWeek || [1, 2, 3, 4, 5]).length
+  const weeklyHours = dailyHours * workDayCount
+  const weeklyHoliday = Math.min(weeklyHours / 5, 8)
+  return Math.round((weeklyHours + weeklyHoliday) * 365 / 7 / 12 * 10) / 10
+}
+
+// ── 추가근무 수당 계산 ───────────────────────────────────────────────
+function calcOvertimeExtra(employee, record) {
+  const hourly = Number(employee?.hourlyWage) || 0
+  if (!hourly || !record) return 0
+  const extra = Number(record.extraOvertimeHours) || 0
+  const night = Number(record.nightHours) || 0
+  const holiday = Number(record.holidayHours) || 0
+  return Math.round(hourly * (extra * 1.5 + night * 0.5 + holiday * 1.5))
 }
 
 // ── 유틸 ─────────────────────────────────────────────────────────────
@@ -265,6 +288,9 @@ function EmployeeModal({ employee, onSave, onClose }) {
     seollalBonus: '', chuseokBonus: '', summerBonus: '',
     dailyWage: '',
     hireDate: '', phone: '', status: '재직', memo: '',
+    workStartTime: '09:00', workEndTime: '18:00', breakHours: 1,
+    workDaysOfWeek: [1, 2, 3, 4, 5],
+    terminationDate: '', terminationReason: '',
     ...(employee || {}),
   })
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
@@ -287,6 +313,8 @@ function EmployeeModal({ employee, onSave, onClose }) {
       chuseokBonus: Number(form.chuseokBonus) || 0,
       summerBonus: Number(form.summerBonus) || 0,
       dailyWage: Number(form.dailyWage) || 0,
+      breakHours: Number(form.breakHours) || 1,
+      workDaysOfWeek: form.workDaysOfWeek || [1, 2, 3, 4, 5],
     })
   }
 
@@ -295,7 +323,7 @@ function EmployeeModal({ employee, onSave, onClose }) {
       <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-md max-h-[90vh] overflow-y-auto">
         <div className="sticky top-0 bg-white px-5 py-4 border-b border-gray-100 flex items-center justify-between">
           <h3 className="font-semibold text-gray-800">{isEdit ? '직원 수정' : '직원 등록'}</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl leading-none">×</button>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
         </div>
         <form onSubmit={handleSubmit} className="px-5 py-5 space-y-4">
           {/* 기본 정보 */}
@@ -335,6 +363,41 @@ function EmployeeModal({ employee, onSave, onClose }) {
             </div>
           </div>
 
+          {/* 퇴직 정보 */}
+          {form.status === '퇴직' && (
+            <div className="bg-red-50 rounded-xl p-4 space-y-3">
+              <div className="text-xs font-semibold text-red-700">퇴직 정보</div>
+              <div>
+                <label className="text-xs text-gray-500 mb-1 block">퇴직일</label>
+                <input type="date" value={form.terminationDate || ''} onChange={e => set('terminationDate', e.target.value)}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-red-300 bg-white" />
+              </div>
+              <div>
+                <label className="text-xs text-gray-500 mb-1 block">퇴직사유</label>
+                <input value={form.terminationReason || ''} onChange={e => set('terminationReason', e.target.value)}
+                  className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-red-300 bg-white" placeholder="자진퇴사, 계약만료 등" />
+              </div>
+              {form.hireDate && form.terminationDate && (() => {
+                const hire = new Date(form.hireDate)
+                const term = new Date(form.terminationDate)
+                const diffMs = term - hire
+                const years = Math.floor(diffMs / (365.25 * 24 * 60 * 60 * 1000))
+                const months = Math.floor((diffMs % (365.25 * 24 * 60 * 60 * 1000)) / (30.44 * 24 * 60 * 60 * 1000))
+                const eligible = diffMs >= 365 * 24 * 60 * 60 * 1000
+                const avgSalary = (Number(form.baseSalary) || 0) + (Number(form.comprehensiveOvertimePay) || 0)
+                const severance = eligible ? Math.round(avgSalary * (diffMs / (365.25 * 24 * 60 * 60 * 1000))) : 0
+                return (
+                  <div className="bg-white rounded-lg px-3 py-2 text-xs space-y-1 border border-red-100">
+                    <div className="flex justify-between"><span className="text-gray-500">근속기간</span><span>{years}년 {months}개월</span></div>
+                    <div className="flex justify-between"><span className="text-gray-500">퇴직금 대상</span><span className={eligible ? 'text-green-600 font-medium' : 'text-red-500'}>{eligible ? '해당 (1년 이상)' : '미해당 (1년 미만)'}</span></div>
+                    {eligible && <div className="flex justify-between font-semibold"><span className="text-gray-700">예상 퇴직금</span><span className="text-red-600">{won(severance)}</span></div>}
+                    <div className="text-gray-400 mt-1">* 퇴직금 = 평균임금 × 근속연수 (근사치)</div>
+                  </div>
+                )
+              })()}
+            </div>
+          )}
+
           {/* 정규직 급여 설정 */}
           {form.employeeType === '정규직' && (
             <>
@@ -348,6 +411,50 @@ function EmployeeModal({ employee, onSave, onClose }) {
                       {t}
                     </button>
                   ))}
+                </div>
+              </div>
+
+              {/* 근무형태 */}
+              <div className="bg-indigo-50 rounded-xl p-4 space-y-3">
+                <div className="text-xs font-semibold text-indigo-700">근무형태</div>
+                <div className="grid grid-cols-3 gap-3">
+                  <div>
+                    <label className="text-xs text-gray-500 mb-1 block">출근</label>
+                    <input type="time" value={form.workStartTime || '09:00'} onChange={e => set('workStartTime', e.target.value)}
+                      className="w-full border border-gray-200 rounded-lg px-2 py-2 text-sm outline-none focus:border-blue-400 bg-white" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500 mb-1 block">퇴근</label>
+                    <input type="time" value={form.workEndTime || '18:00'} onChange={e => set('workEndTime', e.target.value)}
+                      className="w-full border border-gray-200 rounded-lg px-2 py-2 text-sm outline-none focus:border-blue-400 bg-white" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500 mb-1 block">휴게(h)</label>
+                    <input type="number" step="0.5" value={form.breakHours ?? 1} onChange={e => set('breakHours', e.target.value)}
+                      className="w-full border border-gray-200 rounded-lg px-2 py-2 text-sm outline-none focus:border-blue-400 bg-white" />
+                  </div>
+                </div>
+                <div>
+                  <label className="text-xs text-gray-500 mb-1.5 block">근무요일</label>
+                  <div className="flex gap-1">
+                    {[1, 2, 3, 4, 5, 6, 0].map(d => {
+                      const sel = (form.workDaysOfWeek || [1, 2, 3, 4, 5]).includes(d)
+                      return (
+                        <button type="button" key={d}
+                          onClick={() => {
+                            const days = form.workDaysOfWeek || [1, 2, 3, 4, 5]
+                            set('workDaysOfWeek', sel ? days.filter(x => x !== d) : [...days, d].sort())
+                          }}
+                          className={`flex-1 py-1.5 rounded-lg text-xs font-medium border transition-colors ${sel ? 'bg-indigo-500 text-white border-indigo-500' : 'border-gray-200 text-gray-500'}`}>
+                          {DAY_LABELS[d]}
+                        </button>
+                      )
+                    })}
+                  </div>
+                </div>
+                <div className="bg-white rounded-lg px-3 py-2 flex justify-between items-center text-xs border border-indigo-100">
+                  <span className="text-indigo-600">월 소정근로시간 (자동계산)</span>
+                  <span className="font-bold text-indigo-700">{calcMonthlyWorkHours(form).toFixed(1)}h</span>
                 </div>
               </div>
 
@@ -486,7 +593,7 @@ function EmployeeModal({ employee, onSave, onClose }) {
 }
 
 // ── 급여명세서 생성/수정 모달 ─────────────────────────────────────────
-function PayrollModal({ employee, payroll, yearMonth, rates, onSave, onClose }) {
+function PayrollModal({ employee, payroll, yearMonth, rates, overtimeRecord, onSave, onClose }) {
   const isEdit = !!payroll?.id
   const isFreelancer = employee?.employeeType === '프리랜서'
   const isDaily = employee?.employeeType === '일용직'
@@ -495,7 +602,7 @@ function PayrollModal({ employee, payroll, yearMonth, rates, onSave, onClose }) 
   const [form, setForm] = useState({
     baseSalary: employee?.baseSalary || 0,
     overtimePay: isComprehensive ? (employee?.comprehensiveOvertimePay || 0) : 0,
-    extraPay: 0,
+    extraPay: overtimeRecord?.extraPay || 0,
     positionAllowance: employee?.positionAllowance || 0,
     bonus: 0, bonusType: '일반상여',
     mealAllowance: employee?.mealAllowance || 0,
@@ -550,7 +657,7 @@ function PayrollModal({ employee, payroll, yearMonth, rates, onSave, onClose }) 
               )}
             </div>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl leading-none">×</button>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
         </div>
         <form onSubmit={handleSubmit} className="px-5 py-5 space-y-4">
           {/* 지급 항목 */}
@@ -584,7 +691,10 @@ function PayrollModal({ employee, payroll, yearMonth, rates, onSave, onClose }) 
                         className="w-36 border border-gray-200 rounded-lg px-2 py-1.5 text-sm text-right outline-none focus:border-blue-400 bg-white" />
                     </div>
                     <div className="flex items-center justify-between">
-                      <label className="text-xs text-gray-600">연장추가수당</label>
+                      <label className="text-xs text-gray-600">
+                        연장추가수당
+                        {overtimeRecord && overtimeRecord.extraPay > 0 && <span className="text-amber-500 ml-1">(추가근무 연동)</span>}
+                      </label>
                       <input type="number" value={form.extraPay} onChange={e => set('extraPay', e.target.value)}
                         className="w-36 border border-gray-200 rounded-lg px-2 py-1.5 text-sm text-right outline-none focus:border-blue-400 bg-white" />
                     </div>
@@ -687,68 +797,18 @@ function PayrollModal({ employee, payroll, yearMonth, rates, onSave, onClose }) 
                 </div>
               ) : (
                 <>
-                  {calc.nationalPension > 0 && (
-                    <div className="flex justify-between text-xs text-gray-500">
-                      <span>국민연금 (4.75%)</span><span>{won(calc.nationalPension)}</span>
-                    </div>
-                  )}
-                  {calc.healthInsurance > 0 && (
-                    <div className="flex justify-between text-xs text-gray-500">
-                      <span>건강보험 (3.595%)</span><span>{won(calc.healthInsurance)}</span>
-                    </div>
-                  )}
-                  {calc.longTermCare > 0 && (
-                    <div className="flex justify-between text-xs text-gray-500">
-                      <span>장기요양보험</span><span>{won(calc.longTermCare)}</span>
-                    </div>
-                  )}
-                  {calc.employmentInsurance > 0 && (
-                    <div className="flex justify-between text-xs text-gray-500">
-                      <span>고용보험 (0.9%)</span><span>{won(calc.employmentInsurance)}</span>
-                    </div>
-                  )}
-                  {calc.incomeTax > 0 && (
-                    <div className="flex justify-between text-xs text-gray-500">
-                      <span>소득세</span><span>{won(calc.incomeTax)}</span>
-                    </div>
-                  )}
-                  {calc.localIncomeTax > 0 && (
-                    <div className="flex justify-between text-xs text-gray-500">
-                      <span>지방소득세(주민세)</span><span>{won(calc.localIncomeTax)}</span>
-                    </div>
-                  )}
-                  {calc.programDeduction > 0 && (
-                    <div className="flex justify-between text-xs text-gray-500">
-                      <span>프로그램공제</span><span>{won(calc.programDeduction)}</span>
-                    </div>
-                  )}
-                  {calc.absentDeduction > 0 && (
-                    <div className="flex justify-between text-xs text-gray-500">
-                      <span>조퇴공제</span><span>{won(calc.absentDeduction)}</span>
-                    </div>
-                  )}
-                  {calc.healthRetirementAdj > 0 && (
-                    <div className="flex justify-between text-xs text-gray-500">
-                      <span>건강보험 퇴직정산</span><span>{won(calc.healthRetirementAdj)}</span>
-                    </div>
-                  )}
-                  {calc.longTermRetirementAdj > 0 && (
-                    <div className="flex justify-between text-xs text-gray-500">
-                      <span>장기요양 퇴직정산</span><span>{won(calc.longTermRetirementAdj)}</span>
-                    </div>
-                  )}
-                  {calc.yearEndTax !== 0 && (
-                    <div className={`flex justify-between text-xs ${calc.yearEndTax < 0 ? 'text-blue-500' : 'text-gray-500'}`}>
-                      <span>연말정산 소득세{calc.yearEndTax < 0 ? ' (환급)' : ''}</span>
-                      <span>{calc.yearEndTax < 0 ? '-' : ''}{won(Math.abs(calc.yearEndTax))}</span>
-                    </div>
-                  )}
-                  {calc.yearEndLocalTax !== 0 && (
-                    <div className={`flex justify-between text-xs ${calc.yearEndLocalTax < 0 ? 'text-blue-500' : 'text-gray-500'}`}>
-                      <span>연말정산 지방소득세{calc.yearEndLocalTax < 0 ? ' (환급)' : ''}</span>
-                      <span>{calc.yearEndLocalTax < 0 ? '-' : ''}{won(Math.abs(calc.yearEndLocalTax))}</span>
-                    </div>
-                  )}
+                  {calc.nationalPension > 0 && <div className="flex justify-between text-xs text-gray-500"><span>국민연금 (4.75%)</span><span>{won(calc.nationalPension)}</span></div>}
+                  {calc.healthInsurance > 0 && <div className="flex justify-between text-xs text-gray-500"><span>건강보험 (3.595%)</span><span>{won(calc.healthInsurance)}</span></div>}
+                  {calc.longTermCare > 0 && <div className="flex justify-between text-xs text-gray-500"><span>장기요양보험</span><span>{won(calc.longTermCare)}</span></div>}
+                  {calc.employmentInsurance > 0 && <div className="flex justify-between text-xs text-gray-500"><span>고용보험 (0.9%)</span><span>{won(calc.employmentInsurance)}</span></div>}
+                  {calc.incomeTax > 0 && <div className="flex justify-between text-xs text-gray-500"><span>소득세</span><span>{won(calc.incomeTax)}</span></div>}
+                  {calc.localIncomeTax > 0 && <div className="flex justify-between text-xs text-gray-500"><span>지방소득세(주민세)</span><span>{won(calc.localIncomeTax)}</span></div>}
+                  {calc.programDeduction > 0 && <div className="flex justify-between text-xs text-gray-500"><span>프로그램공제</span><span>{won(calc.programDeduction)}</span></div>}
+                  {calc.absentDeduction > 0 && <div className="flex justify-between text-xs text-gray-500"><span>조퇴공제</span><span>{won(calc.absentDeduction)}</span></div>}
+                  {calc.healthRetirementAdj > 0 && <div className="flex justify-between text-xs text-gray-500"><span>건강보험 퇴직정산</span><span>{won(calc.healthRetirementAdj)}</span></div>}
+                  {calc.longTermRetirementAdj > 0 && <div className="flex justify-between text-xs text-gray-500"><span>장기요양 퇴직정산</span><span>{won(calc.longTermRetirementAdj)}</span></div>}
+                  {calc.yearEndTax !== 0 && <div className={`flex justify-between text-xs ${calc.yearEndTax < 0 ? 'text-blue-500' : 'text-gray-500'}`}><span>연말정산 소득세{calc.yearEndTax < 0 ? ' (환급)' : ''}</span><span>{calc.yearEndTax < 0 ? '-' : ''}{won(Math.abs(calc.yearEndTax))}</span></div>}
+                  {calc.yearEndLocalTax !== 0 && <div className={`flex justify-between text-xs ${calc.yearEndLocalTax < 0 ? 'text-blue-500' : 'text-gray-500'}`}><span>연말정산 지방소득세{calc.yearEndLocalTax < 0 ? ' (환급)' : ''}</span><span>{calc.yearEndLocalTax < 0 ? '-' : ''}{won(Math.abs(calc.yearEndLocalTax))}</span></div>}
                 </>
               )}
             </div>
@@ -803,22 +863,18 @@ function PayrollModal({ employee, payroll, yearMonth, rates, onSave, onClose }) 
 
 // ── 임금 계산기 모달 ──────────────────────────────────────────────────
 function WageCalculatorModal({ initialBaseSalary, initialOvertime, onApply, onClose }) {
-  const [mode, setMode] = useState('calc') // 'calc'=시급→월급  'verify'=월급→시급검증
+  const [mode, setMode] = useState('calc')
   const [form, setForm] = useState({
-    minWage: 10320,          // 최저시급
-    weeklyHours: 40,         // 주 소정근로시간
-    weeklyOvertime: 12,      // 주 포괄연장시간
-    targetHourly: 10320,     // 목표 통상시급 (계산 모드)
-    basicSalary: initialBaseSalary || 0, // 기본급 (검증 모드)
+    minWage: 10320, weeklyHours: 40, weeklyOvertime: 12,
+    targetHourly: 10320, basicSalary: initialBaseSalary || 0,
   })
   const set = (k, v) => setForm(f => ({ ...f, [k]: v }))
 
-  // ── 핵심 계산 ──────────────────────────────────────────────────────
-  const weeklyHoliday = Math.min(form.weeklyHours / 5, 8)  // 주휴시간 (최대 8h)
+  const weeklyHoliday = Math.min(form.weeklyHours / 5, 8)
   const monthlyBaseHours = Math.round((form.weeklyHours + weeklyHoliday) * 365 / 7 / 12 * 10) / 10
   const monthlyOvertimeHours = Math.round(form.weeklyOvertime * 365 / 7 / 12 * 10) / 10
   const weeklyTotal = Number(form.weeklyHours) + Number(form.weeklyOvertime)
-  const isOverLimit = weeklyTotal > 52  // 주 52시간 초과 여부
+  const isOverLimit = weeklyTotal > 52
 
   let calc = {}
   if (mode === 'calc') {
@@ -852,23 +908,13 @@ function WageCalculatorModal({ initialBaseSalary, initialOvertime, onApply, onCl
             <h3 className="font-semibold text-gray-800">임금 계산기</h3>
             <p className="text-[11px] text-gray-400 mt-0.5">법정 기준 내 임금 계산 및 최저임금 검증</p>
           </div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl leading-none">×</button>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
         </div>
         <div className="px-5 py-5 space-y-4">
-
-          {/* 모드 선택 */}
           <div className="flex bg-gray-100 rounded-xl p-1">
-            <button onClick={() => setMode('calc')}
-              className={`flex-1 py-2 text-xs font-medium rounded-lg transition-colors ${mode === 'calc' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500'}`}>
-              시급 → 월급 계산
-            </button>
-            <button onClick={() => setMode('verify')}
-              className={`flex-1 py-2 text-xs font-medium rounded-lg transition-colors ${mode === 'verify' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500'}`}>
-              월급 → 시급 검증
-            </button>
+            <button onClick={() => setMode('calc')} className={`flex-1 py-2 text-xs font-medium rounded-lg transition-colors ${mode === 'calc' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500'}`}>시급 → 월급 계산</button>
+            <button onClick={() => setMode('verify')} className={`flex-1 py-2 text-xs font-medium rounded-lg transition-colors ${mode === 'verify' ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500'}`}>월급 → 시급 검증</button>
           </div>
-
-          {/* 근로시간 설정 */}
           <div className="bg-gray-50 rounded-xl p-4 space-y-3">
             <div className="text-xs font-semibold text-gray-700">근로시간 설정</div>
             <div className="grid grid-cols-2 gap-3">
@@ -883,7 +929,6 @@ function WageCalculatorModal({ initialBaseSalary, initialOvertime, onApply, onCl
                   className="w-full border border-gray-200 rounded-lg px-3 py-2 text-sm outline-none focus:border-blue-400 bg-white" />
               </div>
             </div>
-            {/* 계산 결과 요약 */}
             <div className="grid grid-cols-2 gap-2 text-xs">
               <div className="bg-white rounded-lg px-3 py-2 border border-gray-100">
                 <div className="text-gray-400">월 통상근로시간</div>
@@ -896,24 +941,17 @@ function WageCalculatorModal({ initialBaseSalary, initialOvertime, onApply, onCl
                 <div className="text-gray-400 text-[10px]">(가산율 1.5배)</div>
               </div>
             </div>
-            {/* 주 52시간 경고 */}
             {isOverLimit && (
               <div className="bg-red-50 border border-red-100 rounded-lg px-3 py-2 text-xs text-red-600">
                 ⚠ 주 소정({form.weeklyHours}h) + 연장({form.weeklyOvertime}h) = {weeklyTotal}h — 주 52시간 초과
               </div>
             )}
             {!isOverLimit && weeklyTotal > 0 && (
-              <div className="text-[11px] text-gray-400 text-right">
-                주 총 근로: {weeklyTotal}h / 52h
-              </div>
+              <div className="text-[11px] text-gray-400 text-right">주 총 근로: {weeklyTotal}h / 52h</div>
             )}
           </div>
-
-          {/* 시급 입력 */}
           <div className="bg-blue-50 rounded-xl p-4 space-y-3">
-            <div className="text-xs font-semibold text-blue-700">
-              {mode === 'calc' ? '통상시급 설정' : '기본급 입력'}
-            </div>
+            <div className="text-xs font-semibold text-blue-700">{mode === 'calc' ? '통상시급 설정' : '기본급 입력'}</div>
             <div>
               <label className="text-xs text-gray-500 mb-1 block">최저시급 기준 (원)</label>
               <input type="number" value={form.minWage} onChange={e => set('minWage', e.target.value)}
@@ -934,8 +972,6 @@ function WageCalculatorModal({ initialBaseSalary, initialOvertime, onApply, onCl
               </div>
             )}
           </div>
-
-          {/* 계산 결과 */}
           <div className={`rounded-xl p-4 space-y-2 border ${calc.isLegal ? 'bg-green-50 border-green-100' : 'bg-red-50 border-red-100'}`}>
             <div className="flex items-center justify-between mb-1">
               <div className="text-xs font-semibold text-gray-700">계산 결과</div>
@@ -944,37 +980,16 @@ function WageCalculatorModal({ initialBaseSalary, initialOvertime, onApply, onCl
               </div>
             </div>
             <div className="space-y-1.5 text-xs">
-              <div className="flex justify-between">
-                <span className="text-gray-500">통상시급</span>
-                <span className="font-semibold">{numFmt(Math.round(calc.hourly))}원/h</span>
-              </div>
-              <div className="flex justify-between">
-                <span className="text-gray-500">기본급 (월)</span>
-                <span className="font-semibold">{numFmt(calc.basic)}원</span>
-              </div>
-              {form.weeklyOvertime > 0 && (
-                <div className="flex justify-between">
-                  <span className="text-gray-500">포괄연장수당 (월, ×1.5)</span>
-                  <span className="font-semibold">{numFmt(calc.overtime)}원</span>
-                </div>
-              )}
-              <div className="flex justify-between border-t border-gray-200 pt-1.5 font-bold">
-                <span className="text-gray-700">월 합계</span>
-                <span className="text-blue-600">{numFmt(calc.totalMonthly)}원</span>
-              </div>
-              <div className="flex justify-between text-gray-400">
-                <span>연봉 환산 (×12)</span>
-                <span>{numFmt(calc.annualSalary)}원</span>
-              </div>
+              <div className="flex justify-between"><span className="text-gray-500">통상시급</span><span className="font-semibold">{numFmt(Math.round(calc.hourly))}원/h</span></div>
+              <div className="flex justify-between"><span className="text-gray-500">기본급 (월)</span><span className="font-semibold">{numFmt(calc.basic)}원</span></div>
+              {form.weeklyOvertime > 0 && <div className="flex justify-between"><span className="text-gray-500">포괄연장수당 (월, ×1.5)</span><span className="font-semibold">{numFmt(calc.overtime)}원</span></div>}
+              <div className="flex justify-between border-t border-gray-200 pt-1.5 font-bold"><span className="text-gray-700">월 합계</span><span className="text-blue-600">{numFmt(calc.totalMonthly)}원</span></div>
+              <div className="flex justify-between text-gray-400"><span>연봉 환산 (×12)</span><span>{numFmt(calc.annualSalary)}원</span></div>
             </div>
             {!calc.isLegal && calc.shortfall > 0 && (
-              <div className="bg-red-100 rounded-lg px-3 py-2 text-xs text-red-700 mt-2">
-                최저임금 충족을 위해 기본급을 {numFmt(calc.shortfall)}원 이상 인상 필요
-              </div>
+              <div className="bg-red-100 rounded-lg px-3 py-2 text-xs text-red-700 mt-2">최저임금 충족을 위해 기본급을 {numFmt(calc.shortfall)}원 이상 인상 필요</div>
             )}
           </div>
-
-          {/* 법정 기준 안내 */}
           <div className="bg-gray-50 rounded-xl px-4 py-3 text-[11px] text-gray-500 space-y-1">
             <div className="font-semibold text-gray-600 mb-1">계산 기준 (근로기준법)</div>
             <div>• 월 통상근로시간 = (주 소정 + 주휴) × 365/7/12</div>
@@ -982,22 +997,10 @@ function WageCalculatorModal({ initialBaseSalary, initialOvertime, onApply, onCl
             <div>• 연장가산 = 통상시급 × 1.5배 (50% 가산)</div>
             <div>• 연장근로 한도 = 주 12시간 (주 52시간제)</div>
           </div>
-
-          {/* 적용 버튼 */}
           <div className="flex gap-2">
-            <button onClick={onClose}
-              className="flex-1 border border-gray-200 text-gray-500 hover:bg-gray-50 py-3 rounded-xl text-sm transition-colors">
-              닫기
-            </button>
-            <button
-              onClick={() => onApply({
-                baseSalary: calc.basic,
-                comprehensiveOvertimePay: calc.overtime,
-                hourlyWage: Math.round(calc.hourly),
-              })}
-              className="flex-1 bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 rounded-xl text-sm transition-colors">
-              직원 등록에 적용
-            </button>
+            <button onClick={onClose} className="flex-1 border border-gray-200 text-gray-500 hover:bg-gray-50 py-3 rounded-xl text-sm transition-colors">닫기</button>
+            <button onClick={() => onApply({ baseSalary: calc.basic, comprehensiveOvertimePay: calc.overtime, hourlyWage: Math.round(calc.hourly) })}
+              className="flex-1 bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 rounded-xl text-sm transition-colors">직원 등록에 적용</button>
           </div>
         </div>
       </div>
@@ -1012,11 +1015,11 @@ function RatesModal({ rates, onSave, onClose }) {
 
   function handleSave() {
     const parsed = {
-      healthRate:      Number(form.healthRate)      || DEFAULT_RATES.healthRate,
-      longTermRate:    Number(form.longTermRate)     || DEFAULT_RATES.longTermRate,
-      pensionRate:     Number(form.pensionRate)      || DEFAULT_RATES.pensionRate,
-      pensionCap:      Number(form.pensionCap)       || DEFAULT_RATES.pensionCap,
-      employmentRate:  Number(form.employmentRate)   || DEFAULT_RATES.employmentRate,
+      healthRate: Number(form.healthRate) || DEFAULT_RATES.healthRate,
+      longTermRate: Number(form.longTermRate) || DEFAULT_RATES.longTermRate,
+      pensionRate: Number(form.pensionRate) || DEFAULT_RATES.pensionRate,
+      pensionCap: Number(form.pensionCap) || DEFAULT_RATES.pensionCap,
+      employmentRate: Number(form.employmentRate) || DEFAULT_RATES.employmentRate,
     }
     saveRates(parsed)
     onSave(parsed)
@@ -1035,8 +1038,7 @@ function RatesModal({ rates, onSave, onClose }) {
         {hint && <div className="text-[11px] text-gray-400">{hint}</div>}
       </div>
       <div className="flex items-center gap-1">
-        <input type="number" step="0.001" value={form[key]}
-          onChange={e => set(key, e.target.value)}
+        <input type="number" step="0.001" value={form[key]} onChange={e => set(key, e.target.value)}
           className="w-28 border border-gray-200 rounded-lg px-2 py-1.5 text-sm text-right outline-none focus:border-blue-400" />
         <span className="text-xs text-gray-400 w-4">{unit}</span>
       </div>
@@ -1048,7 +1050,7 @@ function RatesModal({ rates, onSave, onClose }) {
       <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-sm">
         <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
           <h3 className="font-semibold text-gray-800">4대보험 요율 설정</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl leading-none">×</button>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
         </div>
         <div className="px-5 py-5 space-y-4">
           <div className="bg-blue-50 rounded-xl p-4 space-y-3">
@@ -1071,14 +1073,8 @@ function RatesModal({ rates, onSave, onClose }) {
             <div>• 공식 요율: 건강 3.545% / 장기 12.95% / 연금 4.5%</div>
           </div>
           <div className="flex gap-2">
-            <button onClick={handleReset}
-              className="flex-1 border border-gray-200 text-gray-500 hover:bg-gray-50 py-2.5 rounded-xl text-sm transition-colors">
-              기본값으로
-            </button>
-            <button onClick={handleSave}
-              className="flex-1 bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2.5 rounded-xl text-sm transition-colors">
-              저장
-            </button>
+            <button onClick={handleReset} className="flex-1 border border-gray-200 text-gray-500 hover:bg-gray-50 py-2.5 rounded-xl text-sm transition-colors">기본값으로</button>
+            <button onClick={handleSave} className="flex-1 bg-blue-500 hover:bg-blue-600 text-white font-semibold py-2.5 rounded-xl text-sm transition-colors">저장</button>
           </div>
         </div>
       </div>
@@ -1106,7 +1102,7 @@ function LeaveAddModal({ employees, onSave, onClose }) {
       <div className="bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-md">
         <div className="px-5 py-4 border-b border-gray-100 flex items-center justify-between">
           <h3 className="font-semibold text-gray-800">연차 기록 추가</h3>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl leading-none">×</button>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-600 text-xl leading-none">&times;</button>
         </div>
         <form onSubmit={handleSubmit} className="px-5 py-5 space-y-4">
           <div>
@@ -1146,9 +1142,7 @@ function LeaveAddModal({ employees, onSave, onClose }) {
             <input value={form.reason} onChange={e => set('reason', e.target.value)}
               className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-400" placeholder="사유 입력" />
           </div>
-          <button type="submit" className="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 rounded-xl transition-colors">
-            기록 추가
-          </button>
+          <button type="submit" className="w-full bg-blue-500 hover:bg-blue-600 text-white font-semibold py-3 rounded-xl transition-colors">기록 추가</button>
         </form>
       </div>
     </div>
@@ -1159,46 +1153,32 @@ function LeaveAddModal({ employees, onSave, onClose }) {
 function LeaveSection({ employees, leaveRecords, addLeaveRecord, deleteLeaveRecord }) {
   const [year, setYear] = useState(new Date().getFullYear())
   const [showAdd, setShowAdd] = useState(false)
-
-  // 정규직 + 일용직만 연차 대상 (프리랜서 제외)
   const eligible = employees.filter(e => e.status === '재직' && e.employeeType !== '프리랜서')
 
   return (
     <div className="space-y-4">
       <div className="flex items-center gap-2">
-        <button onClick={() => setYear(y => y - 1)} className="w-8 h-8 rounded-lg border border-gray-200 hover:bg-gray-50 text-sm font-bold text-gray-500">‹</button>
+        <button onClick={() => setYear(y => y - 1)} className="w-8 h-8 rounded-lg border border-gray-200 hover:bg-gray-50 text-sm font-bold text-gray-500">&#8249;</button>
         <span className="font-semibold text-gray-800 w-16 text-center">{year}년</span>
-        <button onClick={() => setYear(y => y + 1)} className="w-8 h-8 rounded-lg border border-gray-200 hover:bg-gray-50 text-sm font-bold text-gray-500">›</button>
-        <button onClick={() => setShowAdd(true)}
-          className="ml-auto bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium px-4 py-2 rounded-xl transition-colors">
-          + 연차 기록
-        </button>
+        <button onClick={() => setYear(y => y + 1)} className="w-8 h-8 rounded-lg border border-gray-200 hover:bg-gray-50 text-sm font-bold text-gray-500">&#8250;</button>
+        <button onClick={() => setShowAdd(true)} className="ml-auto bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium px-4 py-2 rounded-xl transition-colors">+ 연차 기록</button>
       </div>
-
       {eligible.length === 0 ? (
-        <div className="text-center py-12 text-gray-400 text-sm">
-          <div className="text-3xl mb-2">📅</div>
-          재직 중인 직원이 없습니다.
-        </div>
+        <div className="text-center py-12 text-gray-400 text-sm"><div className="text-3xl mb-2">📅</div>재직 중인 직원이 없습니다.</div>
       ) : (
         <div className="space-y-3">
           {eligible.map(emp => {
             const total = calcAnnualLeave(emp.hireDate, year)
-            const records = leaveRecords.filter(r =>
-              r.employeeId === emp.id && r.date?.startsWith(String(year))
-            )
+            const records = leaveRecords.filter(r => r.employeeId === emp.id && r.date?.startsWith(String(year)))
             const used = records.reduce((s, r) => s + (r.days || 0), 0)
             const remaining = total - used
             const pct = total > 0 ? Math.min(100, (used / total) * 100) : 0
-
             return (
               <div key={emp.id} className="bg-white border border-gray-100 rounded-2xl p-4">
                 <div className="flex items-center justify-between mb-3">
                   <div>
                     <div className="font-medium text-gray-800">{emp.name}</div>
-                    <div className="text-xs text-gray-400">
-                      {emp.position} · 입사 {emp.hireDate || '미설정'}
-                    </div>
+                    <div className="text-xs text-gray-400">{emp.position} · 입사 {emp.hireDate || '미설정'}</div>
                   </div>
                   <div className="text-right">
                     <div className="text-base font-bold text-blue-600">{remaining}일 잔여</div>
@@ -1206,23 +1186,16 @@ function LeaveSection({ employees, leaveRecords, addLeaveRecord, deleteLeaveReco
                   </div>
                 </div>
                 <div className="h-2 bg-gray-100 rounded-full overflow-hidden mb-3">
-                  <div className="h-full bg-blue-400 rounded-full transition-all duration-300"
-                    style={{ width: `${pct}%` }} />
+                  <div className="h-full bg-blue-400 rounded-full transition-all duration-300" style={{ width: `${pct}%` }} />
                 </div>
                 {records.length > 0 && (
                   <div className="space-y-1 mt-2">
                     {records.map(r => (
                       <div key={r.id} className="flex items-center gap-2 text-xs text-gray-500 bg-gray-50 rounded-lg px-3 py-2">
                         <span className="text-gray-400 shrink-0">{r.date}</span>
-                        <span className={`px-1.5 py-0.5 rounded text-[11px] font-medium shrink-0 ${
-                          r.type === '연차' ? 'bg-blue-100 text-blue-600' :
-                          r.type === '반차' ? 'bg-purple-100 text-purple-600' :
-                          'bg-gray-100 text-gray-600'
-                        }`}>{r.type} {r.days}일</span>
+                        <span className={`px-1.5 py-0.5 rounded text-[11px] font-medium shrink-0 ${r.type === '연차' ? 'bg-blue-100 text-blue-600' : r.type === '반차' ? 'bg-purple-100 text-purple-600' : 'bg-gray-100 text-gray-600'}`}>{r.type} {r.days}일</span>
                         <span className="flex-1 text-gray-400 truncate">{r.reason}</span>
-                        <button onClick={() => {
-                          if (confirm('이 연차 기록을 삭제할까요?')) deleteLeaveRecord(r.id)
-                        }} className="text-red-300 hover:text-red-500 shrink-0 text-base leading-none">×</button>
+                        <button onClick={() => { if (confirm('이 연차 기록을 삭제할까요?')) deleteLeaveRecord(r.id) }} className="text-red-300 hover:text-red-500 shrink-0 text-base leading-none">&times;</button>
                       </div>
                     ))}
                   </div>
@@ -1232,14 +1205,414 @@ function LeaveSection({ employees, leaveRecords, addLeaveRecord, deleteLeaveReco
           })}
         </div>
       )}
+      {showAdd && <LeaveAddModal employees={eligible} onSave={record => { addLeaveRecord(record); setShowAdd(false) }} onClose={() => setShowAdd(false)} />}
+    </div>
+  )
+}
 
-      {showAdd && (
-        <LeaveAddModal
-          employees={eligible}
-          onSave={record => { addLeaveRecord(record); setShowAdd(false) }}
-          onClose={() => setShowAdd(false)}
-        />
+// ── 추가근무 관리 ─────────────────────────────────────────────────────
+function OvertimeView({ employees, overtimeRecords, yearMonth, prevMonth, nextMonth, upsertOvertimeRecord }) {
+  const activeEmps = employees.filter(e => e.status === '재직' && e.employeeType === '정규직')
+  const [editingId, setEditingId] = useState(null)
+  const [forms, setForms] = useState({})
+
+  function getForm(empId) {
+    if (forms[empId]) return forms[empId]
+    const rec = overtimeRecords.find(r => r.employeeId === empId && r.yearMonth === yearMonth)
+    return rec ? { extraOvertimeHours: rec.extraOvertimeHours || 0, nightHours: rec.nightHours || 0, holidayHours: rec.holidayHours || 0, note: rec.note || '' }
+               : { extraOvertimeHours: 0, nightHours: 0, holidayHours: 0, note: '' }
+  }
+
+  function setFormField(empId, k, v) {
+    setForms(f => ({ ...f, [empId]: { ...getForm(empId), [k]: v } }))
+  }
+
+  function handleSave(emp) {
+    const f = getForm(emp.id)
+    upsertOvertimeRecord({
+      employeeId: emp.id, yearMonth,
+      extraOvertimeHours: Number(f.extraOvertimeHours) || 0,
+      nightHours: Number(f.nightHours) || 0,
+      holidayHours: Number(f.holidayHours) || 0,
+      note: f.note || '',
+      extraPay: calcOvertimeExtra(emp, f),
+    })
+    setEditingId(null)
+    setForms(f2 => { const n = { ...f2 }; delete n[emp.id]; return n })
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-2">
+        <button onClick={prevMonth} className="w-8 h-8 rounded-lg border border-gray-200 hover:bg-gray-50 text-sm font-bold text-gray-500">&#8249;</button>
+        <span className="font-semibold text-gray-800 w-28 text-center">{fym(yearMonth)}</span>
+        <button onClick={nextMonth} className="w-8 h-8 rounded-lg border border-gray-200 hover:bg-gray-50 text-sm font-bold text-gray-500">&#8250;</button>
+      </div>
+      <div className="bg-amber-50 rounded-xl px-4 py-3 text-xs text-amber-700 space-y-0.5">
+        <div className="font-semibold mb-1">추가근무 수당 계산 기준</div>
+        <div>• 추가연장 = 통상시급 × 시간 × 1.5 (50% 가산 포함)</div>
+        <div>• 야간근로 (22:00~06:00) = 통상시급 × 시간 × 0.5</div>
+        <div>• 휴일근로 = 통상시급 × 시간 × 1.5</div>
+        <div>• 포괄연봉제 직원은 포괄시간 초과분만 입력</div>
+      </div>
+      {activeEmps.length === 0 ? (
+        <div className="text-center py-12 text-gray-400 text-sm">정규직 재직 중인 직원이 없습니다.</div>
+      ) : (
+        activeEmps.map(emp => {
+          const rec = overtimeRecords.find(r => r.employeeId === emp.id && r.yearMonth === yearMonth)
+          const isEditing = editingId === emp.id
+          const f = getForm(emp.id)
+          const extraPay = calcOvertimeExtra(emp, f)
+          const hasData = rec && ((rec.extraOvertimeHours || 0) > 0 || (rec.nightHours || 0) > 0 || (rec.holidayHours || 0) > 0)
+
+          return (
+            <div key={emp.id} className="bg-white border border-gray-100 rounded-2xl p-4">
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <div className="font-medium text-gray-800">{emp.name}</div>
+                  <div className="text-xs text-gray-400">
+                    {emp.position} · 통상시급 {emp.hourlyWage ? won(emp.hourlyWage) : '미설정'}
+                    {emp.contractType === '포괄연봉제' && emp.comprehensiveOvertimePay > 0 && (
+                      <span className="ml-1.5 text-indigo-500">포괄연장 {won(emp.comprehensiveOvertimePay)}/월</span>
+                    )}
+                  </div>
+                </div>
+                {!isEditing && (
+                  <button onClick={() => setEditingId(emp.id)}
+                    className={`text-xs px-3 py-1.5 rounded-lg border transition-colors ${hasData ? 'border-amber-200 text-amber-600 hover:bg-amber-50' : 'border-gray-200 text-gray-500 hover:bg-gray-50'}`}>
+                    {hasData ? '수정' : '+ 입력'}
+                  </button>
+                )}
+              </div>
+
+              {!isEditing && hasData && (
+                <div className="space-y-1.5 text-xs">
+                  {rec.extraOvertimeHours > 0 && <div className="flex justify-between text-gray-600"><span>추가연장</span><span>{rec.extraOvertimeHours}h</span></div>}
+                  {rec.nightHours > 0 && <div className="flex justify-between text-gray-600"><span>야간</span><span>{rec.nightHours}h</span></div>}
+                  {rec.holidayHours > 0 && <div className="flex justify-between text-gray-600"><span>휴일</span><span>{rec.holidayHours}h</span></div>}
+                  <div className="flex justify-between font-semibold text-amber-700 border-t border-amber-100 pt-1.5"><span>추가수당 합계</span><span>{won(rec.extraPay || 0)}</span></div>
+                  {rec.note && <div className="text-gray-400">{rec.note}</div>}
+                </div>
+              )}
+
+              {isEditing && (
+                <div className="space-y-3 mt-2">
+                  <div className="grid grid-cols-3 gap-2">
+                    <div>
+                      <label className="text-xs text-gray-500 mb-1 block">추가연장(h)</label>
+                      <input type="number" step="0.5" value={f.extraOvertimeHours} onChange={e => setFormField(emp.id, 'extraOvertimeHours', e.target.value)}
+                        className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm text-center outline-none focus:border-amber-400" />
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-500 mb-1 block">야간(h)</label>
+                      <input type="number" step="0.5" value={f.nightHours} onChange={e => setFormField(emp.id, 'nightHours', e.target.value)}
+                        className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm text-center outline-none focus:border-amber-400" />
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-500 mb-1 block">휴일(h)</label>
+                      <input type="number" step="0.5" value={f.holidayHours} onChange={e => setFormField(emp.id, 'holidayHours', e.target.value)}
+                        className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm text-center outline-none focus:border-amber-400" />
+                    </div>
+                  </div>
+                  <input value={f.note} onChange={e => setFormField(emp.id, 'note', e.target.value)} placeholder="메모 (선택)"
+                    className="w-full border border-gray-200 rounded-lg px-3 py-1.5 text-sm outline-none focus:border-amber-400" />
+                  {emp.hourlyWage > 0 && (
+                    <div className="bg-amber-50 rounded-lg px-3 py-2 flex justify-between text-sm font-semibold text-amber-700">
+                      <span>계산된 추가수당</span><span>{won(extraPay)}</span>
+                    </div>
+                  )}
+                  {!emp.hourlyWage && <div className="bg-red-50 rounded-lg px-3 py-2 text-xs text-red-500">통상시급이 미설정입니다. 인사관리에서 직원 수정 후 입력하세요.</div>}
+                  <div className="flex gap-2">
+                    <button onClick={() => { setEditingId(null); setForms(f2 => { const n = { ...f2 }; delete n[emp.id]; return n }) }}
+                      className="flex-1 border border-gray-200 text-gray-500 py-2 rounded-xl text-sm hover:bg-gray-50">취소</button>
+                    <button onClick={() => handleSave(emp)}
+                      className="flex-1 bg-amber-500 hover:bg-amber-600 text-white font-semibold py-2 rounded-xl text-sm transition-colors">저장</button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )
+        })
       )}
+    </div>
+  )
+}
+
+// ── 급여대장 ──────────────────────────────────────────────────────────
+function PayrollLedgerView({ employees, payroll, yearMonth, prevMonth, nextMonth }) {
+  const monthData = payroll.filter(p => p.yearMonth === yearMonth)
+  const sum = (key) => monthData.reduce((acc, p) => acc + (p[key] || 0), 0)
+
+  function exportCSV() {
+    const headers = ['성명', '직책', '고용형태', '기본급', '연장수당', '추가수당', '직책수당', '식대', '교통비', '상여', '총지급액', '국민연금', '건강보험', '장기요양', '고용보험', '소득세', '지방세', '기타공제', '총공제액', '실수령액', '지급여부']
+    const rows = monthData.map(p => {
+      const emp = employees.find(e => e.id === p.employeeId)
+      const otherDed = (p.programDeduction || 0) + (p.absentDeduction || 0) + (p.healthRetirementAdj || 0) + (p.longTermRetirementAdj || 0) + (p.yearEndTax || 0) + (p.yearEndLocalTax || 0)
+      return [emp?.name || '', emp?.position || '', emp?.employeeType || '', p.baseSalary || 0, p.overtimePay || 0, p.extraPay || 0, p.positionAllowance || 0, p.mealAllowance || 0, p.transportAllowance || 0, p.bonus || 0, p.gross || 0, p.nationalPension || 0, p.healthInsurance || 0, p.longTermCare || 0, p.employmentInsurance || 0, p.incomeTax || 0, p.localIncomeTax || 0, otherDed, p.totalDeduction || 0, p.netPay || 0, p.isPaid ? '완료' : '미지급'].join(',')
+    })
+    const csv = '\uFEFF' + [headers.join(','), ...rows].join('\n')
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement('a')
+    a.href = url; a.download = `급여대장_${yearMonth}.csv`; a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-2">
+        <button onClick={prevMonth} className="w-8 h-8 rounded-lg border border-gray-200 hover:bg-gray-50 text-sm font-bold text-gray-500">&#8249;</button>
+        <span className="font-semibold text-gray-800 w-28 text-center">{fym(yearMonth)}</span>
+        <button onClick={nextMonth} className="w-8 h-8 rounded-lg border border-gray-200 hover:bg-gray-50 text-sm font-bold text-gray-500">&#8250;</button>
+        {monthData.length > 0 && (
+          <button onClick={exportCSV} className="ml-auto text-xs border border-green-200 text-green-600 hover:bg-green-50 px-3 py-1.5 rounded-lg transition-colors">CSV 내보내기</button>
+        )}
+      </div>
+
+      {monthData.length === 0 ? (
+        <div className="text-center py-12 text-gray-400 text-sm"><div className="text-3xl mb-2">📋</div>이 달 급여 명세서가 없습니다.<br />급여명세서 탭에서 먼저 생성하세요.</div>
+      ) : (
+        <div className="space-y-3">
+          {monthData.map(p => {
+            const emp = employees.find(e => e.id === p.employeeId)
+            if (!emp) return null
+            return (
+              <div key={p.id} className="bg-white border border-gray-100 rounded-2xl p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div><div className="font-medium text-gray-800">{emp.name}</div><div className="text-xs text-gray-400">{emp.position} · {emp.employeeType}</div></div>
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${p.isPaid ? 'bg-green-100 text-green-600' : 'bg-amber-100 text-amber-600'}`}>{p.isPaid ? '지급완료' : '미지급'}</span>
+                </div>
+                <div className="grid grid-cols-2 gap-x-4 gap-y-1 text-xs">
+                  <div className="col-span-2 text-gray-400 font-medium mb-0.5">지급</div>
+                  {p.baseSalary > 0 && <div className="flex justify-between"><span className="text-gray-500">기본급</span><span>{won(p.baseSalary)}</span></div>}
+                  {p.overtimePay > 0 && <div className="flex justify-between"><span className="text-gray-500">연장수당</span><span>{won(p.overtimePay)}</span></div>}
+                  {p.extraPay > 0 && <div className="flex justify-between"><span className="text-gray-500">추가연장</span><span>{won(p.extraPay)}</span></div>}
+                  {p.positionAllowance > 0 && <div className="flex justify-between"><span className="text-gray-500">직책수당</span><span>{won(p.positionAllowance)}</span></div>}
+                  {(p.mealAllowance || 0) > 0 && <div className="flex justify-between"><span className="text-gray-500">식대</span><span>{won(p.mealAllowance)}</span></div>}
+                  {(p.transportAllowance || 0) > 0 && <div className="flex justify-between"><span className="text-gray-500">교통비</span><span>{won(p.transportAllowance)}</span></div>}
+                  {p.bonus > 0 && <div className="flex justify-between"><span className="text-gray-500">{p.bonusType || '상여'}</span><span>{won(p.bonus)}</span></div>}
+                  <div className="col-span-2 border-t border-dashed border-gray-100 my-1" />
+                  <div className="col-span-2 text-gray-400 font-medium mb-0.5">공제</div>
+                  {p.nationalPension > 0 && <div className="flex justify-between"><span className="text-gray-500">국민연금</span><span className="text-red-400">{won(p.nationalPension)}</span></div>}
+                  {p.healthInsurance > 0 && <div className="flex justify-between"><span className="text-gray-500">건강보험</span><span className="text-red-400">{won(p.healthInsurance)}</span></div>}
+                  {p.longTermCare > 0 && <div className="flex justify-between"><span className="text-gray-500">장기요양</span><span className="text-red-400">{won(p.longTermCare)}</span></div>}
+                  {p.employmentInsurance > 0 && <div className="flex justify-between"><span className="text-gray-500">고용보험</span><span className="text-red-400">{won(p.employmentInsurance)}</span></div>}
+                  {p.incomeTax > 0 && <div className="flex justify-between"><span className="text-gray-500">소득세</span><span className="text-red-400">{won(p.incomeTax)}</span></div>}
+                  {p.localIncomeTax > 0 && <div className="flex justify-between"><span className="text-gray-500">지방소득세</span><span className="text-red-400">{won(p.localIncomeTax)}</span></div>}
+                </div>
+                <div className="mt-3 pt-3 border-t border-gray-100 flex justify-between items-center">
+                  <div className="text-xs text-gray-400">총지급 {won(p.gross)} / 총공제 {won(p.totalDeduction)}</div>
+                  <div className="font-bold text-blue-600">{won(p.netPay)}</div>
+                </div>
+              </div>
+            )
+          })}
+
+          <div className="bg-gray-800 rounded-2xl p-4 text-white">
+            <div className="text-sm font-semibold mb-3">{fym(yearMonth)} 급여 합계</div>
+            <div className="space-y-1.5 text-xs">
+              <div className="flex justify-between"><span className="text-gray-300">총 지급액</span><span className="font-medium">{won(sum('gross'))}</span></div>
+              <div className="flex justify-between"><span className="text-gray-300">4대보험 합계</span><span>{won(sum('nationalPension') + sum('healthInsurance') + sum('longTermCare') + sum('employmentInsurance'))}</span></div>
+              <div className="flex justify-between"><span className="text-gray-300">소득세+지방세</span><span>{won(sum('incomeTax') + sum('localIncomeTax'))}</span></div>
+              <div className="flex justify-between border-t border-gray-600 pt-1.5"><span className="text-gray-300">총 공제액</span><span className="font-medium">{won(sum('totalDeduction'))}</span></div>
+              <div className="flex justify-between text-base font-bold border-t border-gray-500 pt-2"><span>총 실수령액</span><span className="text-blue-300">{won(sum('netPay'))}</span></div>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── 4대보험 현황 ──────────────────────────────────────────────────────
+function InsuranceView({ employees, payroll, yearMonth, prevMonth, nextMonth, rates }) {
+  const monthData = payroll.filter(p => p.yearMonth === yearMonth)
+
+  const companyPensionRate = 4.5
+  const companyHealthRate = 3.545
+  const companyLongTermRate = 12.95
+  const companyEmploymentRate = 1.15
+
+  function calcCompany(p) {
+    const emp = employees.find(e => e.id === p.employeeId)
+    if (!emp || emp.employeeType !== '정규직') return { pension: 0, health: 0, longTerm: 0, employment: 0 }
+    const base = (p.baseSalary || 0) + (p.overtimePay || 0) + (p.extraPay || 0) + (p.positionAllowance || 0) + (p.bonus || 0)
+    const pension = Math.floor(Math.min(base, (rates?.pensionCap || 6370000)) * (companyPensionRate / 100) / 10) * 10
+    const health = Math.floor(base * (companyHealthRate / 100) / 10) * 10
+    const longTerm = Math.floor(health * (companyLongTermRate / 100) / 10) * 10
+    const employment = Math.floor(base * (companyEmploymentRate / 100) / 10) * 10
+    return { pension, health, longTerm, employment }
+  }
+
+  const totalEmployee = {
+    pension: monthData.reduce((s, p) => s + (p.nationalPension || 0), 0),
+    health: monthData.reduce((s, p) => s + (p.healthInsurance || 0), 0),
+    longTerm: monthData.reduce((s, p) => s + (p.longTermCare || 0), 0),
+    employment: monthData.reduce((s, p) => s + (p.employmentInsurance || 0), 0),
+  }
+  const companyItems = monthData.map(p => calcCompany(p))
+  const totalCompany = {
+    pension: companyItems.reduce((s, c) => s + c.pension, 0),
+    health: companyItems.reduce((s, c) => s + c.health, 0),
+    longTerm: companyItems.reduce((s, c) => s + c.longTerm, 0),
+    employment: companyItems.reduce((s, c) => s + c.employment, 0),
+  }
+  const empTotal = Object.values(totalEmployee).reduce((a, b) => a + b, 0)
+  const compTotal = Object.values(totalCompany).reduce((a, b) => a + b, 0)
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-2">
+        <button onClick={prevMonth} className="w-8 h-8 rounded-lg border border-gray-200 hover:bg-gray-50 text-sm font-bold text-gray-500">&#8249;</button>
+        <span className="font-semibold text-gray-800 w-28 text-center">{fym(yearMonth)}</span>
+        <button onClick={nextMonth} className="w-8 h-8 rounded-lg border border-gray-200 hover:bg-gray-50 text-sm font-bold text-gray-500">&#8250;</button>
+      </div>
+
+      {monthData.length === 0 ? (
+        <div className="text-center py-12 text-gray-400 text-sm">이 달 급여 명세서가 없습니다.</div>
+      ) : (
+        <>
+          {monthData.map((p, idx) => {
+            const emp = employees.find(e => e.id === p.employeeId)
+            if (!emp) return null
+            const comp = companyItems[idx]
+            return (
+              <div key={p.id} className="bg-white border border-gray-100 rounded-2xl p-4">
+                <div className="font-medium text-gray-800 mb-3">{emp.name} <span className="text-xs font-normal text-gray-400">{emp.position}</span></div>
+                <div className="grid grid-cols-2 gap-2 text-xs">
+                  <div className="bg-blue-50 rounded-xl p-3 space-y-1.5">
+                    <div className="font-semibold text-blue-700 mb-1">근로자 부담</div>
+                    <div className="flex justify-between"><span className="text-gray-500">국민연금</span><span>{won(p.nationalPension || 0)}</span></div>
+                    <div className="flex justify-between"><span className="text-gray-500">건강보험</span><span>{won(p.healthInsurance || 0)}</span></div>
+                    <div className="flex justify-between"><span className="text-gray-500">장기요양</span><span>{won(p.longTermCare || 0)}</span></div>
+                    <div className="flex justify-between"><span className="text-gray-500">고용보험</span><span>{won(p.employmentInsurance || 0)}</span></div>
+                    <div className="flex justify-between font-semibold border-t border-blue-100 pt-1"><span>합계</span><span className="text-blue-700">{won((p.nationalPension || 0) + (p.healthInsurance || 0) + (p.longTermCare || 0) + (p.employmentInsurance || 0))}</span></div>
+                  </div>
+                  <div className="bg-orange-50 rounded-xl p-3 space-y-1.5">
+                    <div className="font-semibold text-orange-700 mb-1">사업주 부담</div>
+                    <div className="flex justify-between"><span className="text-gray-500">국민연금</span><span>{won(comp.pension)}</span></div>
+                    <div className="flex justify-between"><span className="text-gray-500">건강보험</span><span>{won(comp.health)}</span></div>
+                    <div className="flex justify-between"><span className="text-gray-500">장기요양</span><span>{won(comp.longTerm)}</span></div>
+                    <div className="flex justify-between"><span className="text-gray-500">고용보험</span><span>{won(comp.employment)}</span></div>
+                    <div className="flex justify-between font-semibold border-t border-orange-100 pt-1"><span>합계</span><span className="text-orange-700">{won(comp.pension + comp.health + comp.longTerm + comp.employment)}</span></div>
+                  </div>
+                </div>
+              </div>
+            )
+          })}
+
+          <div className="bg-gray-50 rounded-2xl p-4">
+            <div className="text-xs font-semibold text-gray-600 mb-3">월 4대보험 납부 합계</div>
+            <div className="space-y-2 text-xs">
+              {[['국민연금', totalEmployee.pension, totalCompany.pension],
+                ['건강보험', totalEmployee.health, totalCompany.health],
+                ['장기요양', totalEmployee.longTerm, totalCompany.longTerm],
+                ['고용보험', totalEmployee.employment, totalCompany.employment],
+              ].map(([label, emp, comp]) => (
+                <div key={label} className="flex items-center gap-2">
+                  <span className="w-16 text-gray-500">{label}</span>
+                  <span className="flex-1 text-right text-blue-600">{won(emp)}</span>
+                  <span className="text-gray-300">+</span>
+                  <span className="flex-1 text-right text-orange-600">{won(comp)}</span>
+                  <span className="text-gray-300">=</span>
+                  <span className="w-24 text-right font-semibold text-gray-700">{won(emp + comp)}</span>
+                </div>
+              ))}
+              <div className="flex items-center gap-2 font-bold border-t border-gray-200 pt-2">
+                <span className="w-16 text-gray-700">합계</span>
+                <span className="flex-1 text-right text-blue-700">{won(empTotal)}</span>
+                <span className="text-gray-300">+</span>
+                <span className="flex-1 text-right text-orange-700">{won(compTotal)}</span>
+                <span className="text-gray-300">=</span>
+                <span className="w-24 text-right text-gray-800">{won(empTotal + compTotal)}</span>
+              </div>
+            </div>
+            <div className="mt-3 text-[11px] text-gray-400">
+              <div>사업주 요율: 국민연금 4.5% / 건강 3.545% / 장기요양 12.95% / 고용 1.15%</div>
+              <div>* 산재보험은 업종별 별도 (건설업 등 별도 확인)</div>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
+
+// ── 원천세 집계 ───────────────────────────────────────────────────────
+function WithholdingView({ employees, payroll }) {
+  const [year, setYear] = useState(new Date().getFullYear())
+  const activeEmps = employees.filter(e => e.employeeType !== '프리랜서' || e.employeeType === '프리랜서')
+
+  const halfPeriods = [
+    { label: '상반기', months: ['01', '02', '03', '04', '05', '06'], deadline: `${year}년 7월 10일` },
+    { label: '하반기', months: ['07', '08', '09', '10', '11', '12'], deadline: `${year + 1}년 1월 10일` },
+  ]
+
+  return (
+    <div className="space-y-4">
+      <div className="flex items-center gap-2">
+        <button onClick={() => setYear(y => y - 1)} className="w-8 h-8 rounded-lg border border-gray-200 hover:bg-gray-50 text-sm font-bold text-gray-500">&#8249;</button>
+        <span className="font-semibold text-gray-800 w-16 text-center">{year}년</span>
+        <button onClick={() => setYear(y => y + 1)} className="w-8 h-8 rounded-lg border border-gray-200 hover:bg-gray-50 text-sm font-bold text-gray-500">&#8250;</button>
+      </div>
+
+      <div className="bg-purple-50 rounded-xl px-4 py-3 text-xs text-purple-700">
+        <div className="font-semibold mb-1">원천세 반기별 납부 신고</div>
+        <div>• 상반기(1~6월) 징수분 → 7월 10일까지 신고·납부</div>
+        <div>• 하반기(7~12월) 징수분 → 다음해 1월 10일까지 신고·납부</div>
+        <div>• 소규모 사업자(상시 20인 이하)는 반기납부 가능</div>
+      </div>
+
+      {halfPeriods.map(period => {
+        const monthPayrolls = period.months.flatMap(m => payroll.filter(p => p.yearMonth === `${year}-${m}`))
+        const totalIncome = monthPayrolls.reduce((s, p) => s + (p.incomeTax || 0), 0)
+        const totalLocal = monthPayrolls.reduce((s, p) => s + (p.localIncomeTax || 0), 0)
+        const totalWithholding = monthPayrolls.reduce((s, p) => s + (p.withholdingTax || 0), 0)
+        const grandTotal = totalIncome + totalLocal + totalWithholding
+
+        return (
+          <div key={period.label} className="bg-white border border-gray-100 rounded-2xl p-4">
+            <div className="flex items-center justify-between mb-3">
+              <div className="font-semibold text-gray-800">{period.label}</div>
+              <div className="text-xs text-purple-600 bg-purple-50 px-2 py-1 rounded-lg">신고기한: {period.deadline}</div>
+            </div>
+
+            <div className="space-y-1.5 mb-3">
+              {period.months.map(m => {
+                const mData = payroll.filter(p => p.yearMonth === `${year}-${m}`)
+                const total = mData.reduce((s, p) => s + (p.incomeTax || 0) + (p.localIncomeTax || 0) + (p.withholdingTax || 0), 0)
+                return (
+                  <div key={m} className="flex items-center gap-2 text-xs">
+                    <span className="w-10 text-gray-400">{Number(m)}월</span>
+                    <span className="flex-1 text-gray-600">{mData.length > 0 ? `${mData.length}명` : <span className="text-gray-300">미등록</span>}</span>
+                    {total > 0 ? <span className="font-medium text-gray-700">{won(total)}</span> : <span className="text-gray-300">-</span>}
+                  </div>
+                )
+              })}
+            </div>
+
+            {grandTotal > 0 && (
+              <div className="border-t border-gray-100 pt-3 space-y-1.5">
+                <div className="text-xs text-gray-400 mb-2">직원별 {period.label} 합계</div>
+                {activeEmps.map(emp => {
+                  const empData = monthPayrolls.filter(p => p.employeeId === emp.id)
+                  const empTax = empData.reduce((s, p) => s + (p.incomeTax || 0) + (p.localIncomeTax || 0) + (p.withholdingTax || 0), 0)
+                  if (empTax === 0) return null
+                  return <div key={emp.id} className="flex justify-between text-xs"><span className="text-gray-600">{emp.name}</span><span className="font-medium">{won(empTax)}</span></div>
+                })}
+              </div>
+            )}
+
+            <div className="mt-3 bg-purple-50 rounded-xl px-4 py-3 space-y-1">
+              <div className="flex justify-between text-xs"><span className="text-gray-500">소득세 합계</span><span>{won(totalIncome + totalWithholding)}</span></div>
+              <div className="flex justify-between text-xs"><span className="text-gray-500">지방소득세 합계</span><span>{won(totalLocal)}</span></div>
+              <div className="flex justify-between text-sm font-bold border-t border-purple-100 pt-1.5">
+                <span className="text-gray-700">납부 합계</span><span className="text-purple-700">{won(grandTotal)}</span>
+              </div>
+            </div>
+          </div>
+        )
+      })}
     </div>
   )
 }
@@ -1247,10 +1620,11 @@ function LeaveSection({ employees, leaveRecords, addLeaveRecord, deleteLeaveReco
 // ── 메인 HR 컴포넌트 ─────────────────────────────────────────────────
 export default function HR() {
   const {
-    employees, payroll, leaveRecords,
+    employees, payroll, leaveRecords, overtimeRecords,
     addEmployee, updateEmployee, deleteEmployee,
     addPayroll, updatePayroll,
     addLeaveRecord, deleteLeaveRecord,
+    upsertOvertimeRecord,
   } = useStore()
 
   const [subTab, setSubTab] = useState('인사관리')
@@ -1298,11 +1672,11 @@ export default function HR() {
 
   return (
     <div className="space-y-4">
-      {/* 서브탭 */}
-      <div className="flex bg-gray-100 rounded-2xl p-1">
+      {/* 서브탭 (스크롤 가능) */}
+      <div className="flex bg-gray-100 rounded-2xl p-1 gap-0.5 overflow-x-auto">
         {HR_TABS.map(tab => (
           <button key={tab} onClick={() => setSubTab(tab)}
-            className={`flex-1 py-2 text-sm font-medium rounded-xl transition-colors ${subTab === tab ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
+            className={`flex-shrink-0 px-3 py-2 text-xs font-medium rounded-xl transition-colors whitespace-nowrap ${subTab === tab ? 'bg-white text-blue-600 shadow-sm' : 'text-gray-500 hover:text-gray-700'}`}>
             {tab}
           </button>
         ))}
@@ -1314,60 +1688,40 @@ export default function HR() {
           <div className="flex items-center justify-between">
             <div className="text-sm text-gray-500">총 {employees.length}명 · 재직 {activeEmps.length}명</div>
             <button onClick={() => { setEditingEmp(null); setShowEmpModal(true) }}
-              className="bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium px-4 py-2 rounded-xl transition-colors">
-              + 직원 등록
-            </button>
+              className="bg-blue-500 hover:bg-blue-600 text-white text-sm font-medium px-4 py-2 rounded-xl transition-colors">+ 직원 등록</button>
           </div>
           {employees.length === 0 ? (
-            <div className="text-center py-14 text-gray-400">
-              <div className="text-4xl mb-3">👥</div>
-              <div className="text-sm">등록된 직원이 없습니다</div>
-            </div>
+            <div className="text-center py-14 text-gray-400"><div className="text-4xl mb-3">👥</div><div className="text-sm">등록된 직원이 없습니다</div></div>
           ) : (
             employees.map(emp => (
               <div key={emp.id} className="bg-white border border-gray-100 rounded-2xl p-4">
                 <div className="flex items-start gap-3">
-                  <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-sm shrink-0">
-                    {emp.name.slice(0, 1)}
-                  </div>
+                  <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-sm shrink-0">{emp.name.slice(0, 1)}</div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-1.5 flex-wrap">
                       <span className="font-medium text-gray-800">{emp.name}</span>
-                      <span className={`text-[11px] px-1.5 py-0.5 rounded-full font-medium ${emp.status === '재직' ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-400'}`}>
-                        {emp.status}
-                      </span>
-                      <span className={`text-[11px] px-1.5 py-0.5 rounded-full font-medium ${typeColor(emp.employeeType)}`}>
-                        {emp.employeeType}
-                      </span>
+                      <span className={`text-[11px] px-1.5 py-0.5 rounded-full font-medium ${emp.status === '재직' ? 'bg-green-100 text-green-600' : 'bg-gray-100 text-gray-400'}`}>{emp.status}</span>
+                      <span className={`text-[11px] px-1.5 py-0.5 rounded-full font-medium ${typeColor(emp.employeeType)}`}>{emp.employeeType}</span>
                     </div>
-                    <div className="text-xs text-gray-400 mt-0.5">
-                      {emp.position}{emp.phone ? ` · ${emp.phone}` : ''}
-                    </div>
+                    <div className="text-xs text-gray-400 mt-0.5">{emp.position}{emp.phone ? ` · ${emp.phone}` : ''}</div>
                     {(emp.baseSalary > 0 || emp.dailyWage > 0) && (
                       <div className="text-xs text-gray-500 mt-1.5 space-y-0.5">
                         <div>
-                          {emp.employeeType === '일용직'
-                            ? `일당 ${won(emp.dailyWage)}`
-                            : emp.contractType === '포괄연봉제'
-                              ? `기본급 ${won(emp.baseSalary)} + 포괄연장수당 ${won(emp.comprehensiveOvertimePay || 0)}`
-                              : `기본급 ${won(emp.baseSalary)}`}
+                          {emp.employeeType === '일용직' ? `일당 ${won(emp.dailyWage)}`
+                            : emp.contractType === '포괄연봉제' ? `기본급 ${won(emp.baseSalary)} + 포괄연장수당 ${won(emp.comprehensiveOvertimePay || 0)}`
+                            : `기본급 ${won(emp.baseSalary)}`}
                           {emp.hireDate && <span className="ml-2 text-gray-400">입사 {emp.hireDate}</span>}
                         </div>
-                        {emp.contractType === '포괄연봉제' && emp.hourlyWage > 0 && (
-                          <div className="text-gray-400">통상시급 {won(emp.hourlyWage)}</div>
-                        )}
+                        {emp.contractType === '포괄연봉제' && emp.hourlyWage > 0 && <div className="text-gray-400">통상시급 {won(emp.hourlyWage)}</div>}
+                        {emp.workStartTime && <div className="text-gray-400">근무 {emp.workStartTime}~{emp.workEndTime} · 소정 {calcMonthlyWorkHours(emp).toFixed(1)}h/월</div>}
                       </div>
                     )}
                   </div>
                   <div className="flex items-center gap-1 shrink-0">
                     <button onClick={() => { setEditingEmp(emp); setShowEmpModal(true) }}
-                      className="w-8 h-8 rounded-lg text-gray-400 hover:text-blue-500 hover:bg-blue-50 flex items-center justify-center transition-colors text-sm">
-                      ✏
-                    </button>
+                      className="w-8 h-8 rounded-lg text-gray-400 hover:text-blue-500 hover:bg-blue-50 flex items-center justify-center transition-colors text-sm">✏</button>
                     <button onClick={() => { if (confirm(`${emp.name} 직원을 삭제할까요?`)) deleteEmployee(emp.id) }}
-                      className="w-8 h-8 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 flex items-center justify-center transition-colors">
-                      ×
-                    </button>
+                      className="w-8 h-8 rounded-lg text-gray-400 hover:text-red-500 hover:bg-red-50 flex items-center justify-center transition-colors">&times;</button>
                   </div>
                 </div>
               </div>
@@ -1380,19 +1734,15 @@ export default function HR() {
       {subTab === '급여명세서' && (
         <div className="space-y-4">
           <div className="flex items-center gap-2">
-            <button onClick={prevMonth} className="w-8 h-8 rounded-lg border border-gray-200 hover:bg-gray-50 text-sm font-bold text-gray-500">‹</button>
+            <button onClick={prevMonth} className="w-8 h-8 rounded-lg border border-gray-200 hover:bg-gray-50 text-sm font-bold text-gray-500">&#8249;</button>
             <span className="font-semibold text-gray-800 w-28 text-center">{fym(yearMonth)}</span>
-            <button onClick={nextMonth} className="w-8 h-8 rounded-lg border border-gray-200 hover:bg-gray-50 text-sm font-bold text-gray-500">›</button>
+            <button onClick={nextMonth} className="w-8 h-8 rounded-lg border border-gray-200 hover:bg-gray-50 text-sm font-bold text-gray-500">&#8250;</button>
             <div className="ml-auto flex items-center gap-2">
               <span className="text-xs text-gray-400">지급 {monthPayroll.filter(p => p.isPaid).length}/{monthPayroll.length}명</span>
               <button onClick={() => setShowRatesModal(true)}
-                className="text-xs border border-gray-200 px-2.5 py-1 rounded-lg text-gray-500 hover:bg-gray-50 transition-colors"
-                title="4대보험 요율 설정">
-                요율⚙
-              </button>
+                className="text-xs border border-gray-200 px-2.5 py-1 rounded-lg text-gray-500 hover:bg-gray-50 transition-colors" title="4대보험 요율 설정">요율⚙</button>
             </div>
           </div>
-
           {activeEmps.length === 0 ? (
             <div className="text-center py-12 text-gray-400 text-sm">재직 중인 직원이 없습니다.</div>
           ) : (
@@ -1402,38 +1752,22 @@ export default function HR() {
                 return (
                   <div key={emp.id} className="bg-white border border-gray-100 rounded-2xl p-4">
                     <div className="flex items-center gap-3">
-                      <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-sm shrink-0">
-                        {emp.name.slice(0, 1)}
-                      </div>
-                      <div className="flex-1">
-                        <div className="font-medium text-gray-800">{emp.name}</div>
-                        <div className="text-xs text-gray-400">{emp.position} · {emp.employeeType}</div>
-                      </div>
+                      <div className="w-10 h-10 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-sm shrink-0">{emp.name.slice(0, 1)}</div>
+                      <div className="flex-1"><div className="font-medium text-gray-800">{emp.name}</div><div className="text-xs text-gray-400">{emp.position} · {emp.employeeType}</div></div>
                       <div className="flex items-center gap-2">
                         {pr ? (
                           <>
-                            <span className={`text-xs px-2 py-1 rounded-full font-medium ${pr.isPaid ? 'bg-green-100 text-green-600' : 'bg-amber-100 text-amber-600'}`}>
-                              {pr.isPaid ? '지급완료' : '미지급'}
-                            </span>
-                            <button onClick={() => openPayroll(emp)}
-                              className="text-xs border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-50 text-gray-600">
-                              수정
-                            </button>
+                            <span className={`text-xs px-2 py-1 rounded-full font-medium ${pr.isPaid ? 'bg-green-100 text-green-600' : 'bg-amber-100 text-amber-600'}`}>{pr.isPaid ? '지급완료' : '미지급'}</span>
+                            <button onClick={() => openPayroll(emp)} className="text-xs border border-gray-200 px-3 py-1.5 rounded-lg hover:bg-gray-50 text-gray-600">수정</button>
                           </>
                         ) : (
-                          <button onClick={() => openPayroll(emp)}
-                            className="bg-blue-500 hover:bg-blue-600 text-white text-sm px-4 py-1.5 rounded-xl transition-colors">
-                            + 생성
-                          </button>
+                          <button onClick={() => openPayroll(emp)} className="bg-blue-500 hover:bg-blue-600 text-white text-sm px-4 py-1.5 rounded-xl transition-colors">+ 생성</button>
                         )}
                       </div>
                     </div>
                     {pr && (
                       <div className="mt-3 pt-3 border-t border-gray-50 flex items-center justify-between text-sm">
-                        <div className="flex gap-4 text-xs text-gray-400">
-                          <span>지급 {won(pr.gross)}</span>
-                          <span>공제 {won(pr.totalDeduction)}</span>
-                        </div>
+                        <div className="flex gap-4 text-xs text-gray-400"><span>지급 {won(pr.gross)}</span><span>공제 {won(pr.totalDeduction)}</span></div>
                         <span className="font-bold text-gray-800">{won(pr.netPay)}</span>
                       </div>
                     )}
@@ -1442,44 +1776,45 @@ export default function HR() {
               })}
             </div>
           )}
-
           {monthPayroll.length > 0 && (
             <div className="bg-gray-50 rounded-2xl p-4 space-y-2">
               <div className="text-xs font-semibold text-gray-500 mb-2">{fym(yearMonth)} 합계</div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500">총 지급액</span>
-                <span className="font-medium">{won(monthPayroll.reduce((s, p) => s + (p.gross || 0), 0))}</span>
-              </div>
-              <div className="flex justify-between text-sm">
-                <span className="text-gray-500">총 공제액</span>
-                <span className="text-red-500 font-medium">{won(monthPayroll.reduce((s, p) => s + (p.totalDeduction || 0), 0))}</span>
-              </div>
-              <div className="flex justify-between text-sm font-bold border-t border-gray-200 pt-2">
-                <span className="text-gray-700">총 실수령액</span>
-                <span className="text-blue-600">{won(monthPayroll.reduce((s, p) => s + (p.netPay || 0), 0))}</span>
-              </div>
+              <div className="flex justify-between text-sm"><span className="text-gray-500">총 지급액</span><span className="font-medium">{won(monthPayroll.reduce((s, p) => s + (p.gross || 0), 0))}</span></div>
+              <div className="flex justify-between text-sm"><span className="text-gray-500">총 공제액</span><span className="text-red-500 font-medium">{won(monthPayroll.reduce((s, p) => s + (p.totalDeduction || 0), 0))}</span></div>
+              <div className="flex justify-between text-sm font-bold border-t border-gray-200 pt-2"><span className="text-gray-700">총 실수령액</span><span className="text-blue-600">{won(monthPayroll.reduce((s, p) => s + (p.netPay || 0), 0))}</span></div>
             </div>
           )}
         </div>
       )}
 
+      {/* 추가근무 */}
+      {subTab === '추가근무' && (
+        <OvertimeView employees={employees} overtimeRecords={overtimeRecords} yearMonth={yearMonth} prevMonth={prevMonth} nextMonth={nextMonth} upsertOvertimeRecord={upsertOvertimeRecord} />
+      )}
+
+      {/* 급여대장 */}
+      {subTab === '급여대장' && (
+        <PayrollLedgerView employees={employees} payroll={payroll} yearMonth={yearMonth} prevMonth={prevMonth} nextMonth={nextMonth} />
+      )}
+
       {/* 연차관리 */}
       {subTab === '연차관리' && (
-        <LeaveSection
-          employees={employees}
-          leaveRecords={leaveRecords}
-          addLeaveRecord={addLeaveRecord}
-          deleteLeaveRecord={deleteLeaveRecord}
-        />
+        <LeaveSection employees={employees} leaveRecords={leaveRecords} addLeaveRecord={addLeaveRecord} deleteLeaveRecord={deleteLeaveRecord} />
+      )}
+
+      {/* 4대보험 */}
+      {subTab === '4대보험' && (
+        <InsuranceView employees={employees} payroll={payroll} yearMonth={yearMonth} prevMonth={prevMonth} nextMonth={nextMonth} rates={rates} />
+      )}
+
+      {/* 원천세 */}
+      {subTab === '원천세' && (
+        <WithholdingView employees={employees} payroll={payroll} />
       )}
 
       {/* 모달 */}
       {showEmpModal && (
-        <EmployeeModal
-          employee={editingEmp}
-          onSave={handleSaveEmployee}
-          onClose={() => { setShowEmpModal(false); setEditingEmp(null) }}
-        />
+        <EmployeeModal employee={editingEmp} onSave={handleSaveEmployee} onClose={() => { setShowEmpModal(false); setEditingEmp(null) }} />
       )}
       {showPayrollModal && payrollTarget && (
         <PayrollModal
@@ -1487,16 +1822,13 @@ export default function HR() {
           payroll={payrollTarget.payroll}
           yearMonth={yearMonth}
           rates={rates}
+          overtimeRecord={overtimeRecords.find(r => r.employeeId === payrollTarget.employee.id && r.yearMonth === yearMonth)}
           onSave={handleSavePayroll}
           onClose={() => { setShowPayrollModal(false); setPayrollTarget(null) }}
         />
       )}
       {showRatesModal && (
-        <RatesModal
-          rates={rates}
-          onSave={r => { setRates(r); setShowRatesModal(false) }}
-          onClose={() => setShowRatesModal(false)}
-        />
+        <RatesModal rates={rates} onSave={r => { setRates(r); setShowRatesModal(false) }} onClose={() => setShowRatesModal(false)} />
       )}
     </div>
   )
