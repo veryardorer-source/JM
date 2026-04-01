@@ -3,12 +3,45 @@ import { useStore } from '../store/useStore'
 
 // ── 상수 ─────────────────────────────────────────────────────────────
 const EMPLOYEE_TYPES = ['정규직', '프리랜서', '일용직']
-const POSITIONS = ['대표', '실장', '팀장', '디자이너', '시공팀장', '시공팀원', '경리', '기타']
+const POSITION_SUGGESTIONS = ['대표', '이사', '실장', '팀장', '디자이너', '시공팀장', '시공팀원', '경리']
 const LEAVE_TYPES = ['연차', '반차', '병가', '경조사', '기타']
 const HR_TABS = ['인사관리', '급여명세서', '추가근무', '급여대장', '연차관리', '4대보험', '원천세']
 const CONTRACT_TYPES = ['포괄연봉제', '일반']
 const BONUS_TYPES = ['일반상여', '설날상여금', '추석상여금', '여름휴가비']
 const DAY_LABELS = ['일', '월', '화', '수', '목', '금', '토']
+
+// ── 근무형태 프리셋 (노무사 급여셋팅 기준) ──────────────────────────────
+const WORK_PRESETS = {
+  '본사': {
+    workStartTime: '09:00', workEndTime: '18:00', breakHours: 1,
+    workDaysOfWeek: [1, 2, 3, 4, 5],
+    label: '09~18시 · 휴게1h · 월~금',
+    baseHours: 209, overtimeHours: 32.5875, totalHours: 241.5875,
+    desc: '소정 209h + 연장 32.6h = 241.6h/월',
+  },
+  '현장': {
+    workStartTime: '07:00', workEndTime: '19:00', breakHours: 2,
+    workDaysOfWeek: [1, 2, 3, 4, 5, 6],
+    label: '07~19시 · 휴게2h · 월~토(격주)',
+    baseHours: 209, overtimeHours: 61.95, totalHours: 270.95,
+    desc: '소정 209h + 연장 62.0h = 271.0h/월',
+  },
+  '본사(계약직)': {
+    workStartTime: '09:00', workEndTime: '19:00', breakHours: 1,
+    workDaysOfWeek: [1, 2, 3, 4, 5],
+    label: '09~19시 · 휴게1h · 월~금',
+    baseHours: 209, overtimeHours: 0, totalHours: 209,
+    desc: '소정 209h/월',
+  },
+  '현장(계약직)': {
+    workStartTime: '09:00', workEndTime: '18:00', breakHours: 1,
+    workDaysOfWeek: [1, 2, 3, 4, 5],
+    label: '09~18시 · 휴게1h · 월~금',
+    baseHours: 209, overtimeHours: 0, totalHours: 209,
+    desc: '소정 209h/월',
+  },
+  '직접설정': null,
+}
 
 // ── 4대보험 요율 (localStorage 저장) ─────────────────────────────────
 const RATES_KEY = 'jm_insurance_rates_v1'
@@ -283,8 +316,8 @@ ${!isFreelancer ? '<div class="disc">* 소득세는 국세청 간이세액표 �
 function EmployeeModal({ employee, onSave, onClose }) {
   const isEdit = !!employee?.id
   const [form, setForm] = useState({
-    name: '', position: '디자이너', employeeType: '정규직',
-    contractType: '포괄연봉제',
+    name: '', position: '', employeeType: '정규직',
+    contractType: '포괄연봉제', workPreset: '본사',
     baseSalary: '', comprehensiveOvertimePay: '', hourlyWage: '',
     positionAllowance: '',
     mealAllowance: '', transportAllowance: '',
@@ -348,10 +381,11 @@ function EmployeeModal({ employee, onSave, onClose }) {
             </div>
             <div>
               <label className="text-xs font-medium text-gray-500 mb-1 block">직책</label>
-              <select value={form.position} onChange={e => set('position', e.target.value)}
-                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-400">
-                {POSITIONS.map(p => <option key={p}>{p}</option>)}
-              </select>
+              <input list="position-list" value={form.position} onChange={e => set('position', e.target.value)}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-400" placeholder="직접 입력" />
+              <datalist id="position-list">
+                {POSITION_SUGGESTIONS.map(p => <option key={p} value={p} />)}
+              </datalist>
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
@@ -420,48 +454,77 @@ function EmployeeModal({ employee, onSave, onClose }) {
                 </div>
               </div>
 
-              {/* 근무형태 */}
+              {/* 근무형태 프리셋 */}
               <div className="bg-indigo-50 rounded-xl p-4 space-y-3">
-                <div className="text-xs font-semibold text-indigo-700">근무형태</div>
-                <div className="grid grid-cols-3 gap-3">
-                  <div>
-                    <label className="text-xs text-gray-500 mb-1 block">출근</label>
-                    <input type="time" value={form.workStartTime || '09:00'} onChange={e => set('workStartTime', e.target.value)}
-                      className="w-full border border-gray-200 rounded-lg px-2 py-2 text-sm outline-none focus:border-blue-400 bg-white" />
-                  </div>
-                  <div>
-                    <label className="text-xs text-gray-500 mb-1 block">퇴근</label>
-                    <input type="time" value={form.workEndTime || '18:00'} onChange={e => set('workEndTime', e.target.value)}
-                      className="w-full border border-gray-200 rounded-lg px-2 py-2 text-sm outline-none focus:border-blue-400 bg-white" />
-                  </div>
-                  <div>
-                    <label className="text-xs text-gray-500 mb-1 block">휴게(h)</label>
-                    <input type="number" step="0.5" value={form.breakHours ?? 1} onChange={e => set('breakHours', e.target.value)}
-                      className="w-full border border-gray-200 rounded-lg px-2 py-2 text-sm outline-none focus:border-blue-400 bg-white" />
-                  </div>
+                <div className="text-xs font-semibold text-indigo-700">근무형태 <span className="font-normal text-indigo-400">(노무사 급여셋팅 기준)</span></div>
+                <div className="flex flex-wrap gap-1.5">
+                  {Object.keys(WORK_PRESETS).map(key => (
+                    <button type="button" key={key}
+                      onClick={() => {
+                        const preset = WORK_PRESETS[key]
+                        if (preset) {
+                          setForm(f => ({ ...f, workPreset: key, workStartTime: preset.workStartTime, workEndTime: preset.workEndTime, breakHours: preset.breakHours, workDaysOfWeek: preset.workDaysOfWeek }))
+                        } else {
+                          set('workPreset', key)
+                        }
+                      }}
+                      className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${form.workPreset === key ? 'bg-indigo-500 text-white border-indigo-500' : 'border-indigo-200 text-indigo-600 hover:bg-indigo-100'}`}>
+                      {key}
+                    </button>
+                  ))}
                 </div>
-                <div>
-                  <label className="text-xs text-gray-500 mb-1.5 block">근무요일</label>
-                  <div className="flex gap-1">
-                    {[1, 2, 3, 4, 5, 6, 0].map(d => {
-                      const sel = (form.workDaysOfWeek || [1, 2, 3, 4, 5]).includes(d)
-                      return (
-                        <button type="button" key={d}
-                          onClick={() => {
-                            const days = form.workDaysOfWeek || [1, 2, 3, 4, 5]
-                            set('workDaysOfWeek', sel ? days.filter(x => x !== d) : [...days, d].sort())
-                          }}
-                          className={`flex-1 py-1.5 rounded-lg text-xs font-medium border transition-colors ${sel ? 'bg-indigo-500 text-white border-indigo-500' : 'border-gray-200 text-gray-500'}`}>
-                          {DAY_LABELS[d]}
-                        </button>
-                      )
-                    })}
+
+                {/* 선택된 프리셋 정보 또는 직접 설정 */}
+                {form.workPreset && form.workPreset !== '직접설정' && WORK_PRESETS[form.workPreset] && (
+                  <div className="bg-white rounded-lg px-3 py-2.5 text-xs border border-indigo-100 space-y-1">
+                    <div className="text-indigo-600 font-medium">{WORK_PRESETS[form.workPreset].label}</div>
+                    <div className="text-indigo-700 font-bold">{WORK_PRESETS[form.workPreset].desc}</div>
                   </div>
-                </div>
-                <div className="bg-white rounded-lg px-3 py-2 flex justify-between items-center text-xs border border-indigo-100">
-                  <span className="text-indigo-600">월 소정근로시간 (자동계산)</span>
-                  <span className="font-bold text-indigo-700">{calcMonthlyWorkHours(form).toFixed(1)}h</span>
-                </div>
+                )}
+
+                {form.workPreset === '직접설정' && (
+                  <>
+                    <div className="grid grid-cols-3 gap-3">
+                      <div>
+                        <label className="text-xs text-gray-500 mb-1 block">출근</label>
+                        <input type="time" value={form.workStartTime || '09:00'} onChange={e => set('workStartTime', e.target.value)}
+                          className="w-full border border-gray-200 rounded-lg px-2 py-2 text-sm outline-none focus:border-blue-400 bg-white" />
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-500 mb-1 block">퇴근</label>
+                        <input type="time" value={form.workEndTime || '18:00'} onChange={e => set('workEndTime', e.target.value)}
+                          className="w-full border border-gray-200 rounded-lg px-2 py-2 text-sm outline-none focus:border-blue-400 bg-white" />
+                      </div>
+                      <div>
+                        <label className="text-xs text-gray-500 mb-1 block">휴게(h)</label>
+                        <input type="number" step="0.5" value={form.breakHours ?? 1} onChange={e => set('breakHours', e.target.value)}
+                          className="w-full border border-gray-200 rounded-lg px-2 py-2 text-sm outline-none focus:border-blue-400 bg-white" />
+                      </div>
+                    </div>
+                    <div>
+                      <label className="text-xs text-gray-500 mb-1.5 block">근무요일</label>
+                      <div className="flex gap-1">
+                        {[1, 2, 3, 4, 5, 6, 0].map(d => {
+                          const sel = (form.workDaysOfWeek || [1, 2, 3, 4, 5]).includes(d)
+                          return (
+                            <button type="button" key={d}
+                              onClick={() => {
+                                const days = form.workDaysOfWeek || [1, 2, 3, 4, 5]
+                                set('workDaysOfWeek', sel ? days.filter(x => x !== d) : [...days, d].sort())
+                              }}
+                              className={`flex-1 py-1.5 rounded-lg text-xs font-medium border transition-colors ${sel ? 'bg-indigo-500 text-white border-indigo-500' : 'border-gray-200 text-gray-500'}`}>
+                              {DAY_LABELS[d]}
+                            </button>
+                          )
+                        })}
+                      </div>
+                    </div>
+                    <div className="bg-white rounded-lg px-3 py-2 flex justify-between items-center text-xs border border-indigo-100">
+                      <span className="text-indigo-600">월 소정근로시간 (자동계산)</span>
+                      <span className="font-bold text-indigo-700">{calcMonthlyWorkHours(form).toFixed(1)}h</span>
+                    </div>
+                  </>
+                )}
               </div>
 
               {/* 급여 구성 */}
@@ -1760,7 +1823,11 @@ export default function HR() {
                           {emp.hireDate && <span className="ml-2 text-gray-400">입사 {emp.hireDate}</span>}
                         </div>
                         {emp.contractType === '포괄연봉제' && emp.hourlyWage > 0 && <div className="text-gray-400">통상시급 {won(emp.hourlyWage)}</div>}
-                        {emp.workStartTime && <div className="text-gray-400">근무 {emp.workStartTime}~{emp.workEndTime} · 소정 {calcMonthlyWorkHours(emp).toFixed(1)}h/월</div>}
+                        {(emp.workPreset || emp.workStartTime) && (
+                          <div className="text-gray-400">
+                            {emp.workPreset && emp.workPreset !== '직접설정' ? `[${emp.workPreset}] ` : ''}{emp.workStartTime}~{emp.workEndTime} · {WORK_PRESETS[emp.workPreset]?.desc || `소정 ${calcMonthlyWorkHours(emp).toFixed(1)}h/월`}
+                          </div>
+                        )}
                       </div>
                     )}
                   </div>
