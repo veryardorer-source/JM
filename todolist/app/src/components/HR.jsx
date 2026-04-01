@@ -3,7 +3,7 @@ import { useStore } from '../store/useStore'
 
 // ── 상수 ─────────────────────────────────────────────────────────────
 const EMPLOYEE_TYPES = ['정규직', '프리랜서', '일용직']
-const POSITION_SUGGESTIONS = ['대표', '이사', '실장', '팀장', '디자이너', '시공팀장', '시공팀원', '경리']
+const POSITION_OPTIONS = ['대표', '이사', '소장', '팀장', '사원']
 const LEAVE_TYPES = ['연차', '반차', '병가', '경조사', '기타']
 const HR_TABS = ['인사관리', '급여명세서', '추가근무', '급여대장', '연차관리', '4대보험', '원천세']
 const CONTRACT_TYPES = ['포괄연봉제', '일반']
@@ -381,11 +381,16 @@ function EmployeeModal({ employee, onSave, onClose }) {
             </div>
             <div>
               <label className="text-xs font-medium text-gray-500 mb-1 block">직책</label>
-              <input list="position-list" value={form.position} onChange={e => set('position', e.target.value)}
-                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-400" placeholder="직접 입력" />
-              <datalist id="position-list">
-                {POSITION_SUGGESTIONS.map(p => <option key={p} value={p} />)}
-              </datalist>
+              <select value={POSITION_OPTIONS.includes(form.position) ? form.position : '__custom'}
+                onChange={e => set('position', e.target.value === '__custom' ? '' : e.target.value)}
+                className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-400">
+                {POSITION_OPTIONS.map(p => <option key={p} value={p}>{p}</option>)}
+                <option value="__custom">직접입력</option>
+              </select>
+              {!POSITION_OPTIONS.includes(form.position) && (
+                <input value={form.position} onChange={e => set('position', e.target.value)}
+                  className="w-full border border-gray-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-400 mt-1.5" placeholder="직책명 입력" />
+              )}
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
