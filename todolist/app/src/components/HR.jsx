@@ -304,8 +304,16 @@ function calcPayroll(employee, form, rates) {
   const yearEndTax = Number(form.yearEndTax) || 0
   const yearEndLocal = Number(form.yearEndLocalTax) || 0
 
-  const gross = base + overtime + extra + position + bonus + meal + transport
-  const insBase = base + overtime + extra + position + bonus
+  // 일할계산 비율
+  const prorateEnabled = !!form.prorateEnabled
+  const prorateTotal = Number(form.prorateTotal) || 0
+  const prorateWorked = Number(form.prorateWorked) || 0
+  const prorateRatio = (prorateEnabled && prorateTotal > 0) ? prorateWorked / prorateTotal : 1
+  const prorate = v => prorateRatio < 1 ? Math.round(v * prorateRatio) : v
+
+  const grossFull = base + overtime + extra + position + bonus + meal + transport
+  const gross = prorate(base + overtime + extra + position) + prorate(bonus) + prorate(meal) + prorate(transport)
+  const insBase = prorate(base + overtime + extra + position + bonus)
   const mealNonTax = Math.min(meal, 200000)
   const transportNonTax = Math.min(transport, 200000)
   const nonTaxable = mealNonTax + transportNonTax
@@ -853,6 +861,7 @@ function PayrollModal({ employee, payroll, yearMonth, rates, overtimeRecord, onS
     healthRetirementAdj: 0, longTermRetirementAdj: 0,
     yearEndTax: 0, yearEndLocalTax: 0,
     workDays: 0, dailyWage: employee?.dailyWage || 0,
+    prorateEnabled: false, prorateTotal: 0, prorateWorked: 0,
     isPaid: false, paidDate: '', memo: '',
     ...(payroll || {}),
   })
@@ -882,6 +891,9 @@ function PayrollModal({ employee, payroll, yearMonth, rates, overtimeRecord, onS
       yearEndLocalTax: Number(form.yearEndLocalTax) || 0,
       workDays: Number(form.workDays) || 0,
       dailyWage: Number(form.dailyWage) || 0,
+      prorateEnabled: !!form.prorateEnabled,
+      prorateTotal: Number(form.prorateTotal) || 0,
+      prorateWorked: Number(form.prorateWorked) || 0,
     }
     onSave(data)
   }
@@ -983,6 +995,36 @@ function PayrollModal({ employee, payroll, yearMonth, rates, overtimeRecord, onS
               </div>
             )}
           </div>
+
+          {/* 일할계산 (중도입사/퇴사) */}
+          {!isFreelancer && !isDaily && (
+            <div className="bg-amber-50 rounded-xl p-4">
+              <label className="flex items-center gap-2 cursor-pointer">
+                <input type="checkbox" checked={!!form.prorateEnabled} onChange={e => set('prorateEnabled', e.target.checked)}
+                  className="w-4 h-4 rounded border-gray-300 text-amber-500 focus:ring-amber-400" />
+                <span className="text-xs font-semibold text-amber-700">일할계산 적용 <span className="font-normal text-amber-500">(중도입사/퇴사)</span></span>
+              </label>
+              {form.prorateEnabled && (
+                <div className="grid grid-cols-2 gap-3 mt-3">
+                  <div>
+                    <label className="text-xs text-gray-500 mb-1 block">해당월 총 일수 (역일)</label>
+                    <input type="number" min="1" max="31" value={form.prorateTotal} onChange={e => set('prorateTotal', e.target.value)}
+                      className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm text-right outline-none focus:border-amber-400 bg-white" placeholder="예: 30" />
+                  </div>
+                  <div>
+                    <label className="text-xs text-gray-500 mb-1 block">근무일수 (역일)</label>
+                    <input type="number" min="0" max="31" value={form.prorateWorked} onChange={e => set('prorateWorked', e.target.value)}
+                      className="w-full border border-gray-200 rounded-lg px-2 py-1.5 text-sm text-right outline-none focus:border-amber-400 bg-white" placeholder="예: 15" />
+                  </div>
+                  {Number(form.prorateTotal) > 0 && Number(form.prorateWorked) > 0 && (
+                    <div className="col-span-2 text-xs text-amber-600">
+                      적용비율: {Number(form.prorateWorked)}/{Number(form.prorateTotal)} = {(Number(form.prorateWorked) / Number(form.prorateTotal) * 100).toFixed(1)}%
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
 
           {/* 4대보험 고지액 조정 */}
           {!isFreelancer && !isDaily && (
