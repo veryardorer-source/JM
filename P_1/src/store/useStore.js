@@ -23,7 +23,8 @@ const defaultSurface = (label, direction) => ({
   enabled: true,
   exposedCeiling: false,     // 노출천장 (천장면 각재/석고 생략, 슬라브 면적에 도장만)
   exposedUpper: false,       // 벽 상부 노출 (마감H~슬라브H 구간 각재/석고 없이 도장만)
-  customFinishHMm: 0,        // 이 면 개별 마감높이(mm) (0=room.heightM 사용) · 벽면별로 높이 다를 때
+  useCustomH: false,         // 이 벽 개별 높이 사용 여부 (체크 시 customFinishHMm 사용)
+  customFinishHMm: 0,        // 이 벽 개별 마감높이(mm) · 벽마다 높이 다를 때 (예: 샴푸실 1500)
 })
 
 const createRoom = (name) => {

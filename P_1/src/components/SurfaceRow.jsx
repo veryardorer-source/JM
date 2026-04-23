@@ -403,10 +403,26 @@ export default function SurfaceRow({ room, sf }) {
           </label>
         )}
 
-        {/* 상부 노출 체크 시에만 개별 마감H 입력 표시 */}
-        {isWall && sf.exposedUpper && (
-          <label style={styles.inlineLabel} title="이 벽의 마감(벽체) 높이. 비우면 실 마감H 사용. 이 높이 위부터 슬라브H까지가 노출 도장">
-            <span style={{ color: '#c44000', fontWeight: 700 }}>이 벽 마감H(mm)</span>
+        {/* 개별 H 토글 (벽면만) - 같은 실 안에서 벽마다 높이가 다를 때 */}
+        {isWall && (
+          <label style={{ ...styles.inlineLabel, cursor: 'pointer' }} title="이 벽만 다른 높이로 시공하는 경우 (예: 샴푸실 홀쪽 벽 1500mm)">
+            <span style={{ color: sf.useCustomH ? '#1a7a3a' : undefined, fontWeight: sf.useCustomH ? 700 : undefined }}>개별 H</span>
+            <input type="checkbox" checked={!!sf.useCustomH}
+              onChange={e => {
+                const checked = e.target.checked
+                upd({
+                  useCustomH: checked,
+                  ...(checked ? {} : { customFinishHMm: 0 }),
+                })
+              }}
+              style={{ marginTop: 2 }} />
+          </label>
+        )}
+
+        {/* 개별 H 체크 시 입력 필드 표시 */}
+        {isWall && sf.useCustomH && (
+          <label style={styles.inlineLabel} title="이 벽의 높이(mm). 비우면 실 마감H 사용">
+            <span style={{ color: '#1a7a3a', fontWeight: 700 }}>이 벽 H(mm)</span>
             <input type="number" min="0" value={sf.customFinishHMm || ''}
               placeholder={`${Math.round((room.heightM || 0) * 1000) || 2400}`}
               onChange={e => upd({ customFinishHMm: Number(e.target.value) })}
