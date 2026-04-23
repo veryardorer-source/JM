@@ -382,6 +382,26 @@ export default function SurfaceRow({ room, sf }) {
               style={{ marginTop: 2 }} />
           </label>
         )}
+
+        {/* 노출천장 토글 (천장면만) */}
+        {sf.direction === 'ceiling' && (
+          <label style={{ ...styles.inlineLabel, cursor: 'pointer' }} title="체크 시 각재/석고 생략, 슬라브 면적 × 노출도장 단가로 계산">
+            <span style={{ color: sf.exposedCeiling ? '#c44000' : undefined, fontWeight: sf.exposedCeiling ? 700 : undefined }}>노출천장</span>
+            <input type="checkbox" checked={!!sf.exposedCeiling}
+              onChange={e => upd({ exposedCeiling: e.target.checked })}
+              style={{ marginTop: 2 }} />
+          </label>
+        )}
+
+        {/* 벽 상부 노출 토글 (벽면만, 슬라브H > 마감H일 때 의미) */}
+        {isWall && (
+          <label style={{ ...styles.inlineLabel, cursor: 'pointer' }} title="마감H~슬라브H 구간을 각재/석고 없이 노출 도장으로 자동 추가">
+            <span style={{ color: sf.exposedUpper ? '#c44000' : undefined, fontWeight: sf.exposedUpper ? 700 : undefined }}>상부 노출</span>
+            <input type="checkbox" checked={!!sf.exposedUpper}
+              onChange={e => upd({ exposedUpper: e.target.checked })}
+              style={{ marginTop: 2 }} />
+          </label>
+        )}
       </div>
 
       {/* 금액 */}

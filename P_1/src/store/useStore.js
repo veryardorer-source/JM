@@ -21,6 +21,8 @@ const defaultSurface = (label, direction) => ({
   noneSeokgoType: 'none',    // 직접설정 시 석고보드 바탕재 ('none' | seokgo id)
   noneHapanId: 'none',       // 직접설정 시 합판 바탕재 ('none' | hapan id)
   enabled: true,
+  exposedCeiling: false,     // 노출천장 (천장면 각재/석고 생략, 슬라브 면적에 도장만)
+  exposedUpper: false,       // 벽 상부 노출 (마감H~슬라브H 구간 각재/석고 없이 도장만)
 })
 
 const createRoom = (name) => {
@@ -32,6 +34,7 @@ const createRoom = (name) => {
     depthM: 0,
     heightM: 2.4,     // 마감 천장 높이
     slabHeightM: 0,   // 기존(슬라브) 높이 (0 = 미입력)
+    exposedPaintPricePerSqm: 10000,  // 노출 도장 단가 (천장/상부벽 공용)
     doors: [],
     lightings: [],
     moldings: [],

@@ -151,6 +151,36 @@ export function calcSurfaceCost(room, sf, { customMaterials = [], priceOverrides
   const items = []
 
   const isWall = !['floor', 'ceiling'].includes(sf.direction)
+  const isCeiling = sf.direction === 'ceiling'
+
+  // ── 노출천장 모드: 각재/석고 생략, 슬라브 면적에 도장만 ──────────────
+  if (isCeiling && sf.exposedCeiling) {
+    const rate = room.exposedPaintPricePerSqm || 0
+    items.push({
+      name: '노출천장 도장',
+      spec: `슬라브 면적 ${Math.round(area * 10) / 10}㎡`,
+      qty: Math.round(area * 10) / 10,
+      unit: '㎡',
+      unitPrice: rate,
+      cost: rate * area,
+    })
+    // 흡음재 옵션은 노출천장에서도 유효 (선택 시)
+    if (sf.insulationType && sf.insulationType !== 'none') {
+      const ins = findMat(INSULATION, sf.insulationType, customMaterials, 'insulation')
+      if (ins) {
+        const unitPrice = ep(ins, 'pricePerSqm', priceOverrides)
+        const qty = Math.ceil(area * 1.05)
+        items.push({ name: ins.name, spec: '노출천장 흡음재', qty, unit: '㎡', unitPrice, cost: qty * unitPrice })
+      }
+    }
+    return { items, total: items.reduce((s, i) => s + i.cost, 0) }
+  }
+
+  // ── 벽 상부 노출: 마감H ~ 슬라브H 구간 자동 도장 항목 ──────────────
+  const slabH = room.slabHeightM || 0
+  const finishH = room.heightM || 0
+  const upperExposedHMm = (isWall && sf.exposedUpper && slabH > finishH) ? (slabH - finishH) * 1000 : 0
+  const upperExposedArea = upperExposedHMm > 0 ? (widthMm * upperExposedHMm) / 1e6 : 0
 
   // 분리 시공: 상부 도배/페인트 + 하부 필름 (lowerEnabled)
   const isSplitWall = isWall && sf.lowerEnabled
@@ -486,6 +516,19 @@ export function calcSurfaceCost(room, sf, { customMaterials = [], priceOverrides
         cost: (sf.lowerPaintPricePerSqm || 0) * lowerArea,
       })
     }
+  }
+
+  // ── 벽 상부 노출 도장 (마감H ~ 슬라브H 구간) ──────────────
+  if (upperExposedArea > 0) {
+    const rate = room.exposedPaintPricePerSqm || 0
+    items.push({
+      name: '노출상부 도장',
+      spec: `마감H~슬라브H ${Math.round(upperExposedHMm)}mm 구간 ${Math.round(upperExposedArea * 10) / 10}㎡`,
+      qty: Math.round(upperExposedArea * 10) / 10,
+      unit: '㎡',
+      unitPrice: rate,
+      cost: rate * upperExposedArea,
+    })
   }
 
   const total = items.reduce((s, i) => s + i.cost, 0)

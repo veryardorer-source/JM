@@ -37,6 +37,8 @@ export default function RoomCard({ room }) {
           <DimField label="마감H(m)" value={room.heightM} onChange={v => upd({ heightM: v })} />
           <span style={styles.x}>/ 슬라브H</span>
           <DimField label="슬라브H(m)" value={room.slabHeightM || 0} onChange={v => upd({ slabHeightM: v })} />
+          <span style={styles.x} title="노출천장/상부노출 도장 단가">· 노출도장</span>
+          <DimField label="원/㎡" value={room.exposedPaintPricePerSqm || 0} onChange={v => upd({ exposedPaintPricePerSqm: v })} />
         </div>
         <div style={styles.actions}>
           <span style={styles.total}>{roomTotal.toLocaleString()}원</span>
