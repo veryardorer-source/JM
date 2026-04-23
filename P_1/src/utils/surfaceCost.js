@@ -522,6 +522,42 @@ export function calcSurfaceCost(room, sf, { customMaterials = [], priceOverrides
         cost: (sf.lowerPaintPricePerSqm || 0) * lowerArea,
       })
     }
+
+    if (lowerType === 'tile') {
+      // 방수 석고보드 (하부 타일 바탕)
+      const sgWp = findMat(SEOKGO, 'sg_waterproof', customMaterials, 'seokgo') || SEOKGO[0]
+      if (sgWp) {
+        const unitPrice = ep(sgWp, 'pricePerSheet', priceOverrides)
+        const { sheets, cost } = calcSeokgo(lowerArea, 1, unitPrice)
+        items.push({ name: sgWp.name, spec: `${lowerSpec} (타일 바탕)`, qty: sheets, unit: '장', unitPrice, cost })
+      }
+      // 타일
+      const tile = findMat(TILE, sf.lowerTileId, customMaterials, 'tile') || TILE[0]
+      if (tile) {
+        if (isCustom(tile)) {
+          const r = calcCustomMat(lowerArea, widthMm, lowerHMm, room, tile, priceOverrides)
+          items.push({ ...r, spec: lowerSpec })
+        } else {
+          const unitPrice = ep(tile, 'pricePerBox', priceOverrides)
+          const { boxes, cost } = calcTile(widthMm, lowerHMm, { ...tile, pricePerBox: unitPrice })
+          items.push({ name: tile.name, spec: `${lowerSpec} ${boxes}BOX`, qty: boxes, unit: 'BOX', unitPrice, cost })
+        }
+      }
+      // 타일 재료분리대 (타일 상단 경계선, 벽폭 ÷ 2400mm 바)
+      if (sf.lowerTileDivider) {
+        const barLengthMm = 2400
+        const qty = Math.ceil(widthMm / barLengthMm)
+        const dividerPrice = sf.lowerDividerPricePerEa || 0
+        items.push({
+          name: '타일 재료분리대',
+          spec: `상단 경계 ${widthMm}mm ÷ ${barLengthMm}mm`,
+          qty,
+          unit: 'EA',
+          unitPrice: dividerPrice,
+          cost: qty * dividerPrice,
+        })
+      }
+    }
   }
 
   // ── 벽 상부 노출 도장 (마감H ~ 슬라브H 구간) ──────────────

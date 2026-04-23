@@ -5,12 +5,13 @@ import { calcSurfaceCost, getSurfaceDimensions } from '../utils/surfaceCost.js'
 import { calcFilmSections } from '../utils/calculations.js'
 import MoldingSection from './MoldingSection.jsx'
 
-// ── 하부 마감 편집기 (분리 시공 - 필름/도배/도장/템파보드) ──────────────────────────
+// ── 하부 마감 편집기 (분리 시공 - 필름/도배/도장/템파보드/타일) ──────────────────────
 const LOWER_FINISH_TYPES = [
   { id: 'film',       label: '인테리어필름' },
   { id: 'wallpaper',  label: '도배' },
   { id: 'paint',      label: '도장(페인트)' },
   { id: 'tempaboard', label: '템파보드(MDF마감)' },
+  { id: 'tile',       label: '타일' },
 ]
 
 function LowerFinishEditor({ room, sf, upd }) {
@@ -114,6 +115,33 @@ function LowerFinishEditor({ room, sf, upd }) {
                 onChange={e => upd({ lowerPaintPricePerSqm: Number(e.target.value) })}
                 style={{ ...lf.input, width: 90 }} placeholder="0" />
             </label>
+          </>
+        )}
+
+        {/* 타일: 종류 선택 + 재료분리대 옵션 */}
+        {lowerType === 'tile' && (
+          <>
+            <label style={lf.label}>타일
+              <select value={sf.lowerTileId || TILE[0]?.id} onChange={e => upd({ lowerTileId: e.target.value })} style={{ ...lf.select, minWidth: 150 }}>
+                {[...TILE, ...customMaterials.filter(m => m.category === 'tile')].map(t => (
+                  <option key={t.id} value={t.id}>{t.company ? `[${t.company}] ` : ''}{t.name}</option>
+                ))}
+              </select>
+            </label>
+            <label style={{ ...lf.label, cursor: 'pointer' }} title="타일과 상부 마감 경계에 재료분리대 자동 추가 (벽폭 ÷ 2400mm 바 단위)">
+              <span style={{ color: sf.lowerTileDivider ? '#1a7a3a' : undefined, fontWeight: sf.lowerTileDivider ? 700 : undefined }}>재료분리대</span>
+              <input type="checkbox" checked={!!sf.lowerTileDivider}
+                onChange={e => upd({ lowerTileDivider: e.target.checked })}
+                style={{ marginTop: 3 }} />
+            </label>
+            {sf.lowerTileDivider && (
+              <label style={lf.label}>분리대 단가(원/EA)
+                <input type="number" min="0" value={sf.lowerDividerPricePerEa || ''}
+                  placeholder="예) 8000"
+                  onChange={e => upd({ lowerDividerPricePerEa: Number(e.target.value) })}
+                  style={{ ...lf.input, width: 90 }} />
+              </label>
+            )}
           </>
         )}
       </div>
