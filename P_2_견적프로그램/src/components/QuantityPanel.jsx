@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { useStore } from '../store/useStore.js'
 import { calcSurfaceCost } from '../utils/surfaceCost.js'
 import { calcLinearCombo } from '../utils/calculations.js'
+import { exportEstimateToExcel } from '../utils/excelExport.js'
 
 function expandLightings(lightings) {
   const items = []
@@ -59,6 +60,22 @@ export default function QuantityPanel() {
   const { rooms, customMaterials, priceOverrides } = useStore()
   const matOpts = { customMaterials, priceOverrides }
   const [collapsedRooms, setCollapsedRooms] = useState({})
+  const [showExportMenu, setShowExportMenu] = useState(false)
+  const [exportMeta, setExportMeta] = useState({
+    projectName: '인테리어 견적서',
+    clientName: '',
+    siteAddress: '',
+    vatIncluded: false,
+  })
+
+  const handleExport = () => {
+    if (rooms.length === 0) return
+    exportEstimateToExcel(rooms, matOpts, {
+      ...exportMeta,
+      date: new Date().toISOString().slice(0, 10),
+    })
+    setShowExportMenu(false)
+  }
 
   const roomData = rooms.map(room => {
     const surfaceData = room.surfaces
@@ -102,7 +119,55 @@ export default function QuantityPanel() {
     <div style={s.card}>
       <div style={s.header}>
         <h2 style={s.title}>자재 물량 집계</h2>
+        <button
+          onClick={() => setShowExportMenu(v => !v)}
+          disabled={rooms.length === 0}
+          style={{ ...s.exportBtn, opacity: rooms.length === 0 ? 0.4 : 1 }}>
+          📊 Excel 내보내기
+        </button>
       </div>
+
+      {showExportMenu && (
+        <div style={s.exportPanel}>
+          <div style={s.exportRow}>
+            <label style={s.exportLabel}>프로젝트명</label>
+            <input
+              value={exportMeta.projectName}
+              onChange={e => setExportMeta(m => ({ ...m, projectName: e.target.value }))}
+              style={s.exportInput} />
+          </div>
+          <div style={s.exportRow}>
+            <label style={s.exportLabel}>고객명</label>
+            <input
+              value={exportMeta.clientName}
+              placeholder="예) 홍길동"
+              onChange={e => setExportMeta(m => ({ ...m, clientName: e.target.value }))}
+              style={s.exportInput} />
+          </div>
+          <div style={s.exportRow}>
+            <label style={s.exportLabel}>현장주소</label>
+            <input
+              value={exportMeta.siteAddress}
+              placeholder="예) 서울시 ○○구 ..."
+              onChange={e => setExportMeta(m => ({ ...m, siteAddress: e.target.value }))}
+              style={s.exportInput} />
+          </div>
+          <div style={s.exportRow}>
+            <label style={{ ...s.exportLabel, cursor: 'pointer' }}>
+              <input
+                type="checkbox"
+                checked={exportMeta.vatIncluded}
+                onChange={e => setExportMeta(m => ({ ...m, vatIncluded: e.target.checked }))}
+                style={{ marginRight: 6 }} />
+              VAT(10%) 포함 계산
+            </label>
+          </div>
+          <div style={{ display: 'flex', gap: 6, justifyContent: 'flex-end', marginTop: 6 }}>
+            <button onClick={() => setShowExportMenu(false)} style={s.exportCancel}>취소</button>
+            <button onClick={handleExport} style={s.exportConfirm}>다운로드</button>
+          </div>
+        </div>
+      )}
 
       {roomData.length === 0 ? (
         <p style={s.empty}>공간을 추가하고 마감재를 선택하면 집계됩니다.</p>
@@ -277,8 +342,31 @@ function ItemRow({ item }) {
 
 const s = {
   card: { background: '#fff', borderRadius: 16, overflow: 'hidden', boxShadow: '0 4px 20px rgba(30,64,120,0.1)', border: '1px solid #e8edf5' },
-  header: { padding: '12px 16px', borderBottom: '2px solid #e8edf5', display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
+  header: { padding: '12px 16px', borderBottom: '2px solid #e8edf5', display: 'flex', justifyContent: 'space-between', alignItems: 'center', gap: 8 },
   title: { fontSize: 14, fontWeight: 800, color: '#1e4078' },
+  exportBtn: {
+    fontSize: 11, padding: '5px 12px', background: '#10893e', color: '#fff',
+    border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 600,
+    whiteSpace: 'nowrap',
+  },
+  exportPanel: {
+    padding: '10px 14px', background: '#f8fafc',
+    borderBottom: '1px solid #e8edf5', display: 'flex', flexDirection: 'column', gap: 6,
+  },
+  exportRow: { display: 'flex', alignItems: 'center', gap: 8 },
+  exportLabel: { fontSize: 11, color: '#475569', fontWeight: 600, width: 70, flexShrink: 0 },
+  exportInput: {
+    flex: 1, fontSize: 12, padding: '4px 8px',
+    border: '1px solid #d0d7e3', borderRadius: 5, background: '#fff',
+  },
+  exportCancel: {
+    fontSize: 11, padding: '5px 12px', background: '#fff',
+    border: '1px solid #cbd5e1', borderRadius: 6, cursor: 'pointer', color: '#64748b',
+  },
+  exportConfirm: {
+    fontSize: 11, padding: '5px 14px', background: '#10893e', color: '#fff',
+    border: 'none', borderRadius: 6, cursor: 'pointer', fontWeight: 600,
+  },
   empty: { color: '#94a3b8', fontSize: 13, textAlign: 'center', padding: 28 },
   roomBlock: { marginBottom: 2, border: '1px solid #e2e8f0', borderRadius: 8, overflow: 'hidden', margin: 8 },
   roomHeader: { display: 'flex', alignItems: 'center', gap: 6, padding: '8px 12px', background: 'linear-gradient(135deg,#1a3a6e,#2563c0)', cursor: 'pointer' },
