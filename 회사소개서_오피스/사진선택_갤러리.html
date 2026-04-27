@@ -1,0 +1,602 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>JM 회사소개서 — 사진 선택 갤러리</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: 'Pretendard', -apple-system, 'Malgun Gothic', sans-serif;
+    background: #f5f5f5;
+    color: #1a1a1a;
+    line-height: 1.6;
+    padding-bottom: 100px;
+  }
+
+  /* HEADER */
+  header.top {
+    background: #1a1a1a;
+    color: white;
+    padding: 30px 40px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+    box-shadow: 0 4px 20px rgba(0,0,0,0.15);
+  }
+  header.top h1 {
+    font-size: 22px;
+    font-weight: 800;
+    margin-bottom: 6px;
+    letter-spacing: -0.3px;
+  }
+  header.top h1 span { color: #d4b896; }
+  header.top p { font-size: 13px; color: rgba(255,255,255,0.7); }
+
+  /* PROJECT NAV */
+  .nav-bar {
+    background: white;
+    padding: 14px 40px;
+    border-bottom: 1px solid #e0e0e0;
+    position: sticky;
+    top: 92px;
+    z-index: 99;
+    overflow-x: auto;
+    white-space: nowrap;
+  }
+  .nav-bar a {
+    display: inline-block;
+    padding: 6px 14px;
+    margin-right: 8px;
+    background: #f0ede5;
+    color: #5d4a32;
+    text-decoration: none;
+    font-size: 13px;
+    font-weight: 600;
+    border-radius: 30px;
+    transition: all 0.2s;
+  }
+  .nav-bar a:hover { background: #b8956a; color: white; }
+  .nav-bar a .ct {
+    display: inline-block;
+    background: rgba(0,0,0,0.1);
+    padding: 1px 8px;
+    border-radius: 20px;
+    font-size: 11px;
+    margin-left: 4px;
+  }
+
+  /* PROJECT SECTION */
+  .project {
+    max-width: 1500px;
+    margin: 40px auto;
+    background: white;
+    padding: 30px 40px;
+    border-radius: 8px;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.04);
+  }
+  .project-head {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 24px;
+    padding-bottom: 18px;
+    border-bottom: 2px solid #1a1a1a;
+  }
+  .project-head h2 {
+    font-size: 26px;
+    font-weight: 800;
+    letter-spacing: -0.5px;
+  }
+  .project-head h2 small {
+    display: block;
+    font-size: 13px;
+    font-weight: 500;
+    color: #888;
+    margin-top: 4px;
+  }
+  .project-head .count {
+    background: #b8956a;
+    color: white;
+    padding: 6px 16px;
+    border-radius: 30px;
+    font-size: 13px;
+    font-weight: 700;
+  }
+
+  /* PHOTO GRID */
+  .photo-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 16px;
+  }
+  .photo-card {
+    position: relative;
+    background: #fafafa;
+    border: 2px solid #e0e0e0;
+    border-radius: 6px;
+    overflow: hidden;
+    cursor: pointer;
+    transition: all 0.25s;
+  }
+  .photo-card:hover {
+    border-color: #b8956a;
+    transform: translateY(-3px);
+    box-shadow: 0 12px 28px rgba(0,0,0,0.15);
+  }
+  .photo-card.in-use { border-color: #d4b896; }
+  .photo-card.in-use::after {
+    content: '✔ 현재 사용 중';
+    position: absolute;
+    top: 10px;
+    right: 10px;
+    background: #b8956a;
+    color: white;
+    padding: 4px 10px;
+    font-size: 11px;
+    font-weight: 700;
+    border-radius: 30px;
+    z-index: 2;
+  }
+  .photo-card .thumb {
+    width: 100%;
+    aspect-ratio: 4/3;
+    background-size: cover;
+    background-position: center;
+    background-color: #ddd;
+  }
+  .photo-card .info {
+    padding: 12px 14px;
+    background: white;
+    border-top: 1px solid #eee;
+  }
+  .photo-card .num {
+    font-weight: 800;
+    font-size: 14px;
+    color: #1a1a1a;
+    letter-spacing: 0.5px;
+  }
+  .photo-card .num span {
+    background: #1a1a1a;
+    color: #d4b896;
+    padding: 2px 8px;
+    border-radius: 4px;
+    margin-right: 6px;
+    font-size: 12px;
+  }
+  .photo-card .filename {
+    font-size: 11px;
+    color: #999;
+    margin-top: 4px;
+    font-family: 'Consolas', monospace;
+  }
+
+  /* MODAL */
+  .modal {
+    display: none;
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.92);
+    z-index: 1000;
+    align-items: center;
+    justify-content: center;
+    padding: 40px;
+    cursor: pointer;
+  }
+  .modal.active { display: flex; }
+  .modal img {
+    max-width: 95%;
+    max-height: 90vh;
+    box-shadow: 0 20px 60px rgba(0,0,0,0.6);
+  }
+  .modal .info-bar {
+    position: absolute;
+    bottom: 30px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: rgba(20,20,20,0.95);
+    color: white;
+    padding: 14px 28px;
+    border-radius: 6px;
+    font-size: 14px;
+    text-align: center;
+  }
+  .modal .info-bar strong { font-size: 18px; color: #d4b896; }
+  .modal .info-bar small { display: block; opacity: 0.6; margin-top: 4px; font-family: 'Consolas', monospace; }
+
+  /* USAGE GUIDE */
+  .guide {
+    max-width: 1500px;
+    margin: 30px auto;
+    background: #fff8e8;
+    border-left: 4px solid #b8956a;
+    padding: 22px 30px;
+    border-radius: 6px;
+  }
+  .guide h3 { font-size: 16px; margin-bottom: 10px; color: #5d4a32; }
+  .guide p { font-size: 14px; color: #5d4a32; line-height: 1.7; }
+  .guide code {
+    background: rgba(0,0,0,0.06);
+    padding: 2px 6px;
+    border-radius: 3px;
+    font-family: 'Consolas', monospace;
+  }
+</style>
+</head>
+<body>
+
+<header class="top">
+  <h1>JM<span>.</span>건축인테리어 — 사진 선택 갤러리</h1>
+  <p>회사소개서에 사용할 사진을 골라주세요. 각 사진의 <strong>번호</strong>를 알려주시면 그대로 회사소개서에 반영합니다.</p>
+</header>
+
+<nav class="nav-bar">
+  <a href="#mh">MH에탄올 <span class="ct">14</span></a>
+  <a href="#dawon">다원이엔씨 <span class="ct">12</span></a>
+  <a href="#seogyeong">서경방송 2층 <span class="ct">14</span></a>
+  <a href="#sg-lobby" style="background:#fff3d6">서경방송 로비(NEW) <span class="ct">8</span></a>
+  <a href="#gnt">지엔티 <span class="ct">10</span></a>
+  <a href="#gnt-office" style="background:#fff3d6">지엔티 대산(NEW) <span class="ct">10</span></a>
+  <a href="#kicox">한국산업단지공단 <span class="ct">7</span></a>
+  <a href="#pnu">부산대 바이오소재 <span class="ct">13</span></a>
+  <a href="#pnu5" style="background:#fff3d6">부산대 5월(NEW) <span class="ct">21</span></a>
+  <a href="#pnu-animal" style="background:#fff3d6">부산대 동물(NEW) <span class="ct">10</span></a>
+  <a href="#lhy">이홍열 <span class="ct">13</span></a>
+  <a href="#kiwoom">키움 <span class="ct">3</span></a>
+  <a href="#hyundai">마린엔진 <span class="ct">11</span></a>
+  <a href="#hexagon">헥사곤 <span class="ct">8</span></a>
+</nav>
+
+<div class="guide">
+  <h3>📋 선택 방법</h3>
+  <p>
+    각 사진을 <strong>클릭하면 크게 볼 수 있습니다.</strong> 마음에 드는 사진의 번호(예: <code>MH-3</code>, <code>DAWON-7</code>)를 채팅으로 알려주시면 회사소개서에 반영합니다.<br>
+    한 프로젝트당 보통 <strong>메인 1장 + 서브 3장 (총 4장)</strong>이 들어가지만, 적게 또는 많게 조정 가능합니다. <code>현재 사용 중</code> 라벨이 붙은 것이 지금 회사소개서에 들어간 사진입니다.<br>
+    <strong>예시:</strong> "MH는 메인 7번, 서브 3·5·11번 / 다원은 메인 3번, 서브 5·7·1번 / 지엔티는 통째로 빼고 코아텍시스템즈 추가" 같은 식으로 말씀해주세요.
+  </p>
+</div>
+
+<!-- ============ MH 에탄올 ============ -->
+<section class="project" id="mh">
+  <div class="project-head">
+    <h2>MH에탄올<small>경남 창원 · 2025 · 임원 응접실 + 미니멀 사무공간</small></h2>
+    <span class="count">14장</span>
+  </div>
+  <div class="photo-grid">
+    <div class="photo-card" data-img="mh_01.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/mh_01.jpg')"></div><div class="info"><div class="num"><span>MH-1</span> 응접실 정면</div><div class="filename">mh_01.jpg</div></div></div>
+    <div class="photo-card" data-img="mh_02.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/mh_02.jpg')"></div><div class="info"><div class="num"><span>MH-2</span> 응접실 측면</div><div class="filename">mh_02.jpg</div></div></div>
+    <div class="photo-card" data-img="mh_03.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/mh_03.jpg')"></div><div class="info"><div class="num"><span>MH-3</span> 응접실 와이드</div><div class="filename">mh_03.jpg</div></div></div>
+    <div class="photo-card in-use" data-img="mh_04.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/mh_04.jpg')"></div><div class="info"><div class="num"><span>MH-4</span> 화이트 코브 LED</div><div class="filename">mh_04.jpg</div></div></div>
+    <div class="photo-card" data-img="mh_05.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/mh_05.jpg')"></div><div class="info"><div class="num"><span>MH-5</span> 화이트 미니멀 코너</div><div class="filename">mh_05.jpg</div></div></div>
+    <div class="photo-card in-use" data-img="mh_06.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/mh_06.jpg')"></div><div class="info"><div class="num"><span>MH-6</span> 코너 디테일</div><div class="filename">mh_06.jpg</div></div></div>
+    <div class="photo-card in-use" data-img="mh_01.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/mh_01.jpg')"></div><div class="info"><div class="num"><span>MH-1*</span> 응접실 (사용중)</div><div class="filename">mh_01.jpg</div></div></div>
+    <div class="photo-card" data-img="mh_new_01.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/mh_new_01.jpg')"></div><div class="info"><div class="num"><span>MH-7</span> 마감 컷</div><div class="filename">mh_new_01.jpg</div></div></div>
+    <div class="photo-card" data-img="mh_new_02.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/mh_new_02.jpg')"></div><div class="info"><div class="num"><span>MH-8</span> 마감 컷</div><div class="filename">mh_new_02.jpg</div></div></div>
+    <div class="photo-card in-use" data-img="mh_new_03.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/mh_new_03.jpg')"></div><div class="info"><div class="num"><span>MH-9</span> 미니멀 복도+MH사인</div><div class="filename">mh_new_03.jpg</div></div></div>
+    <div class="photo-card" data-img="mh_new_04.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/mh_new_04.jpg')"></div><div class="info"><div class="num"><span>MH-10</span> 마감 컷</div><div class="filename">mh_new_04.jpg</div></div></div>
+    <div class="photo-card" data-img="mh_new_05.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/mh_new_05.jpg')"></div><div class="info"><div class="num"><span>MH-11</span> 화장실</div><div class="filename">mh_new_05.jpg</div></div></div>
+    <div class="photo-card" data-img="mh_new_06.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/mh_new_06.jpg')"></div><div class="info"><div class="num"><span>MH-12</span> 디테일</div><div class="filename">mh_new_06.jpg</div></div></div>
+    <div class="photo-card" data-img="mh_new_07.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/mh_new_07.jpg')"></div><div class="info"><div class="num"><span>MH-13</span> 디테일</div><div class="filename">mh_new_07.jpg</div></div></div>
+    <div class="photo-card" data-img="mh_new_08.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/mh_new_08.jpg')"></div><div class="info"><div class="num"><span>MH-14</span> 디테일</div><div class="filename">mh_new_08.jpg</div></div></div>
+  </div>
+</section>
+
+<!-- ============ 다원이엔씨 ============ -->
+<section class="project" id="dawon">
+  <div class="project-head">
+    <h2>(주)다원이엔씨<small>창원 신화더플렉스 16층 · 2024 · 본사 사무실 (인스타용 정제컷 다수)</small></h2>
+    <span class="count">12장</span>
+  </div>
+  <div class="photo-grid">
+    <div class="photo-card" data-img="dawon_01.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/dawon_01.jpg')"></div><div class="info"><div class="num"><span>DAWON-1</span> 출입구 사인</div><div class="filename">dawon_01.jpg</div></div></div>
+    <div class="photo-card" data-img="dawon_02.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/dawon_02.jpg')"></div><div class="info"><div class="num"><span>DAWON-2</span> David E&C 사인</div><div class="filename">dawon_02.jpg</div></div></div>
+    <div class="photo-card" data-img="dawon_03.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/dawon_03.jpg')"></div><div class="info"><div class="num"><span>DAWON-3</span> 닻 로고 디테일</div><div class="filename">dawon_03.jpg</div></div></div>
+    <div class="photo-card" data-img="dawon_04.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/dawon_04.jpg')"></div><div class="info"><div class="num"><span>DAWON-4</span> 사인 복도 전경</div><div class="filename">dawon_04.jpg</div></div></div>
+    <div class="photo-card in-use" data-img="dawon_new_01.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/dawon_new_01.jpg')"></div><div class="info"><div class="num"><span>DAWON-5</span> 1604+닻 (정제)</div><div class="filename">dawon_new_01.jpg</div></div></div>
+    <div class="photo-card" data-img="dawon_new_02.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/dawon_new_02.jpg')"></div><div class="info"><div class="num"><span>DAWON-6</span> 정제 컷</div><div class="filename">dawon_new_02.jpg</div></div></div>
+    <div class="photo-card in-use" data-img="dawon_new_03.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/dawon_new_03.jpg')"></div><div class="info"><div class="num"><span>DAWON-7</span> David E&C 백라이트</div><div class="filename">dawon_new_03.jpg</div></div></div>
+    <div class="photo-card" data-img="dawon_new_04.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/dawon_new_04.jpg')"></div><div class="info"><div class="num"><span>DAWON-8</span> 정제 컷</div><div class="filename">dawon_new_04.jpg</div></div></div>
+    <div class="photo-card in-use" data-img="dawon_new_05.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/dawon_new_05.jpg')"></div><div class="info"><div class="num"><span>DAWON-9</span> 곡선LED+글래스미팅룸</div><div class="filename">dawon_new_05.jpg</div></div></div>
+    <div class="photo-card" data-img="dawon_new_06.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/dawon_new_06.jpg')"></div><div class="info"><div class="num"><span>DAWON-10</span> 정제 컷</div><div class="filename">dawon_new_06.jpg</div></div></div>
+    <div class="photo-card in-use" data-img="dawon_new_07.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/dawon_new_07.jpg')"></div><div class="info"><div class="num"><span>DAWON-11</span> 사무공간 와이드</div><div class="filename">dawon_new_07.jpg</div></div></div>
+    <div class="photo-card" data-img="dawon_new_08.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/dawon_new_08.jpg')"></div><div class="info"><div class="num"><span>DAWON-12</span> 정제 컷</div><div class="filename">dawon_new_08.jpg</div></div></div>
+  </div>
+</section>
+
+<!-- ============ 서경방송 ============ -->
+<section class="project" id="seogyeong">
+  <div class="project-head">
+    <h2>서경방송 2층 사무실<small>경남 진주 · 2025 · 방송국 본사 사무실</small></h2>
+    <span class="count">14장</span>
+  </div>
+  <div class="photo-grid">
+    <div class="photo-card in-use" data-img="seogyeong_01.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/seogyeong_01.jpg')"></div><div class="info"><div class="num"><span>SG-1</span> 우드슬랫 복도</div><div class="filename">seogyeong_01.jpg</div></div></div>
+    <div class="photo-card" data-img="seogyeong_02.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/seogyeong_02.jpg')"></div><div class="info"><div class="num"><span>SG-2</span> 서경방송 사인</div><div class="filename">seogyeong_02.jpg</div></div></div>
+    <div class="photo-card in-use" data-img="seogyeong_03.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/seogyeong_03.jpg')"></div><div class="info"><div class="num"><span>SG-3</span> 글래스 파티션</div><div class="filename">seogyeong_03.jpg</div></div></div>
+    <div class="photo-card" data-img="seogyeong_04.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/seogyeong_04.jpg')"></div><div class="info"><div class="num"><span>SG-4</span> 사무공간</div><div class="filename">seogyeong_04.jpg</div></div></div>
+    <div class="photo-card in-use" data-img="seogyeong_05.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/seogyeong_05.jpg')"></div><div class="info"><div class="num"><span>SG-5</span> 화이트 진열장</div><div class="filename">seogyeong_05.jpg</div></div></div>
+    <div class="photo-card" data-img="seogyeong_06.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/seogyeong_06.jpg')"></div><div class="info"><div class="num"><span>SG-6</span> 사무공간</div><div class="filename">seogyeong_06.jpg</div></div></div>
+    <div class="photo-card" data-img="seogyeong_new_01.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/seogyeong_new_01.jpg')"></div><div class="info"><div class="num"><span>SG-7</span> 락커룸</div><div class="filename">seogyeong_new_01.jpg</div></div></div>
+    <div class="photo-card" data-img="seogyeong_new_02.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/seogyeong_new_02.jpg')"></div><div class="info"><div class="num"><span>SG-8</span> 디테일</div><div class="filename">seogyeong_new_02.jpg</div></div></div>
+    <div class="photo-card" data-img="seogyeong_new_03.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/seogyeong_new_03.jpg')"></div><div class="info"><div class="num"><span>SG-9</span> 디테일</div><div class="filename">seogyeong_new_03.jpg</div></div></div>
+    <div class="photo-card" data-img="seogyeong_new_04.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/seogyeong_new_04.jpg')"></div><div class="info"><div class="num"><span>SG-10</span> LG 온도조절기 + 마블</div><div class="filename">seogyeong_new_04.jpg</div></div></div>
+    <div class="photo-card" data-img="seogyeong_new_05.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/seogyeong_new_05.jpg')"></div><div class="info"><div class="num"><span>SG-11</span> 디테일</div><div class="filename">seogyeong_new_05.jpg</div></div></div>
+    <div class="photo-card in-use" data-img="seogyeong_new_06.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/seogyeong_new_06.jpg')"></div><div class="info"><div class="num"><span>SG-12</span> 메인 사무공간 와이드</div><div class="filename">seogyeong_new_06.jpg</div></div></div>
+    <div class="photo-card" data-img="seogyeong_new_07.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/seogyeong_new_07.jpg')"></div><div class="info"><div class="num"><span>SG-13</span> 디테일</div><div class="filename">seogyeong_new_07.jpg</div></div></div>
+    <div class="photo-card" data-img="seogyeong_new_08.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/seogyeong_new_08.jpg')"></div><div class="info"><div class="num"><span>SG-14</span> 디테일</div><div class="filename">seogyeong_new_08.jpg</div></div></div>
+  </div>
+</section>
+
+<!-- ============ 서경방송 로비 NEW ============ -->
+<section class="project" id="sg-lobby" style="border-left: 6px solid #b8956a;">
+  <div class="project-head">
+    <h2>서경방송 로비 (NEW)<small>경남 진주 · 2025 · 마블 로비 + 안내사인 + 둥근기둥 (3D 디자인 시안 — 매우 디자인 강함)</small></h2>
+    <span class="count">8장</span>
+  </div>
+  <div class="photo-grid">
+    <div class="photo-card" data-img="sg_lobby_3d_01.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/sg_lobby_3d_01.jpg')"></div><div class="info"><div class="num"><span>SGLOBBY-1</span> 마블 + 안내사인 + 기둥</div><div class="filename">sg_lobby_3d_01.jpg</div></div></div>
+    <div class="photo-card" data-img="sg_lobby_3d_02.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/sg_lobby_3d_02.jpg')"></div><div class="info"><div class="num"><span>SGLOBBY-2</span> 엘리베이터 + 사인</div><div class="filename">sg_lobby_3d_02.jpg</div></div></div>
+    <div class="photo-card" data-img="sg_lobby_3d_03.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/sg_lobby_3d_03.jpg')"></div><div class="info"><div class="num"><span>SGLOBBY-3</span> 둥근 기둥 + 글래스</div><div class="filename">sg_lobby_3d_03.jpg</div></div></div>
+    <div class="photo-card" data-img="sg_lobby_3d_04.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/sg_lobby_3d_04.jpg')"></div><div class="info"><div class="num"><span>SGLOBBY-4</span> 디테일</div><div class="filename">sg_lobby_3d_04.jpg</div></div></div>
+    <div class="photo-card" data-img="sg_lobby_3d_05.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/sg_lobby_3d_05.jpg')"></div><div class="info"><div class="num"><span>SGLOBBY-5</span> 엘리베이터 + 마블 LED</div><div class="filename">sg_lobby_3d_05.jpg</div></div></div>
+    <div class="photo-card" data-img="sg_lobby_3d_06.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/sg_lobby_3d_06.jpg')"></div><div class="info"><div class="num"><span>SGLOBBY-6</span> 마블 + 안내사인 와이드</div><div class="filename">sg_lobby_3d_06.jpg</div></div></div>
+    <div class="photo-card" data-img="sg_lobby_3d_07.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/sg_lobby_3d_07.jpg')"></div><div class="info"><div class="num"><span>SGLOBBY-7</span> 엘리베이터 + 멤버십 사인</div><div class="filename">sg_lobby_3d_07.jpg</div></div></div>
+    <div class="photo-card" data-img="sg_lobby_3d_08.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/sg_lobby_3d_08.jpg')"></div><div class="info"><div class="num"><span>SGLOBBY-8</span> 디테일</div><div class="filename">sg_lobby_3d_08.jpg</div></div></div>
+  </div>
+</section>
+
+<!-- ============ 지엔티 ============ -->
+<section class="project" id="gnt">
+  <div class="project-head">
+    <h2>(주)지엔티<small>경남 함안 대산 · 2023~2024 · 제조 기업 사무실 + 1공장 + 외부 정비</small></h2>
+    <span class="count">10장</span>
+  </div>
+  <div class="photo-grid">
+    <div class="photo-card in-use" data-img="gnt_01.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/gnt_01.jpg')"></div><div class="info"><div class="num"><span>GNT-1</span> 출입구</div><div class="filename">gnt_01.jpg</div></div></div>
+    <div class="photo-card" data-img="gnt_02.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/gnt_02.jpg')"></div><div class="info"><div class="num"><span>GNT-2</span> 화장실 시공중</div><div class="filename">gnt_02.jpg</div></div></div>
+    <div class="photo-card in-use" data-img="gnt_03.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/gnt_03.jpg')"></div><div class="info"><div class="num"><span>GNT-3</span> 외부 정비</div><div class="filename">gnt_03.jpg</div></div></div>
+    <div class="photo-card" data-img="gnt_04.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/gnt_04.jpg')"></div><div class="info"><div class="num"><span>GNT-4</span> 외부 공사</div><div class="filename">gnt_04.jpg</div></div></div>
+    <div class="photo-card" data-img="gnt_factory_01.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/gnt_factory_01.jpg')"></div><div class="info"><div class="num"><span>GNT-5</span> 1공장 비포</div><div class="filename">gnt_factory_01.jpg</div></div></div>
+    <div class="photo-card" data-img="gnt_factory_02.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/gnt_factory_02.jpg')"></div><div class="info"><div class="num"><span>GNT-6</span> 1공장</div><div class="filename">gnt_factory_02.jpg</div></div></div>
+    <div class="photo-card in-use" data-img="gnt_factory_03.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/gnt_factory_03.jpg')"></div><div class="info"><div class="num"><span>GNT-7</span> 1공장 마감</div><div class="filename">gnt_factory_03.jpg</div></div></div>
+    <div class="photo-card in-use" data-img="gnt_factory_04.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/gnt_factory_04.jpg')"></div><div class="info"><div class="num"><span>GNT-8</span> 1공장 디테일</div><div class="filename">gnt_factory_04.jpg</div></div></div>
+    <div class="photo-card" data-img="gnt_factory_05.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/gnt_factory_05.jpg')"></div><div class="info"><div class="num"><span>GNT-9</span> 1공장 마감</div><div class="filename">gnt_factory_05.jpg</div></div></div>
+    <div class="photo-card" data-img="gnt_factory_06.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/gnt_factory_06.jpg')"></div><div class="info"><div class="num"><span>GNT-10</span> 1공장 마감</div><div class="filename">gnt_factory_06.jpg</div></div></div>
+  </div>
+</section>
+
+<!-- ============ 지엔티 대산 사무실 NEW ============ -->
+<section class="project" id="gnt-office" style="border-left: 6px solid #b8956a;">
+  <div class="project-head">
+    <h2>지엔티 대산 사무실 (NEW)<small>경남 함안 대산 · 2023 · 사무실 시공 (대부분 비포·평범 — 디자인 약함)</small></h2>
+    <span class="count">10장</span>
+  </div>
+  <div class="photo-grid">
+    <div class="photo-card" data-img="gnt_office_01.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/gnt_office_01.jpg')"></div><div class="info"><div class="num"><span>GNTO-1</span> 비포 - 입구 복도</div><div class="filename">gnt_office_01.jpg</div></div></div>
+    <div class="photo-card" data-img="gnt_office_02.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/gnt_office_02.jpg')"></div><div class="info"><div class="num"><span>GNTO-2</span> 비포 - 로비</div><div class="filename">gnt_office_02.jpg</div></div></div>
+    <div class="photo-card" data-img="gnt_office_03.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/gnt_office_03.jpg')"></div><div class="info"><div class="num"><span>GNTO-3</span> 사무실 책상+캐비넷</div><div class="filename">gnt_office_03.jpg</div></div></div>
+    <div class="photo-card" data-img="gnt_office_04.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/gnt_office_04.jpg')"></div><div class="info"><div class="num"><span>GNTO-4</span> 사무실 디테일</div><div class="filename">gnt_office_04.jpg</div></div></div>
+    <div class="photo-card" data-img="gnt_office_05.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/gnt_office_05.jpg')"></div><div class="info"><div class="num"><span>GNTO-5</span> 옛날 스타일 벽</div><div class="filename">gnt_office_05.jpg</div></div></div>
+    <div class="photo-card" data-img="gnt_office_06.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/gnt_office_06.jpg')"></div><div class="info"><div class="num"><span>GNTO-6</span> 디테일</div><div class="filename">gnt_office_06.jpg</div></div></div>
+    <div class="photo-card" data-img="gnt_office_07.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/gnt_office_07.jpg')"></div><div class="info"><div class="num"><span>GNTO-7</span> 칸막이 사무공간</div><div class="filename">gnt_office_07.jpg</div></div></div>
+    <div class="photo-card" data-img="gnt_office_08.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/gnt_office_08.jpg')"></div><div class="info"><div class="num"><span>GNTO-8</span> 디테일</div><div class="filename">gnt_office_08.jpg</div></div></div>
+    <div class="photo-card" data-img="gnt_office_09.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/gnt_office_09.jpg')"></div><div class="info"><div class="num"><span>GNTO-9</span> 비포 - 로비</div><div class="filename">gnt_office_09.jpg</div></div></div>
+    <div class="photo-card" data-img="gnt_office_10.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/gnt_office_10.jpg')"></div><div class="info"><div class="num"><span>GNTO-10</span> 디테일</div><div class="filename">gnt_office_10.jpg</div></div></div>
+  </div>
+</section>
+
+<!-- ============ 한국산업단지공단 ============ -->
+<section class="project" id="kicox">
+  <div class="project-head">
+    <h2>한국산업단지공단<small>경남 창원 · 2025 · KICKUP AI LOUNGE 임직원 라운지</small></h2>
+    <span class="count">7장</span>
+  </div>
+  <div class="photo-grid">
+    <div class="photo-card in-use" data-img="kicox_01.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/kicox_01.jpg')"></div><div class="info"><div class="num"><span>KICOX-1</span> 메인 라운지</div><div class="filename">kicox_01.jpg</div></div></div>
+    <div class="photo-card in-use" data-img="kicox_02.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/kicox_02.jpg')"></div><div class="info"><div class="num"><span>KICOX-2</span> 원형 천장 라운지</div><div class="filename">kicox_02.jpg</div></div></div>
+    <div class="photo-card" data-img="kicox_03.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/kicox_03.jpg')"></div><div class="info"><div class="num"><span>KICOX-3</span> 원형 천장 + 식물</div><div class="filename">kicox_03.jpg</div></div></div>
+    <div class="photo-card" data-img="kicox_04.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/kicox_04.jpg')"></div><div class="info"><div class="num"><span>KICOX-4</span> 라운지</div><div class="filename">kicox_04.jpg</div></div></div>
+    <div class="photo-card in-use" data-img="kicox_05.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/kicox_05.jpg')"></div><div class="info"><div class="num"><span>KICOX-5</span> KICKUP AI LOUNGE 사인</div><div class="filename">kicox_05.jpg</div></div></div>
+    <div class="photo-card in-use" data-img="kicox_06.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/kicox_06.jpg')"></div><div class="info"><div class="num"><span>KICOX-6</span> 헤링본 라운지+트로피</div><div class="filename">kicox_06.jpg</div></div></div>
+    <div class="photo-card" data-img="kicox_07.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/kicox_07.jpg')"></div><div class="info"><div class="num"><span>KICOX-7</span> 키오스크+컬러가구</div><div class="filename">kicox_07.jpg</div></div></div>
+  </div>
+</section>
+
+<!-- ============ 부산대 밀양캠퍼스 ============ -->
+<section class="project" id="pnu">
+  <div class="project-head">
+    <h2>부산대 밀양캠퍼스<small>경남 밀양 · 2025 · 바이오소재과학과</small></h2>
+    <span class="count">13장</span>
+  </div>
+  <div class="photo-grid">
+    <div class="photo-card" data-img="pnu_01.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/pnu_01.jpg')"></div><div class="info"><div class="num"><span>PNU-1</span> 비포 사진</div><div class="filename">pnu_01.jpg</div></div></div>
+    <div class="photo-card" data-img="pnu_02.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/pnu_02.jpg')"></div><div class="info"><div class="num"><span>PNU-2</span> 학과 사인 월</div><div class="filename">pnu_02.jpg</div></div></div>
+    <div class="photo-card" data-img="pnu_03.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/pnu_03.jpg')"></div><div class="info"><div class="num"><span>PNU-3</span> 학과 라운지+TV</div><div class="filename">pnu_03.jpg</div></div></div>
+    <div class="photo-card in-use" data-img="pnu_04.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/pnu_04.jpg')"></div><div class="info"><div class="num"><span>PNU-4</span> 학과 카페+사인</div><div class="filename">pnu_04.jpg</div></div></div>
+    <div class="photo-card in-use" data-img="pnu_05.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/pnu_05.jpg')"></div><div class="info"><div class="num"><span>PNU-5</span> 도서·세미나</div><div class="filename">pnu_05.jpg</div></div></div>
+    <div class="photo-card" data-img="pnu_06.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/pnu_06.jpg')"></div><div class="info"><div class="num"><span>PNU-6</span> 학과 카페</div><div class="filename">pnu_06.jpg</div></div></div>
+    <div class="photo-card" data-img="pnu_new_01.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/pnu_new_01.jpg')"></div><div class="info"><div class="num"><span>PNU-7</span> 마감 컷</div><div class="filename">pnu_new_01.jpg</div></div></div>
+    <div class="photo-card" data-img="pnu_new_02.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/pnu_new_02.jpg')"></div><div class="info"><div class="num"><span>PNU-8</span> 마감 컷</div><div class="filename">pnu_new_02.jpg</div></div></div>
+    <div class="photo-card in-use" data-img="pnu_new_03.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/pnu_new_03.jpg')"></div><div class="info"><div class="num"><span>PNU-9</span> 학과 사인 월 풀샷</div><div class="filename">pnu_new_03.jpg</div></div></div>
+    <div class="photo-card" data-img="pnu_new_04.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/pnu_new_04.jpg')"></div><div class="info"><div class="num"><span>PNU-10</span> 마감 컷</div><div class="filename">pnu_new_04.jpg</div></div></div>
+    <div class="photo-card in-use" data-img="pnu_new_05.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/pnu_new_05.jpg')"></div><div class="info"><div class="num"><span>PNU-11</span> 우드패널 백라이트 복도</div><div class="filename">pnu_new_05.jpg</div></div></div>
+    <div class="photo-card" data-img="pnu_new_06.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/pnu_new_06.jpg')"></div><div class="info"><div class="num"><span>PNU-12</span> 마감 컷</div><div class="filename">pnu_new_06.jpg</div></div></div>
+    <div class="photo-card" data-img="pnu_new_07.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/pnu_new_07.jpg')"></div><div class="info"><div class="num"><span>PNU-13</span> 마감 컷</div><div class="filename">pnu_new_07.jpg</div></div></div>
+  </div>
+</section>
+
+<!-- ============ 부산대 밀양 5월 NEW ============ -->
+<section class="project" id="pnu5" style="border-left: 6px solid #b8956a;">
+  <div class="project-head">
+    <h2>부산대 밀양캠퍼스 5월 (NEW)<small>경남 밀양 · 2025 · 학과휴게실 + 원예생명복도 + 전산설계실 (시공 진행중 + 3D 시안)</small></h2>
+    <span class="count">21장</span>
+  </div>
+  <div class="photo-grid">
+    <div class="photo-card" data-img="pnu5_3d_01.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/pnu5_3d_01.jpg')"></div><div class="info"><div class="num"><span>PNU5-3D-1</span> 메인 3D</div><div class="filename">pnu5_3d_01.jpg</div></div></div>
+    <div class="photo-card" data-img="pnu5_3d_02.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/pnu5_3d_02.jpg')"></div><div class="info"><div class="num"><span>PNU5-3D-2</span> 학과휴게실 3D</div><div class="filename">pnu5_3d_02.jpg</div></div></div>
+    <div class="photo-card" data-img="pnu5_3d_03.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/pnu5_3d_03.jpg')"></div><div class="info"><div class="num"><span>PNU5-3D-3</span> 휴게실 우드+헤링본</div><div class="filename">pnu5_3d_03.jpg</div></div></div>
+    <div class="photo-card" data-img="pnu5_3d_04.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/pnu5_3d_04.jpg')"></div><div class="info"><div class="num"><span>PNU5-3D-4</span> 휴게실 3D</div><div class="filename">pnu5_3d_04.jpg</div></div></div>
+    <div class="photo-card" data-img="pnu5_3d_05.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/pnu5_3d_05.jpg')"></div><div class="info"><div class="num"><span>PNU5-3D-5</span> 휴게실 베이지+갤러리</div><div class="filename">pnu5_3d_05.jpg</div></div></div>
+    <div class="photo-card" data-img="pnu5_3d_06.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/pnu5_3d_06.jpg')"></div><div class="info"><div class="num"><span>PNU5-3D-6</span> 원예생명복도 3D</div><div class="filename">pnu5_3d_06.jpg</div></div></div>
+    <div class="photo-card" data-img="pnu5_3d_07.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/pnu5_3d_07.jpg')"></div><div class="info"><div class="num"><span>PNU5-3D-7</span> 원예생명 PNU 사인 월</div><div class="filename">pnu5_3d_07.jpg</div></div></div>
+    <div class="photo-card" data-img="pnu5_3d_08.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/pnu5_3d_08.jpg')"></div><div class="info"><div class="num"><span>PNU5-3D-8</span> 원예생명 디테일</div><div class="filename">pnu5_3d_08.jpg</div></div></div>
+    <div class="photo-card" data-img="pnu5_3d_09.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/pnu5_3d_09.jpg')"></div><div class="info"><div class="num"><span>PNU5-3D-9</span> 전산설계실 3D</div><div class="filename">pnu5_3d_09.jpg</div></div></div>
+    <div class="photo-card" data-img="pnu5_01.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/pnu5_01.jpg')"></div><div class="info"><div class="num"><span>PNU5-1</span> 시공중</div><div class="filename">pnu5_01.jpg</div></div></div>
+    <div class="photo-card" data-img="pnu5_02.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/pnu5_02.jpg')"></div><div class="info"><div class="num"><span>PNU5-2</span> 시공중</div><div class="filename">pnu5_02.jpg</div></div></div>
+    <div class="photo-card" data-img="pnu5_03.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/pnu5_03.jpg')"></div><div class="info"><div class="num"><span>PNU5-3</span> 시공중</div><div class="filename">pnu5_03.jpg</div></div></div>
+    <div class="photo-card" data-img="pnu5_04.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/pnu5_04.jpg')"></div><div class="info"><div class="num"><span>PNU5-4</span> 시공중</div><div class="filename">pnu5_04.jpg</div></div></div>
+    <div class="photo-card" data-img="pnu5_05.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/pnu5_05.jpg')"></div><div class="info"><div class="num"><span>PNU5-5</span> 시공중</div><div class="filename">pnu5_05.jpg</div></div></div>
+    <div class="photo-card" data-img="pnu5_06.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/pnu5_06.jpg')"></div><div class="info"><div class="num"><span>PNU5-6</span> 시공중</div><div class="filename">pnu5_06.jpg</div></div></div>
+    <div class="photo-card" data-img="pnu5_07.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/pnu5_07.jpg')"></div><div class="info"><div class="num"><span>PNU5-7</span> 시공중</div><div class="filename">pnu5_07.jpg</div></div></div>
+    <div class="photo-card" data-img="pnu5_08.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/pnu5_08.jpg')"></div><div class="info"><div class="num"><span>PNU5-8</span> 시공중</div><div class="filename">pnu5_08.jpg</div></div></div>
+    <div class="photo-card" data-img="pnu5_09.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/pnu5_09.jpg')"></div><div class="info"><div class="num"><span>PNU5-9</span> 시공중</div><div class="filename">pnu5_09.jpg</div></div></div>
+    <div class="photo-card" data-img="pnu5_10.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/pnu5_10.jpg')"></div><div class="info"><div class="num"><span>PNU5-10</span> 시공중</div><div class="filename">pnu5_10.jpg</div></div></div>
+    <div class="photo-card" data-img="pnu5_11.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/pnu5_11.jpg')"></div><div class="info"><div class="num"><span>PNU5-11</span> 시공중</div><div class="filename">pnu5_11.jpg</div></div></div>
+    <div class="photo-card" data-img="pnu5_12.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/pnu5_12.jpg')"></div><div class="info"><div class="num"><span>PNU5-12</span> 시공중</div><div class="filename">pnu5_12.jpg</div></div></div>
+  </div>
+</section>
+
+<!-- ============ 부산대 동물 NEW ============ -->
+<section class="project" id="pnu-animal" style="border-left: 6px solid #b8956a;">
+  <div class="project-head">
+    <h2>부산대 동물 (NEW)<small>경남 밀양 · 2026 · 동물사육시설 · 실험실 (시공 진행중 + 3D 시안 — 디자인 단순)</small></h2>
+    <span class="count">10장</span>
+  </div>
+  <div class="photo-grid">
+    <div class="photo-card" data-img="pnu_animal_3d_01.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/pnu_animal_3d_01.jpg')"></div><div class="info"><div class="num"><span>PNUA-3D-1</span> 동물실 3D</div><div class="filename">pnu_animal_3d_01.jpg</div></div></div>
+    <div class="photo-card" data-img="pnu_animal_3d_02.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/pnu_animal_3d_02.jpg')"></div><div class="info"><div class="num"><span>PNUA-3D-2</span> 동물실 3D</div><div class="filename">pnu_animal_3d_02.jpg</div></div></div>
+    <div class="photo-card" data-img="pnu_animal_3d_03.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/pnu_animal_3d_03.jpg')"></div><div class="info"><div class="num"><span>PNUA-3D-3</span> 동물실 3D</div><div class="filename">pnu_animal_3d_03.jpg</div></div></div>
+    <div class="photo-card" data-img="pnu_animal_3d_04.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/pnu_animal_3d_04.jpg')"></div><div class="info"><div class="num"><span>PNUA-3D-4</span> 동물실 3D</div><div class="filename">pnu_animal_3d_04.jpg</div></div></div>
+    <div class="photo-card" data-img="pnu_animal_01.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/pnu_animal_01.jpg')"></div><div class="info"><div class="num"><span>PNUA-1</span> 시공중</div><div class="filename">pnu_animal_01.jpg</div></div></div>
+    <div class="photo-card" data-img="pnu_animal_02.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/pnu_animal_02.jpg')"></div><div class="info"><div class="num"><span>PNUA-2</span> 시공중</div><div class="filename">pnu_animal_02.jpg</div></div></div>
+    <div class="photo-card" data-img="pnu_animal_03.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/pnu_animal_03.jpg')"></div><div class="info"><div class="num"><span>PNUA-3</span> 시공중</div><div class="filename">pnu_animal_03.jpg</div></div></div>
+    <div class="photo-card" data-img="pnu_animal_04.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/pnu_animal_04.jpg')"></div><div class="info"><div class="num"><span>PNUA-4</span> 시공중</div><div class="filename">pnu_animal_04.jpg</div></div></div>
+    <div class="photo-card" data-img="pnu_animal_05.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/pnu_animal_05.jpg')"></div><div class="info"><div class="num"><span>PNUA-5</span> 시공중</div><div class="filename">pnu_animal_05.jpg</div></div></div>
+    <div class="photo-card" data-img="pnu_animal_06.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/pnu_animal_06.jpg')"></div><div class="info"><div class="num"><span>PNUA-6</span> 시공중</div><div class="filename">pnu_animal_06.jpg</div></div></div>
+  </div>
+</section>
+
+<!-- ============ 이홍열 ============ -->
+<section class="project" id="lhy">
+  <div class="project-head">
+    <h2>이홍열 변호사사무실<small>경남 창원 · 2025 · 법률사무소 (홈페이지용 정제컷 다수)</small></h2>
+    <span class="count">13장</span>
+  </div>
+  <div class="photo-grid">
+    <div class="photo-card" data-img="lhy_law_01.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/lhy_law_01.jpg')"></div><div class="info"><div class="num"><span>LHY-1</span> 리셉션 정면</div><div class="filename">lhy_law_01.jpg</div></div></div>
+    <div class="photo-card" data-img="lhy_law_02.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/lhy_law_02.jpg')"></div><div class="info"><div class="num"><span>LHY-2</span> 다크 월넛 벽</div><div class="filename">lhy_law_02.jpg</div></div></div>
+    <div class="photo-card" data-img="lhy_law_03.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/lhy_law_03.jpg')"></div><div class="info"><div class="num"><span>LHY-3</span> 다크 마블 복도</div><div class="filename">lhy_law_03.jpg</div></div></div>
+    <div class="photo-card in-use" data-img="lhy_new_01.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/lhy_new_01.jpg')"></div><div class="info"><div class="num"><span>LHY-4</span> 다크 마블 복도 (정제)</div><div class="filename">lhy_new_01.jpg</div></div></div>
+    <div class="photo-card" data-img="lhy_new_02.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/lhy_new_02.jpg')"></div><div class="info"><div class="num"><span>LHY-5</span> 정제 컷</div><div class="filename">lhy_new_02.jpg</div></div></div>
+    <div class="photo-card in-use" data-img="lhy_new_03.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/lhy_new_03.jpg')"></div><div class="info"><div class="num"><span>LHY-6</span> 다크 월넛 도어+블라인드</div><div class="filename">lhy_new_03.jpg</div></div></div>
+    <div class="photo-card" data-img="lhy_new_04.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/lhy_new_04.jpg')"></div><div class="info"><div class="num"><span>LHY-7</span> 정제 컷</div><div class="filename">lhy_new_04.jpg</div></div></div>
+    <div class="photo-card" data-img="lhy_new_05.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/lhy_new_05.jpg')"></div><div class="info"><div class="num"><span>LHY-8</span> 정제 컷</div><div class="filename">lhy_new_05.jpg</div></div></div>
+    <div class="photo-card in-use" data-img="lhy_new_06.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/lhy_new_06.jpg')"></div><div class="info"><div class="num"><span>LHY-9</span> 변호사실 우드 책상</div><div class="filename">lhy_new_06.jpg</div></div></div>
+    <div class="photo-card" data-img="lhy_new_07.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/lhy_new_07.jpg')"></div><div class="info"><div class="num"><span>LHY-10</span> 정제 컷</div><div class="filename">lhy_new_07.jpg</div></div></div>
+    <div class="photo-card in-use" data-img="lhy_new_08.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/lhy_new_08.jpg')"></div><div class="info"><div class="num"><span>LHY-11</span> 리셉션 가로뷰</div><div class="filename">lhy_new_08.jpg</div></div></div>
+    <div class="photo-card" data-img="lhy_new_09.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/lhy_new_09.jpg')"></div><div class="info"><div class="num"><span>LHY-12</span> 정제 컷</div><div class="filename">lhy_new_09.jpg</div></div></div>
+    <div class="photo-card" data-img="lhy_new_10.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/lhy_new_10.jpg')"></div><div class="info"><div class="num"><span>LHY-13</span> 정제 컷</div><div class="filename">lhy_new_10.jpg</div></div></div>
+  </div>
+</section>
+
+<!-- ============ 키움에셋플래너 ============ -->
+<section class="project" id="kiwoom">
+  <div class="project-head">
+    <h2>키움에셋플래너<small>경남 창원 · 2025 · 금융 자산관리 사무실</small></h2>
+    <span class="count">3장</span>
+  </div>
+  <div class="photo-grid">
+    <div class="photo-card in-use" data-img="kiwoom_01.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/kiwoom_01.jpg')"></div><div class="info"><div class="num"><span>KIWOOM-1</span> 메인 사무공간</div><div class="filename">kiwoom_01.jpg</div></div></div>
+    <div class="photo-card in-use" data-img="kiwoom_02.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/kiwoom_02.jpg')"></div><div class="info"><div class="num"><span>KIWOOM-2</span> 측면 디테일</div><div class="filename">kiwoom_02.jpg</div></div></div>
+    <div class="photo-card in-use" data-img="kiwoom_03.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/kiwoom_03.jpg')"></div><div class="info"><div class="num"><span>KIWOOM-3</span> 리셉션+사인</div><div class="filename">kiwoom_03.jpg</div></div></div>
+  </div>
+</section>
+
+<!-- ============ 현대마린엔진 ============ -->
+<section class="project" id="hyundai">
+  <div class="project-head">
+    <h2>현대마린엔진 대표실<small>경남 창원 · 2026 · 임원집무실 부분 리뉴얼 (3D 시뮬레이션 + 시공)</small></h2>
+    <span class="count">11장</span>
+  </div>
+  <div class="photo-grid">
+    <div class="photo-card" data-img="hyundai_01.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/hyundai_01.jpg')"></div><div class="info"><div class="num"><span>HYU-1</span> 시공 (회전)</div><div class="filename">hyundai_01.jpg</div></div></div>
+    <div class="photo-card in-use" data-img="hyundai_02.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/hyundai_02.jpg')"></div><div class="info"><div class="num"><span>HYU-2</span> 시공 진행</div><div class="filename">hyundai_02.jpg</div></div></div>
+    <div class="photo-card in-use" data-img="hyundai_3d_01.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/hyundai_3d_01.jpg')"></div><div class="info"><div class="num"><span>HYU-3</span> 회의공간 3D</div><div class="filename">hyundai_3d_01.jpg</div></div></div>
+    <div class="photo-card in-use" data-img="hyundai_3d_02.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/hyundai_3d_02.jpg')"></div><div class="info"><div class="num"><span>HYU-4</span> 디테일 3D</div><div class="filename">hyundai_3d_02.jpg</div></div></div>
+    <div class="photo-card in-use" data-img="hyundai_3d_03.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/hyundai_3d_03.jpg')"></div><div class="info"><div class="num"><span>HYU-5</span> 회의실 측면 3D</div><div class="filename">hyundai_3d_03.jpg</div></div></div>
+    <div class="photo-card" data-img="hyundai_3d_04.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/hyundai_3d_04.jpg')"></div><div class="info"><div class="num"><span>HYU-6</span> 3D 컷</div><div class="filename">hyundai_3d_04.jpg</div></div></div>
+    <div class="photo-card" data-img="hyundai_3d_05.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/hyundai_3d_05.jpg')"></div><div class="info"><div class="num"><span>HYU-7</span> 탑뷰 3D</div><div class="filename">hyundai_3d_05.jpg</div></div></div>
+    <div class="photo-card" data-img="hyundai_3d_06.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/hyundai_3d_06.jpg')"></div><div class="info"><div class="num"><span>HYU-8</span> 3D 컷</div><div class="filename">hyundai_3d_06.jpg</div></div></div>
+    <div class="photo-card" data-img="hyundai_new_01.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/hyundai_new_01.jpg')"></div><div class="info"><div class="num"><span>HYU-9</span> 시공 진행</div><div class="filename">hyundai_new_01.jpg</div></div></div>
+    <div class="photo-card" data-img="hyundai_new_02.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/hyundai_new_02.jpg')"></div><div class="info"><div class="num"><span>HYU-10</span> 시공 진행</div><div class="filename">hyundai_new_02.jpg</div></div></div>
+    <div class="photo-card" data-img="hyundai_new_03.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/hyundai_new_03.jpg')"></div><div class="info"><div class="num"><span>HYU-11</span> 시공 진행</div><div class="filename">hyundai_new_03.jpg</div></div></div>
+  </div>
+</section>
+
+<!-- ============ 헥사곤 ============ -->
+<section class="project" id="hexagon">
+  <div class="project-head">
+    <h2>HEXAGON 헥사곤 코리아 (NEW)<small>경남 창원 · 2023 · 글로벌 측정 솔루션 한국지사 — 경남테크노파크 대체</small></h2>
+    <span class="count">8장</span>
+  </div>
+  <div class="photo-grid">
+    <div class="photo-card in-use" data-img="hexagon_01.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/hexagon_01.jpg')"></div><div class="info"><div class="num"><span>HEX-1</span> 측정 교육실</div><div class="filename">hexagon_01.jpg</div></div></div>
+    <div class="photo-card" data-img="hexagon_02.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/hexagon_02.jpg')"></div><div class="info"><div class="num"><span>HEX-2</span> 디테일</div><div class="filename">hexagon_02.jpg</div></div></div>
+    <div class="photo-card in-use" data-img="hexagon_03.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/hexagon_03.jpg')"></div><div class="info"><div class="num"><span>HEX-3</span> 그린 브랜드 회의실</div><div class="filename">hexagon_03.jpg</div></div></div>
+    <div class="photo-card" data-img="hexagon_04.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/hexagon_04.jpg')"></div><div class="info"><div class="num"><span>HEX-4</span> 디테일</div><div class="filename">hexagon_04.jpg</div></div></div>
+    <div class="photo-card in-use" data-img="hexagon_05.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/hexagon_05.jpg')"></div><div class="info"><div class="num"><span>HEX-5</span> 메인 사인+측정 쇼룸</div><div class="filename">hexagon_05.jpg</div></div></div>
+    <div class="photo-card in-use" data-img="hexagon_06.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/hexagon_06.jpg')"></div><div class="info"><div class="num"><span>HEX-6</span> 디테일</div><div class="filename">hexagon_06.jpg</div></div></div>
+    <div class="photo-card" data-img="hexagon_07.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/hexagon_07.jpg')"></div><div class="info"><div class="num"><span>HEX-7</span> 글래스 회의실 복도</div><div class="filename">hexagon_07.jpg</div></div></div>
+    <div class="photo-card" data-img="hexagon_08.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/hexagon_08.jpg')"></div><div class="info"><div class="num"><span>HEX-8</span> 세로 컷</div><div class="filename">hexagon_08.jpg</div></div></div>
+  </div>
+</section>
+
+<!-- ============ EXTRA ============ -->
+<section class="project" id="extra">
+  <div class="project-head">
+    <h2>기타 보유 사진<small>현재 회사소개서에 없는 다른 프로젝트 사진</small></h2>
+    <span class="count">5장</span>
+  </div>
+  <div class="photo-grid">
+    <div class="photo-card" data-img="dh_law_01.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/dh_law_01.jpg')"></div><div class="info"><div class="num"><span>DH-1</span> DH법무법인 외부 사인</div><div class="filename">dh_law_01.jpg</div></div></div>
+    <div class="photo-card" data-img="dh_law_02.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/dh_law_02.jpg')"></div><div class="info"><div class="num"><span>DH-2</span> DH법무법인 디테일</div><div class="filename">dh_law_02.jpg</div></div></div>
+    <div class="photo-card" data-img="gntp_01.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/gntp_01.jpg')"></div><div class="info"><div class="num"><span>GNTP-1</span> 경남테크노파크 비포</div><div class="filename">gntp_01.jpg</div></div></div>
+    <div class="photo-card" data-img="gntp_02.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/gntp_02.jpg')"></div><div class="info"><div class="num"><span>GNTP-2</span> 경남테크노파크 사무</div><div class="filename">gntp_02.jpg</div></div></div>
+    <div class="photo-card" data-img="gntp_03.jpg"><div class="thumb" style="background-image:url('JM_회사소개서_이미지/gntp_03.jpg')"></div><div class="info"><div class="num"><span>GNTP-3</span> 경남테크노파크 디테일</div><div class="filename">gntp_03.jpg</div></div></div>
+  </div>
+</section>
+
+<!-- MODAL -->
+<div class="modal" id="modal">
+  <img id="modal-img" src="" alt="">
+  <div class="info-bar">
+    <strong id="modal-num"></strong>
+    <small id="modal-fn"></small>
+  </div>
+</div>
+
+<script>
+  const modal = document.getElementById('modal');
+  const modalImg = document.getElementById('modal-img');
+  const modalNum = document.getElementById('modal-num');
+  const modalFn = document.getElementById('modal-fn');
+
+  document.querySelectorAll('.photo-card').forEach(card => {
+    card.addEventListener('click', () => {
+      const img = card.getAttribute('data-img');
+      const num = card.querySelector('.num').textContent;
+      const fn = card.querySelector('.filename').textContent;
+      modalImg.src = 'JM_회사소개서_이미지/' + img;
+      modalNum.textContent = num;
+      modalFn.textContent = fn;
+      modal.classList.add('active');
+    });
+  });
+
+  modal.addEventListener('click', () => modal.classList.remove('active'));
+  document.addEventListener('keydown', e => {
+    if (e.key === 'Escape') modal.classList.remove('active');
+  });
+</script>
+
+</body>
+</html>
