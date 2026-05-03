@@ -1,0 +1,1357 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>상식 퀴즈 게임</title>
+    <style>
+        /* ════════════════════════════════════════
+           RESET & BASE
+        ════════════════════════════════════════ */
+        *, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Malgun Gothic', '맑은 고딕', -apple-system, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            display: flex;
+            justify-content: center;
+            align-items: flex-start;
+            padding: 32px 16px 48px;
+        }
+
+        /* ════════════════════════════════════════
+           SCREEN & CARD
+        ════════════════════════════════════════ */
+        .screen { display: none; width: 100%; max-width: 560px; }
+        .screen.active { display: block; }
+
+        .card {
+            background: #fff;
+            border-radius: 20px;
+            padding: 32px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.22);
+        }
+
+        /* ════════════════════════════════════════
+           BUTTONS
+        ════════════════════════════════════════ */
+        .btn {
+            display: block;
+            width: 100%;
+            padding: 14px 20px;
+            border: none;
+            border-radius: 12px;
+            font-family: inherit;
+            font-size: 1rem;
+            font-weight: 700;
+            cursor: pointer;
+            transition: opacity 0.2s, transform 0.15s;
+            text-align: center;
+            letter-spacing: -0.01em;
+        }
+        .btn:hover  { opacity: 0.87; transform: translateY(-1px); }
+        .btn:active { transform: translateY(0); opacity: 1; }
+
+        .btn-primary { background: linear-gradient(135deg, #667eea, #764ba2); color: #fff; }
+        .btn-outline { background: #fff; color: #667eea; border: 2px solid #667eea; }
+        .btn-outline:hover { background: #f0f0ff; opacity: 1; }
+        .btn-ghost   { background: #f3f4f6; color: #374151; }
+        .btn-ghost:hover { background: #e5e7eb; opacity: 1; }
+        .btn-danger  { background: #fee2e2; color: #dc2626; border: none; }
+        .btn-danger:hover { background: #fecaca; opacity: 1; }
+
+        /* ════════════════════════════════════════
+           START SCREEN
+        ════════════════════════════════════════ */
+        #start-screen .card { text-align: center; }
+
+        .game-icon     { font-size: 3rem; margin-bottom: 10px; }
+        .game-title    { font-size: 1.85rem; font-weight: 800; color: #1a1a2e; margin-bottom: 5px; }
+        .game-subtitle { font-size: 0.86rem; color: #9ca3af; margin-bottom: 28px; }
+
+        .field-label {
+            display: block;
+            text-align: left;
+            font-size: 0.82rem;
+            font-weight: 700;
+            color: #374151;
+            margin-bottom: 8px;
+        }
+        .text-input {
+            width: 100%;
+            padding: 12px 16px;
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
+            font-family: inherit;
+            font-size: 0.95rem;
+            color: #1f2937;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+            margin-bottom: 24px;
+        }
+        .text-input:focus {
+            border-color: #667eea;
+            box-shadow: 0 0 0 3px rgba(102, 126, 234, 0.15);
+        }
+        .text-input::placeholder { color: #d1d5db; }
+
+        .section-label {
+            text-align: left;
+            font-size: 0.82rem;
+            font-weight: 700;
+            color: #374151;
+            margin-bottom: 10px;
+        }
+        .cat-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+            margin-bottom: 28px;
+        }
+        .cat-btn {
+            padding: 10px 6px;
+            border: 2px solid #e5e7eb;
+            border-radius: 10px;
+            background: #fff;
+            font-family: inherit;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: #6b7280;
+            cursor: pointer;
+            transition: border-color 0.18s, color 0.18s, background 0.18s;
+            line-height: 1.3;
+        }
+        .cat-btn:hover  { border-color: #a78bfa; color: #7c3aed; }
+        .cat-btn.selected {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            border-color: transparent;
+            color: #fff;
+        }
+        .cat-icon { display: block; font-size: 1.2rem; margin-bottom: 3px; }
+
+        .start-btn-group { display: flex; flex-direction: column; gap: 10px; }
+
+        /* ════════════════════════════════════════
+           QUIZ SCREEN
+        ════════════════════════════════════════ */
+        .quiz-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 6px;
+            margin-bottom: 12px;
+        }
+        .badge {
+            padding: 4px 11px;
+            border-radius: 20px;
+            font-size: 0.78rem;
+            font-weight: 700;
+            white-space: nowrap;
+        }
+        .badge-cat      { background: #ede9fe; color: #7c3aed; }
+        .badge-progress { background: #f3f4f6; color: #6b7280; }
+        .badge-score    { background: #fef3c7; color: #92400e; }
+
+        .progress-wrap {
+            background: #f3f4f6;
+            border-radius: 99px;
+            height: 6px;
+            margin-bottom: 24px;
+            overflow: hidden;
+        }
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            border-radius: 99px;
+            transition: width 0.5s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .question-number { font-size: 0.8rem; font-weight: 700; color: #667eea; margin-bottom: 6px; }
+        .question-text   {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #1f2937;
+            line-height: 1.7;
+            margin-bottom: 20px;
+        }
+
+        /* 보기 버튼 */
+        .choices { display: flex; flex-direction: column; gap: 10px; margin-bottom: 16px; }
+        .choice-btn {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            width: 100%;
+            padding: 13px 16px;
+            border: 2px solid #e5e7eb;
+            border-radius: 12px;
+            background: #fff;
+            font-family: inherit;
+            font-size: 0.93rem;
+            color: #374151;
+            text-align: left;
+            cursor: pointer;
+            transition: border-color 0.15s, background 0.15s, transform 0.1s;
+            line-height: 1.45;
+        }
+        .choice-btn:hover:not(:disabled) {
+            border-color: #a78bfa;
+            background: #faf5ff;
+            transform: translateX(2px);
+        }
+        .choice-btn:disabled { cursor: default; }
+
+        .choice-num {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 28px;
+            height: 28px;
+            border-radius: 50%;
+            background: #f3f4f6;
+            color: #7c3aed;
+            font-weight: 800;
+            font-size: 0.82rem;
+            flex-shrink: 0;
+            transition: background 0.2s, color 0.2s;
+        }
+
+        /* 정답/오답 피드백 색상 */
+        .choice-btn.correct {
+            background: #d1fae5;
+            border-color: #10b981;
+            color: #065f46;
+        }
+        .choice-btn.correct .choice-num { background: #10b981; color: #fff; }
+
+        .choice-btn.wrong {
+            background: #fee2e2;
+            border-color: #ef4444;
+            color: #7f1d1d;
+        }
+        .choice-btn.wrong .choice-num { background: #ef4444; color: #fff; }
+
+        /* 정답 애니메이션: 부드러운 스케일 강조 */
+        @keyframes pulse-correct {
+            0%   { transform: scale(1); }
+            40%  { transform: scale(1.025); box-shadow: 0 0 0 5px rgba(16, 185, 129, 0.2); }
+            100% { transform: scale(1); box-shadow: none; }
+        }
+        /* 오답 애니메이션: 좌우 흔들림 */
+        @keyframes shake-wrong {
+            0%, 100% { transform: translateX(0); }
+            15%      { transform: translateX(-7px); }
+            30%      { transform: translateX(6px); }
+            45%      { transform: translateX(-5px); }
+            60%      { transform: translateX(4px); }
+            75%      { transform: translateX(-2px); }
+        }
+        .choice-btn.correct { animation: pulse-correct 0.45s ease forwards; }
+        .choice-btn.wrong   { animation: shake-wrong  0.45s ease forwards; }
+
+        /* 해설 박스 */
+        .explanation-box {
+            display: none;
+            background: #f8fafc;
+            border-left: 4px solid #667eea;
+            border-radius: 0 10px 10px 0;
+            padding: 12px 16px;
+            font-size: 0.87rem;
+            color: #374151;
+            line-height: 1.7;
+            margin-bottom: 16px;
+        }
+        .explanation-box.show { display: block; }
+        .exp-label {
+            display: block;
+            font-weight: 700;
+            font-size: 0.88rem;
+            margin-bottom: 4px;
+        }
+        .exp-label.correct { color: #10b981; }
+        .exp-label.wrong   { color: #ef4444; }
+
+        #next-btn { display: none; }
+
+        /* ════════════════════════════════════════
+           RESULT SCREEN
+        ════════════════════════════════════════ */
+        #result-screen .card { text-align: center; }
+
+        .result-header-label {
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: #9ca3af;
+            letter-spacing: 0.08em;
+            text-transform: uppercase;
+            margin-bottom: 12px;
+        }
+        .result-emoji      { font-size: 3.5rem; line-height: 1; margin-bottom: 10px; }
+        .result-score-wrap { margin-bottom: 4px; }
+        .result-score-num  { font-size: 3.2rem; font-weight: 800; color: #1a1a2e; }
+        .result-score-sep  { font-size: 1.6rem; font-weight: 600; color: #d1d5db; margin: 0 4px; }
+        .result-score-tot  { font-size: 1.6rem; font-weight: 600; color: #9ca3af; }
+        .result-accuracy   { font-size: 1.25rem; font-weight: 700; color: #667eea; margin-bottom: 6px; }
+        .result-message    { font-size: 0.92rem; color: #6b7280; margin-bottom: 24px; font-weight: 500; }
+
+        /* 카테고리별 성적 (전체 모드) */
+        .cat-breakdown {
+            background: #f9fafb;
+            border-radius: 14px;
+            padding: 18px 20px;
+            margin-bottom: 24px;
+            text-align: left;
+        }
+        .cat-breakdown-title { font-size: 0.82rem; font-weight: 700; color: #6b7280; margin-bottom: 14px; }
+        .cat-row        { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+        .cat-row:last-child { margin-bottom: 0; }
+        .cat-row-name   { font-size: 0.85rem; color: #374151; width: 64px; flex-shrink: 0; }
+        .cat-bar-bg     { flex: 1; height: 7px; background: #e5e7eb; border-radius: 99px; overflow: hidden; }
+        .cat-bar-fill   {
+            height: 100%;
+            background: linear-gradient(90deg, #667eea, #764ba2);
+            border-radius: 99px;
+            transition: width 0.7s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+        .cat-row-score  { font-size: 0.83rem; font-weight: 700; color: #7c3aed; width: 38px; text-align: right; flex-shrink: 0; }
+
+        .result-btn-group { display: flex; flex-direction: column; gap: 10px; }
+
+        /* ════════════════════════════════════════
+           RANKING SCREEN
+        ════════════════════════════════════════ */
+        .ranking-hdr {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 6px;
+        }
+        .ranking-title { font-size: 1.3rem; font-weight: 800; color: #1a1a2e; }
+
+        .ranking-desc { font-size: 0.8rem; color: #9ca3af; margin-bottom: 18px; }
+
+        /* 랭킹 리스트 */
+        .ranking-list { list-style: none; margin-bottom: 20px; }
+
+        .ranking-item {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            padding: 13px 16px;
+            border-radius: 14px;
+            margin-bottom: 8px;
+            background: #f9fafb;
+            border: 1px solid transparent;
+            transition: background 0.15s;
+        }
+        /* 1~3위 강조 배경 */
+        .ranking-item.rank-gold   { background: linear-gradient(135deg, #fffbeb, #fef9c3); border-color: #fbbf24; }
+        .ranking-item.rank-silver { background: linear-gradient(135deg, #f8fafc, #f1f5f9); border-color: #94a3b8; }
+        .ranking-item.rank-bronze { background: linear-gradient(135deg, #fff7f5, #ffedd5); border-color: #fb923c; }
+
+        .rank-pos {
+            font-size: 1.4rem;
+            width: 34px;
+            text-align: center;
+            flex-shrink: 0;
+            font-weight: 800;
+            color: #9ca3af;
+            line-height: 1;
+        }
+        .rank-pos.medal { font-size: 1.5rem; }
+
+        .rank-body { flex: 1; min-width: 0; }
+        .rank-top  { display: flex; justify-content: space-between; align-items: baseline; gap: 6px; }
+        .rank-nick {
+            font-weight: 700;
+            color: #1f2937;
+            font-size: 0.95rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .rank-accuracy {
+            font-weight: 800;
+            color: #667eea;
+            font-size: 1rem;
+            flex-shrink: 0;
+        }
+        .rank-gold   .rank-accuracy { color: #d97706; }
+        .rank-silver .rank-accuracy { color: #475569; }
+        .rank-bronze .rank-accuracy { color: #c2410c; }
+
+        .rank-meta { font-size: 0.77rem; color: #9ca3af; margin-top: 3px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+        /* 빈 랭킹 */
+        .ranking-empty {
+            text-align: center;
+            color: #d1d5db;
+            padding: 36px 0 28px;
+            font-size: 0.9rem;
+            line-height: 1.8;
+        }
+        .ranking-empty-icon { font-size: 2.5rem; display: block; margin-bottom: 8px; }
+
+        .ranking-btn-group { display: flex; flex-direction: column; gap: 10px; }
+
+        /* ════ TEACHER MODE ════ */
+        .teacher-header { text-align: center; margin-bottom: 20px; }
+        .teacher-header h2 { font-size: 1.4rem; font-weight: 800; color: #1a1a2e; }
+
+        .teacher-summary {
+          display: flex; gap: 10px; flex-wrap: wrap;
+          justify-content: center; margin-bottom: 20px;
+        }
+        .teacher-stat-card {
+          flex: 1; min-width: 100px; background: #f8f7ff;
+          border-radius: 12px; padding: 12px 10px; text-align: center;
+        }
+        .teacher-stat-card .ts-label { font-size: 0.75rem; color: #6b7280; display: block; margin-bottom: 4px; }
+        .teacher-stat-card .ts-value { font-size: 1.3rem; font-weight: 800; color: #667eea; }
+
+        .teacher-table-wrap { overflow-x: auto; margin-bottom: 16px; }
+        .teacher-table {
+          width: 100%; border-collapse: collapse; font-size: 0.84rem;
+        }
+        .teacher-table th {
+          background: linear-gradient(135deg, #667eea, #764ba2);
+          color: #fff; padding: 9px 8px; text-align: center; font-weight: 700;
+        }
+        .teacher-table td {
+          padding: 8px; text-align: center; border-bottom: 1px solid #f0f0f0; color: #374151;
+        }
+        .teacher-table tr:hover td { background: #f8f7ff; }
+        .teacher-table .accuracy-high { color: #059669; font-weight: 700; }
+        .teacher-table .accuracy-mid  { color: #d97706; font-weight: 700; }
+        .teacher-table .accuracy-low  { color: #dc2626; font-weight: 700; }
+
+        .teacher-btn-row { display: flex; gap: 10px; margin-top: 10px; }
+        .teacher-btn-row .btn { flex: 1; }
+
+        /* ════════════════════════════════════════
+           RESPONSIVE (≤ 480px)
+        ════════════════════════════════════════ */
+        @media (max-width: 480px) {
+            body { padding: 16px 12px 32px; }
+            .card { padding: 24px 18px; }
+            .game-title { font-size: 1.5rem; }
+            .question-text { font-size: 1rem; }
+            .choice-btn { font-size: 0.88rem; padding: 11px 13px; }
+            .result-score-num { font-size: 2.6rem; }
+            .cat-grid { grid-template-columns: repeat(2, 1fr); }
+            .rank-meta { font-size: 0.73rem; }
+        }
+        @media (max-width: 360px) {
+            .quiz-header { flex-wrap: wrap; }
+            .badge { font-size: 0.72rem; padding: 3px 9px; }
+        }
+        /* ════ REPORT ════ */
+        .report-table { width:100%; border-collapse:collapse; font-size:0.84rem; margin-bottom:16px; }
+        .report-table th {
+            background: linear-gradient(135deg, #667eea, #764ba2);
+            color:#fff; padding:8px; text-align:center; font-weight:700;
+        }
+        .report-table td { padding:8px; text-align:center; border-bottom:1px solid #f0f0f0; color:#374151; }
+        .report-table tr:hover td { background:#f8f7ff; }
+        .grade-a { color:#059669; font-weight:800; }
+        .grade-b { color:#2563eb; font-weight:800; }
+        .grade-c { color:#d97706; font-weight:800; }
+        .grade-d { color:#dc2626; font-weight:800; }
+
+        /* ── 보고서 텍스트 모달 ── */
+        .modal-overlay { display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:200; overflow-y:auto; padding:32px 16px; }
+        .modal-overlay.open { display:block; }
+        .modal-card { background:#fff; border-radius:20px; max-width:480px; margin:0 auto; padding:28px 24px; }
+        .modal-title-row { display:flex; justify-content:space-between; align-items:center; margin-bottom:16px; }
+        .modal-title { font-size:1.1rem; font-weight:800; color:#1a1a2e; }
+        .modal-close-btn { background:#f3f4f6; border:none; border-radius:8px; padding:6px 12px; cursor:pointer; font-size:0.9rem; }
+        .report-modal-card { max-width:560px; }
+        .report-btn-row { display:flex; gap:8px; margin-bottom:14px; }
+        .report-btn-row .btn { flex:1; }
+        .report-text {
+            background:#1a1a2e; color:#e2e8f0;
+            border-radius:12px; padding:16px 14px;
+            font-family:'Malgun Gothic','맑은 고딕',monospace;
+            font-size:0.78rem; line-height:1.7;
+            white-space:pre-wrap; word-break:break-all;
+            max-height:55vh; overflow-y:auto;
+        }
+    </style>
+</head>
+<body>
+
+    <!-- ════════════════════════ 시작 화면 ════════════════════════ -->
+    <div id="start-screen" class="screen active">
+        <div class="card">
+            <div class="game-icon">🧠</div>
+            <h1 class="game-title">상식 퀴즈</h1>
+            <p class="game-subtitle">한국사 · 과학 · 지리 · 일반상식, 총 40문제</p>
+
+            <label class="field-label" for="nickname-input">닉네임</label>
+            <input id="nickname-input" class="text-input" type="text" maxlength="12"
+                   placeholder="닉네임 입력 (미입력 시 익명)">
+
+            <p class="section-label">카테고리 선택</p>
+            <div class="cat-grid">
+                <button class="cat-btn selected" data-cat="전체">
+                    <span class="cat-icon">🌐</span>전체
+                </button>
+                <button class="cat-btn" data-cat="한국사">
+                    <span class="cat-icon">🏯</span>한국사
+                </button>
+                <button class="cat-btn" data-cat="과학">
+                    <span class="cat-icon">🔬</span>과학
+                </button>
+                <button class="cat-btn" data-cat="지리">
+                    <span class="cat-icon">🌍</span>지리
+                </button>
+                <button class="cat-btn" data-cat="일반상식">
+                    <span class="cat-icon">💡</span>일반상식
+                </button>
+            </div>
+
+            <div class="start-btn-group">
+                <button class="btn btn-primary" onclick="startGame()">▶ 게임 시작</button>
+                <button class="btn btn-outline" onclick="openRanking()">🏆 랭킹 보기</button>
+                <button class="btn btn-ghost" onclick="openTeacher()">👩‍🏫 선생님 모드</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ════════════════════════ 문제 화면 ════════════════════════ -->
+    <div id="quiz-screen" class="screen">
+        <div class="card">
+            <div class="quiz-header">
+                <span id="quiz-cat-badge"      class="badge badge-cat">한국사</span>
+                <span id="quiz-progress-badge" class="badge badge-progress">1 / 10</span>
+                <span id="quiz-score-badge"    class="badge badge-score">점수 0</span>
+            </div>
+
+            <div class="progress-wrap">
+                <div id="progress-fill" class="progress-fill" style="width:0%"></div>
+            </div>
+
+            <p id="question-number" class="question-number">Q1</p>
+            <p id="question-text"   class="question-text"></p>
+
+            <div id="choices" class="choices"></div>
+
+            <div id="explanation-box" class="explanation-box">
+                <span id="exp-label" class="exp-label"></span>
+                <span id="exp-text"></span>
+            </div>
+
+            <button id="next-btn" class="btn btn-primary" onclick="handleNext()">다음 문제 →</button>
+        </div>
+    </div>
+
+    <!-- ════════════════════════ 결과 화면 ════════════════════════ -->
+    <div id="result-screen" class="screen">
+        <div class="card">
+            <p class="result-header-label">게임 결과</p>
+            <div id="result-emoji"  class="result-emoji">🎉</div>
+            <div class="result-score-wrap">
+                <span id="result-score-num" class="result-score-num">0</span>
+                <span class="result-score-sep">/</span>
+                <span id="result-score-tot" class="result-score-tot">10</span>
+            </div>
+            <p id="result-accuracy" class="result-accuracy">정답률 0%</p>
+            <p id="result-message"  class="result-message"></p>
+
+            <div id="cat-breakdown" class="cat-breakdown" style="display:none">
+                <p class="cat-breakdown-title">카테고리별 성적</p>
+                <div id="cat-breakdown-rows"></div>
+            </div>
+
+            <div class="result-btn-group">
+                <button class="btn btn-primary" id="ranking-register-btn" onclick="registerRanking()">
+                    🏆 랭킹 등록
+                </button>
+                <button class="btn btn-outline" onclick="goToStart()">↩ 다시 하기</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ════════════════════════ 랭킹 화면 ════════════════════════ -->
+    <div id="ranking-screen" class="screen">
+        <div class="card">
+            <div class="ranking-hdr">
+                <h2 class="ranking-title">🏆 명예의 전당</h2>
+                <button class="btn btn-danger" style="width:auto;padding:7px 14px;font-size:0.82rem;"
+                        onclick="clearRanking()">기록 초기화</button>
+            </div>
+            <p class="ranking-desc">정답률 기준 상위 10명 · 동률 시 최근 기록 우선</p>
+
+            <ul id="ranking-list" class="ranking-list"></ul>
+
+            <div class="ranking-btn-group">
+                <button class="btn btn-ghost" onclick="goToStart()">← 처음으로</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ════════════════════════ 선생님 화면 ════════════════════════ -->
+    <div id="teacher-screen" class="screen">
+        <div class="card">
+            <div class="teacher-header">
+                <h2>👩‍🏫 선생님 모드</h2>
+                <p class="game-subtitle">전체 학생 성적 현황</p>
+            </div>
+
+            <div id="teacher-summary" class="teacher-summary"></div>
+
+            <div id="teacher-table-wrap" class="teacher-table-wrap">
+                <table id="teacher-table" class="teacher-table">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>닉네임</th>
+                            <th>정답률</th>
+                            <th>점수</th>
+                            <th>카테고리</th>
+                            <th>플레이 일시</th>
+                        </tr>
+                    </thead>
+                    <tbody id="teacher-tbody"></tbody>
+                </table>
+            </div>
+
+            <div class="teacher-btn-row">
+                <button class="btn btn-outline" onclick="showScreen('start')">← 돌아가기</button>
+                <button class="btn btn-ghost" onclick="openReportModal()">📄 보고서 출력</button>
+                <button class="btn btn-primary" onclick="printTeacherReport()">📋 성적 리포트 출력</button>
+            </div>
+            <div class="teacher-btn-row" style="margin-top:8px;">
+                <button class="btn btn-outline" onclick="exportCSV()">📊 CSV 저장</button>
+                <button class="btn btn-outline" onclick="exportPDF()">🖨️ PDF 저장</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ════ 성적 리포트 모달 ════ -->
+    <div id="report-modal" style="display:none; position:fixed; inset:0; background:rgba(0,0,0,0.5); z-index:100; overflow-y:auto; padding:32px 16px;">
+        <div style="background:#fff; border-radius:20px; max-width:560px; margin:0 auto; padding:32px;">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:20px;">
+                <h2 style="font-size:1.2rem; font-weight:800; color:#1a1a2e;">📋 학생 성적 리포트</h2>
+                <button onclick="document.getElementById('report-modal').style.display='none'" style="background:#f3f4f6; border:none; border-radius:8px; padding:6px 12px; cursor:pointer; font-size:0.9rem;">닫기</button>
+            </div>
+            <div id="report-content"></div>
+            <div style="display:flex; gap:8px; margin-top:16px;">
+                <button onclick="copyReport()" class="btn btn-outline" style="flex:1;">📋 복사</button>
+                <button onclick="exportCSV()" class="btn btn-outline" style="flex:1;">📊 CSV 저장</button>
+                <button onclick="exportPDF()" class="btn btn-outline" style="flex:1;">🖨️ PDF 저장</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- ════ 텍스트 보고서 모달 ════ -->
+    <div id="report-modal-overlay" class="modal-overlay" onclick="closeReportModal()">
+        <div class="modal-card report-modal-card" onclick="event.stopPropagation()">
+            <div class="modal-title-row">
+                <h3 class="modal-title">📄 학급 성적 보고서</h3>
+                <button class="modal-close-btn" onclick="closeReportModal()">✕</button>
+            </div>
+            <div class="report-btn-row">
+                <button class="btn btn-primary" style="font-size:0.85rem;padding:9px 16px;" onclick="copyReport()">📋 클립보드 복사</button>
+                <button class="btn btn-ghost" style="font-size:0.85rem;padding:9px 16px;" onclick="printReport()">🖨️ 인쇄</button>
+            </div>
+            <pre id="report-text" class="report-text"></pre>
+        </div>
+    </div>
+
+    <script>
+        /* ════════════════════════════════════════════════════════
+           문제 데이터 — 총 40문제 / 카테고리 4개 × 10문제
+        ════════════════════════════════════════════════════════ */
+        const QUESTIONS = [
+            // ─── 한국사 10 ───
+            { id:1,  cat:"한국사",   q:"고려를 건국한 왕은 누구인가?",                          c:["왕건","이성계","장보고","궁예"],                              a:0, exp:"왕건(태조)은 918년 고려를 건국하였습니다. 궁예의 태봉을 무너뜨리고 새 왕조를 세웠습니다." },
+            { id:2,  cat:"한국사",   q:"한글(훈민정음)을 창제한 조선의 왕은?",                  c:["태종","세종","성종","연산군"],                                a:1, exp:"세종대왕은 1443년 훈민정음을 창제하고 1446년 반포하였습니다." },
+            { id:3,  cat:"한국사",   q:"임진왜란이 발발한 해는?",                               c:["1582년","1592년","1602년","1612년"],                          a:1, exp:"임진왜란은 1592년(선조 25년) 일본이 조선을 침략하면서 시작되었습니다." },
+            { id:4,  cat:"한국사",   q:"3·1 운동이 일어난 해는?",                               c:["1910년","1915년","1919년","1922년"],                          a:2, exp:"3·1 운동은 1919년 3월 1일, 일제 강점에 저항한 전국적인 독립만세운동입니다." },
+            { id:5,  cat:"한국사",   q:"대한민국의 초대 대통령은 누구인가?",                     c:["박정희","김구","이승만","윤보선"],                             a:2, exp:"이승만은 1948년 대한민국 정부 수립과 함께 초대 대통령으로 취임하였습니다." },
+            { id:6,  cat:"한국사",   q:"조선을 건국한 인물은?",                                 c:["왕건","이성계","최무선","정도전"],                             a:1, exp:"이성계(태조)는 1392년 고려를 무너뜨리고 조선을 건국하였습니다." },
+            { id:7,  cat:"한국사",   q:"훈민정음이 공식 반포된 해는?",                          c:["1433년","1440년","1446년","1450년"],                          a:2, exp:"훈민정음은 1443년 창제 후 1446년(세종 28년)에 공식 반포되었습니다." },
+            { id:8,  cat:"한국사",   q:"조선 시대 수도의 이름은?",                              c:["개경","평양","한양","경주"],                                  a:2, exp:"조선의 수도는 한양(漢陽)으로, 현재의 서울에 해당합니다." },
+            { id:9,  cat:"한국사",   q:"병자호란이 발생한 해는?",                               c:["1592년","1627년","1636년","1645년"],                          a:2, exp:"병자호란은 1636년(인조 14년) 청나라가 조선을 침략한 전쟁입니다." },
+            { id:10, cat:"한국사",   q:"대한민국 정부가 공식 수립된 해는?",                     c:["1945년","1946년","1948년","1950년"],                          a:2, exp:"대한민국 정부는 광복 이후인 1948년 8월 15일에 공식 수립되었습니다." },
+            { id:41, cat:"한국사",   q:"동학 농민 운동이 발발한 해는?",                         c:["1894년","1884년","1904년","1910년"],                          a:0, exp:"동학 농민 운동은 1894년(고종 31년) 전봉준을 중심으로 전라도에서 봉기하였습니다. 1884년은 갑신정변, 1910년은 경술국치가 일어난 해입니다." },
+            { id:42, cat:"한국사",   q:"고려 무신 정권의 최씨 집권기를 시작한 인물은?",          c:["최충헌","최우","최항","최의"],                                a:0, exp:"최충헌은 1196년 이의민을 제거하고 최씨 무신 정권을 수립하였습니다. 최우·최항·최의는 그 후계자들로, 최씨 정권은 4대 60여 년간 이어졌습니다." },
+
+            // ─── 과학 10 ───
+            { id:11, cat:"과학",     q:"주기율표에서 원자번호 1번인 원소는?",                   c:["헬륨","수소","리튬","산소"],                                  a:1, exp:"수소(H)는 원자번호 1번으로, 우주에서 가장 풍부한 원소입니다." },
+            { id:12, cat:"과학",     q:"진공 속에서 빛의 속도는 초속 약 몇 km인가?",            c:["3만 km","30만 km","300만 km","3,000만 km"],                   a:1, exp:"빛의 속도는 진공에서 초속 약 299,792km, 즉 약 30만 km입니다." },
+            { id:13, cat:"과학",     q:"DNA의 이중나선 구조를 밝힌 과학자들은?",                c:["다윈과 멘델","왓슨과 크릭","퀴리와 아인슈타인","뉴턴과 갈릴레이"], a:1, exp:"제임스 왓슨과 프랜시스 크릭은 1953년 DNA 이중나선 구조를 발표하였습니다." },
+            { id:14, cat:"과학",     q:"만유인력의 법칙을 발견한 과학자는?",                    c:["갈릴레이","아인슈타인","아이작 뉴턴","패러데이"],               a:2, exp:"아이작 뉴턴은 사과가 떨어지는 것에서 영감을 얻어 만유인력의 법칙을 발견했다고 알려져 있습니다." },
+            { id:15, cat:"과학",     q:"인체에서 가장 큰 기관(장기)은?",                        c:["간","폐","뇌","피부"],                                        a:3, exp:"피부는 성인 기준 약 1.5~2㎡에 달하는 인체 최대 기관입니다." },
+            { id:16, cat:"과학",     q:"식물이 광합성 시 흡수하는 기체는?",                     c:["산소","질소","이산화탄소","수소"],                             a:2, exp:"식물은 광합성에서 이산화탄소(CO₂)를 흡수하고 산소(O₂)를 방출합니다." },
+            { id:17, cat:"과학",     q:"물은 표준 대기압에서 몇 °C에 끓는가?",                  c:["90°C","95°C","100°C","105°C"],                               a:2, exp:"물의 끓는점은 표준 대기압(1기압) 기준 100°C입니다." },
+            { id:18, cat:"과학",     q:"주기율표를 처음 체계적으로 정리한 과학자는?",            c:["노벨","멘델레예프","퀴리","패러데이"],                          a:1, exp:"드미트리 멘델레예프는 1869년 원소를 원자량 순서로 배열한 주기율표를 발표했습니다." },
+            { id:19, cat:"과학",     q:"소리(음속)는 공기 중에서 초속 약 몇 m인가?",            c:["약 34m","약 340m","약 3,400m","약 34,000m"],                  a:1, exp:"음속은 기온 15°C 기준 공기 중에서 초속 약 340m입니다." },
+            { id:20, cat:"과학",     q:"지구에서 달까지의 평균 거리는 약 얼마인가?",             c:["약 3.8만 km","약 38만 km","약 380만 km","약 3,800만 km"],     a:1, exp:"지구에서 달까지의 평균 거리는 약 384,400km, 즉 약 38만 km입니다." },
+
+            // ─── 지리 10 ───
+            { id:21, cat:"지리",     q:"세계에서 가장 긴 강은?",                                c:["아마존강","나일강","양쯔강","미시시피강"],                      a:1, exp:"나일강은 길이 약 6,650km로 세계에서 가장 긴 강으로 알려져 있습니다." },
+            { id:22, cat:"지리",     q:"세계에서 가장 높은 산은?",                              c:["K2","에베레스트","킬리만자로","몽블랑"],                       a:1, exp:"에베레스트(해발 8,849m)는 히말라야 산맥에 위치한 세계 최고봉입니다." },
+            { id:23, cat:"지리",     q:"세계에서 가장 넓은 대륙은?",                            c:["아프리카","유럽","아시아","북아메리카"],                       a:2, exp:"아시아는 면적 약 4,458만 km²로 세계 육지 면적의 약 30%를 차지합니다." },
+            { id:24, cat:"지리",     q:"세계에서 가장 넓은 나라(면적 기준)는?",                 c:["캐나다","미국","중국","러시아"],                               a:3, exp:"러시아는 약 1,710만 km²로 세계에서 가장 넓은 나라입니다." },
+            { id:25, cat:"지리",     q:"세계에서 가장 긴 산맥은?",                              c:["히말라야 산맥","로키 산맥","안데스 산맥","알프스 산맥"],        a:2, exp:"안데스 산맥은 남아메리카 서쪽을 따라 약 7,000km 이상 이어진 세계 최장 산맥입니다." },
+            { id:26, cat:"지리",     q:"적도가 통과하지 않는 나라는?",                          c:["브라질","인도네시아","케냐","중국"],                           a:3, exp:"중국은 적도보다 북쪽에 위치합니다. 브라질, 인도네시아, 케냐는 모두 적도가 통과합니다." },
+            { id:27, cat:"지리",     q:"지중해를 사이에 두고 유럽과 마주 보는 대륙은?",         c:["아시아","아프리카","북아메리카","남아메리카"],                  a:1, exp:"지중해 남쪽에는 아프리카 대륙(모로코, 알제리, 튀니지 등)이 위치합니다." },
+            { id:28, cat:"지리",     q:"세계에서 가장 넓은 사막은?",                            c:["고비 사막","아라비아 사막","사하라 사막","타클라마칸 사막"],    a:2, exp:"사하라 사막은 아프리카 북부에 위치하며 면적이 약 940만 km²로, 남극 대륙(약 1,400만 km²)을 제외한 열 사막(hot desert) 중 세계 최대입니다." },
+            { id:29, cat:"지리",     q:"대한민국(남한)의 최고봉은?",                            c:["설악산","지리산","덕유산","한라산"],                           a:3, exp:"한라산(해발 1,947m)은 제주도에 위치한 대한민국 최고봉입니다." },
+            { id:30, cat:"지리",     q:"2023년 기준 세계에서 인구가 가장 많은 나라는?",         c:["중국","인도","미국","인도네시아"],                             a:1, exp:"인도는 2023년 중국을 제치고 약 14억 2천만 명으로 세계 최다 인구 국가가 되었습니다." },
+
+            // ─── 일반상식 10 ───
+            { id:31, cat:"일반상식", q:"올림픽은 몇 년마다 개최되는가?",                        c:["2년","3년","4년","5년"],                                       a:2, exp:"하계·동계 올림픽은 각각 4년마다 열리며, 둘이 2년 간격으로 교차 개최됩니다." },
+            { id:32, cat:"일반상식", q:"노벨상 수상 분야가 아닌 것은?",                         c:["물리학","화학","수학","평화"],                                 a:2, exp:"노벨상은 물리학, 화학, 생리의학, 문학, 평화, 경제학 6개 분야에서 수여됩니다. 수학은 없습니다." },
+            { id:33, cat:"일반상식", q:"피아노의 건반 수는 몇 개인가?",                         c:["72개","80개","88개","96개"],                                   a:2, exp:"표준 피아노는 흰 건반 52개, 검은 건반 36개로 총 88개의 건반을 가집니다." },
+            { id:34, cat:"일반상식", q:"페니실린을 발견한 과학자는?",                           c:["루이 파스퇴르","로베르트 코흐","알렉산더 플레밍","조지프 리스터"], a:2, exp:"알렉산더 플레밍은 1928년 푸른곰팡이(페니실리움)에서 페니실린을 발견하였습니다." },
+            { id:35, cat:"일반상식", q:"현재 태양계의 행성 수는 몇 개인가?",                    c:["7개","8개","9개","10개"],                                      a:1, exp:"2006년 국제천문연맹(IAU)이 명왕성을 왜소행성으로 재분류하여 현재 공식 행성은 8개입니다." },
+            { id:36, cat:"일반상식", q:"월드와이드웹(WWW)을 발명한 사람은?",                    c:["빌 게이츠","스티브 잡스","팀 버너스리","일론 머스크"],           a:2, exp:"팀 버너스리는 1989년 CERN에서 인터넷 기반의 하이퍼텍스트 시스템 WWW를 발명했습니다." },
+            { id:37, cat:"일반상식", q:"UN 안전보장이사회의 상임이사국 수는?",                  c:["3개국","5개국","7개국","10개국"],                               a:1, exp:"UN 안전보장이사회 상임이사국은 미국, 영국, 프랑스, 러시아, 중국의 5개국입니다." },
+            { id:38, cat:"일반상식", q:"셰익스피어의 4대 비극에 포함되지 않는 작품은?",         c:["햄릿","오셀로","베니스의 상인","맥베스"],                       a:2, exp:"셰익스피어 4대 비극은 햄릿, 오셀로, 맥베스, 리어왕입니다. 베니스의 상인은 희극입니다." },
+            { id:39, cat:"일반상식", q:"빛의 삼원색(RGB)을 모두 합치면 어떤 색이 되는가?",      c:["검은색","회색","흰색","노란색"],                               a:2, exp:"빛의 삼원색(빨강·초록·파랑)을 모두 더하면 흰색이 됩니다. 색료의 삼원색과 다릅니다." },
+            { id:40, cat:"일반상식", q:"인류 최초로 달에 착륙한 우주비행사는?",                 c:["버즈 올드린","닐 암스트롱","유리 가가린","존 글렌"],             a:1, exp:"닐 암스트롱은 1969년 7월 20일 아폴로 11호를 타고 인류 최초로 달에 발을 디뎠습니다." }
+        ];
+
+        /* ════════════════════════════════════════════════════════
+           상수 & 설정
+        ════════════════════════════════════════════════════════ */
+        const STORAGE_KEY  = 'quiz_ranking';   // LocalStorage 저장 키
+        const MAX_RANKING  = 10;               // 랭킹 최대 표시 수
+        const CHOICE_NUMS  = ['①', '②', '③', '④'];
+
+        /* ════════════════════════════════════════════════════════
+           게임 상태 (단일 객체로 관리)
+        ════════════════════════════════════════════════════════ */
+        const state = {
+            nickname:     '익명',
+            category:     '전체',   // 선택된 카테고리
+            quizPool:     [],        // 현재 게임의 셔플된 문제 배열
+            currentIndex: 0,         // 현재 문제 인덱스
+            score:        0,         // 정답 누적 수
+            answers:      [],        // [{ cat, correct }] - 결과 화면 카테고리별 분석용
+            answered:     false,     // 현재 문제 답변 여부 (중복 클릭 방지)
+            registered:   false      // 현재 결과의 랭킹 등록 여부
+        };
+
+        /* ════════════════════════════════════════════════════════
+           유틸 함수
+        ════════════════════════════════════════════════════════ */
+
+        /** Fisher-Yates 셔플 - 원본 배열 불변 */
+        function shuffle(arr) {
+            const a = [...arr];
+            for (let i = a.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [a[i], a[j]] = [a[j], a[i]];
+            }
+            return a;
+        }
+
+        /** 보기 순서 셔플 + 정답 인덱스 재계산 */
+        function shuffleChoices(q) {
+            const correctText  = q.c[q.a];            // 정답 텍스트 보존
+            const shuffledC    = shuffle(q.c);
+            return { ...q, c: shuffledC, a: shuffledC.indexOf(correctText) };
+        }
+
+        /** 날짜를 "YYYY-MM-DD HH:mm" 형식 문자열로 변환 */
+        function formatDatetime(d) {
+            const p = n => String(n).padStart(2, '0');
+            return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}`;
+        }
+
+        /* ════════════════════════════════════════════════════════
+           화면 전환
+        ════════════════════════════════════════════════════════ */
+
+        /** name: 'start' | 'quiz' | 'result' | 'ranking' */
+        function showScreen(name) {
+            document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+            document.getElementById(name + '-screen').classList.add('active');
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        /* ════════════════════════════════════════════════════════
+           시작 화면 이벤트
+        ════════════════════════════════════════════════════════ */
+
+        /** 카테고리 버튼 선택 */
+        document.querySelectorAll('.cat-btn').forEach(btn => {
+            btn.addEventListener('click', () => {
+                document.querySelectorAll('.cat-btn').forEach(b => b.classList.remove('selected'));
+                btn.classList.add('selected');
+                state.category = btn.dataset.cat;
+            });
+        });
+
+        /** Enter 키로도 게임 시작 */
+        document.getElementById('nickname-input').addEventListener('keydown', e => {
+            if (e.key === 'Enter') startGame();
+        });
+
+        /* ════════════════════════════════════════════════════════
+           게임 시작
+        ════════════════════════════════════════════════════════ */
+
+        /** 상태 초기화 후 문제 풀을 구성하고 퀴즈 화면으로 전환 */
+        function startGame() {
+            state.nickname     = document.getElementById('nickname-input').value.trim() || '익명';
+            state.score        = 0;
+            state.currentIndex = 0;
+            state.answers      = [];
+            state.answered     = false;
+            state.registered   = false;
+
+            const cat   = state.category;
+            const pool  = cat === '전체'
+                ? shuffle(QUESTIONS)                                          // 전체: 40문제
+                : shuffle(QUESTIONS.filter(q => q.cat === cat)).slice(0, 10); // 카테고리: 10문제
+
+            state.quizPool = pool.map(shuffleChoices); // 보기 순서도 셔플
+
+            showScreen('quiz');
+            renderQuestion();
+        }
+
+        /* ════════════════════════════════════════════════════════
+           문제 렌더링
+        ════════════════════════════════════════════════════════ */
+
+        /** 현재 인덱스의 문제를 화면에 그린다 */
+        function renderQuestion() {
+            const q     = state.quizPool[state.currentIndex];
+            const idx   = state.currentIndex;
+            const total = state.quizPool.length;
+            state.answered = false;
+
+            // 헤더 배지 업데이트
+            document.getElementById('quiz-cat-badge').textContent      = q.cat;
+            document.getElementById('quiz-progress-badge').textContent = `${idx + 1} / ${total}`;
+            document.getElementById('quiz-score-badge').textContent    = `점수 ${state.score}`;
+
+            // 진행 바 (현재 문제 풀기 전 기준 %)
+            document.getElementById('progress-fill').style.width = `${(idx / total) * 100}%`;
+
+            // 문제 번호 & 본문
+            document.getElementById('question-number').textContent = `Q${idx + 1}`;
+            document.getElementById('question-text').textContent   = q.q;
+
+            // 보기 버튼 동적 생성
+            const choicesEl = document.getElementById('choices');
+            choicesEl.innerHTML = '';
+            q.c.forEach((text, i) => {
+                const btn = document.createElement('button');
+                btn.className = 'choice-btn';
+                btn.innerHTML = `<span class="choice-num">${CHOICE_NUMS[i]}</span><span>${text}</span>`;
+                btn.addEventListener('click', () => handleAnswer(i));
+                choicesEl.appendChild(btn);
+            });
+
+            // 해설 박스 & 다음 버튼 초기화
+            document.getElementById('explanation-box').classList.remove('show');
+            document.getElementById('next-btn').style.display = 'none';
+        }
+
+        /* ════════════════════════════════════════════════════════
+           답변 처리
+        ════════════════════════════════════════════════════════ */
+
+        /** 보기 클릭 시 호출 - 피드백, 해설, 다음 버튼 표시 */
+        function handleAnswer(selectedIdx) {
+            if (state.answered) return; // 중복 클릭 방지
+            state.answered = true;
+
+            const q         = state.quizPool[state.currentIndex];
+            const correct   = q.a;
+            const isCorrect = selectedIdx === correct;
+            if (isCorrect) state.score++;
+
+            // 모든 버튼 비활성화 후 피드백 색상 및 애니메이션 적용
+            const btns = document.querySelectorAll('.choice-btn');
+            btns.forEach(btn => btn.disabled = true);
+            btns[selectedIdx].classList.add(isCorrect ? 'correct' : 'wrong');
+            if (!isCorrect) btns[correct].classList.add('correct'); // 정답 버튼도 초록 강조
+
+            // 해설 표시
+            const expLabel = document.getElementById('exp-label');
+            expLabel.textContent  = isCorrect ? '✅ 정답입니다!' : '❌ 오답입니다!';
+            expLabel.className    = 'exp-label ' + (isCorrect ? 'correct' : 'wrong');
+            document.getElementById('exp-text').textContent = q.exp;
+            document.getElementById('explanation-box').classList.add('show');
+
+            // 답변 기록 (카테고리별 분석용)
+            state.answers.push({ cat: q.cat, correct: isCorrect });
+
+            // 마지막 문제 여부에 따라 버튼 텍스트 변경 후 표시
+            const isLast  = state.currentIndex === state.quizPool.length - 1;
+            const nextBtn = document.getElementById('next-btn');
+            nextBtn.textContent   = isLast ? '결과 보기 →' : '다음 문제 →';
+            nextBtn.style.display = 'block';
+        }
+
+        /* ════════════════════════════════════════════════════════
+           다음 문제 / 결과 전환
+        ════════════════════════════════════════════════════════ */
+
+        /** 다음 문제로 이동하거나 마지막이면 결과 화면을 표시 */
+        function handleNext() {
+            if (state.currentIndex === state.quizPool.length - 1) {
+                showResult();
+            } else {
+                state.currentIndex++;
+                renderQuestion();
+            }
+        }
+
+        /* ════════════════════════════════════════════════════════
+           결과 화면
+        ════════════════════════════════════════════════════════ */
+
+        /** 최종 점수, 정답률, 격려 메시지, 카테고리별 성적을 계산해 화면에 표시 */
+        function showResult() {
+            const total    = state.quizPool.length;
+            const score    = state.score;
+            const accuracy = Math.round((score / total) * 100);
+
+            // 정답률 구간별 이모지 & 메시지 (요구사항 기준)
+            let emoji, headline, detail;
+            if (accuracy >= 90) {
+                emoji = '🏆'; headline = '탁월합니다!';        detail = '거의 완벽한 실력이에요!';
+            } else if (accuracy >= 70) {
+                emoji = '🎉'; headline = '훌륭해요!';          detail = '대단한 실력입니다!';
+            } else if (accuracy >= 50) {
+                emoji = '😊'; headline = '괜찮아요!';          detail = '조금만 더 공부하면 완벽해요.';
+            } else {
+                emoji = '😢'; headline = '다시 도전해 보세요!'; detail = '포기하지 마세요, 할 수 있어요!';
+            }
+
+            document.getElementById('result-emoji').textContent    = emoji;
+            document.getElementById('result-score-num').textContent = score;
+            document.getElementById('result-score-tot').textContent  = total;
+            document.getElementById('result-accuracy').textContent  = `정답률 ${accuracy}%`;
+            document.getElementById('result-message').textContent   = `${headline} ${detail}`;
+
+            // 랭킹 등록 버튼 활성화 (다시 하기 후 중복 등록 방지를 위해 초기화)
+            const regBtn = document.getElementById('ranking-register-btn');
+            regBtn.disabled    = false;
+            regBtn.textContent = '🏆 랭킹 등록';
+
+            // 카테고리별 성적 바 차트 (전체 모드에서만 표시)
+            const bdEl = document.getElementById('cat-breakdown');
+            if (state.category === '전체') {
+                bdEl.style.display = 'block';
+                const cats = ['한국사', '과학', '지리', '일반상식'];
+                document.getElementById('cat-breakdown-rows').innerHTML = cats.map(cat => {
+                    const catAns = state.answers.filter(a => a.cat === cat);
+                    const catOk  = catAns.filter(a => a.correct).length;
+                    const catTot = catAns.length;
+                    const pct    = catTot > 0 ? Math.round((catOk / catTot) * 100) : 0;
+                    return `
+                        <div class="cat-row">
+                            <span class="cat-row-name">${cat}</span>
+                            <div class="cat-bar-bg">
+                                <div class="cat-bar-fill" style="width:${pct}%"></div>
+                            </div>
+                            <span class="cat-row-score">${catOk}/${catTot}</span>
+                        </div>`;
+                }).join('');
+            } else {
+                bdEl.style.display = 'none';
+            }
+
+            showScreen('result');
+        }
+
+        /* ════════════════════════════════════════════════════════
+           랭킹 시스템 (LocalStorage)
+        ════════════════════════════════════════════════════════ */
+
+        /**
+         * 현재 결과를 LocalStorage에 저장 후 랭킹 화면으로 이동
+         * 저장 구조: { nickname, score, totalQuestions, accuracy, category, playedAt }
+         */
+        function registerRanking() {
+            const total    = state.quizPool.length;
+            const accuracy = Math.round((state.score / total) * 100);
+
+            const record = {
+                nickname:       state.nickname,
+                score:          state.score,
+                totalQuestions: total,
+                accuracy:       accuracy,
+                category:       state.category,
+                playedAt:       formatDatetime(new Date())
+            };
+
+            // 기존 목록 불러오기 → 추가 → 정렬 → 상위 20개 저장
+            const list = loadRankingList();
+            list.push(record);
+            // 1차 정렬: 정답률 내림차순 / 2차 정렬: 최신(playedAt 내림차순) 우선
+            list.sort((a, b) =>
+                b.accuracy !== a.accuracy
+                    ? b.accuracy - a.accuracy
+                    : b.playedAt.localeCompare(a.playedAt)
+            );
+            if (list.length > 20) list.splice(20);
+            localStorage.setItem(STORAGE_KEY, JSON.stringify(list));
+
+            // 버튼 상태 변경 (중복 등록 방지)
+            const regBtn = document.getElementById('ranking-register-btn');
+            regBtn.disabled    = true;
+            regBtn.textContent = '✅ 등록 완료';
+
+            openRanking();
+        }
+
+        /** LocalStorage에서 랭킹 목록을 불러온다 */
+        function loadRankingList() {
+            try {
+                return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+            } catch {
+                return [];
+            }
+        }
+
+        /** 랭킹 화면을 열고 목록을 렌더링 */
+        function openRanking() {
+            const list   = loadRankingList();
+            const top10  = list.slice(0, MAX_RANKING);
+            const listEl = document.getElementById('ranking-list');
+            const medals = ['🥇', '🥈', '🥉'];
+            const rankClass = ['rank-gold', 'rank-silver', 'rank-bronze'];
+
+            if (top10.length === 0) {
+                listEl.innerHTML = `
+                    <div class="ranking-empty">
+                        <span class="ranking-empty-icon">🏅</span>
+                        아직 등록된 기록이 없습니다.<br>첫 번째 도전자가 되어 보세요!
+                    </div>`;
+            } else {
+                listEl.innerHTML = top10.map((r, i) => {
+                    // 1~3위 메달 / 나머지 숫자
+                    const posHtml  = i < 3
+                        ? `<span class="rank-pos medal">${medals[i]}</span>`
+                        : `<span class="rank-pos">${i + 1}</span>`;
+                    const itemClass = i < 3 ? rankClass[i] : '';
+                    // 점수 + 카테고리 + 날짜
+                    const meta = `${r.score}/${r.totalQuestions}점 &middot; ${r.category} &middot; ${r.playedAt}`;
+
+                    return `
+                        <li class="ranking-item ${itemClass}">
+                            ${posHtml}
+                            <div class="rank-body">
+                                <div class="rank-top">
+                                    <span class="rank-nick">${escapeHtml(r.nickname)}</span>
+                                    <span class="rank-accuracy">${r.accuracy}%</span>
+                                </div>
+                                <div class="rank-meta">${meta}</div>
+                            </div>
+                        </li>`;
+                }).join('');
+            }
+
+            showScreen('ranking');
+        }
+
+        /** 랭킹 전체 초기화 (확인 팝업 포함) */
+        function clearRanking() {
+            if (!confirm('랭킹 기록을 모두 삭제하시겠습니까?\n이 작업은 되돌릴 수 없습니다.')) return;
+            localStorage.removeItem(STORAGE_KEY);
+            openRanking();
+        }
+
+        /** XSS 방지용 HTML 이스케이프 */
+        function escapeHtml(str) {
+            return String(str)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;');
+        }
+
+        /* ════════════════════════════════════════════════════════
+           공통 네비게이션
+        ════════════════════════════════════════════════════════ */
+
+        /** 시작 화면으로 돌아가기 */
+        function goToStart() {
+            showScreen('start');
+        }
+
+        /* ════════════════════════════════════════════════════════
+           선생님 모드
+        ════════════════════════════════════════════════════════ */
+
+        function openTeacher() {
+            renderTeacherOverview();
+            showScreen('teacher');
+        }
+
+        function renderTeacherOverview() {
+            const data = JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]');
+            const tbody = document.getElementById('teacher-tbody');
+            const summary = document.getElementById('teacher-summary');
+
+            if (data.length === 0) {
+                tbody.innerHTML = '<tr><td colspan="6" style="padding:24px;color:#9ca3af;">저장된 성적 데이터가 없습니다.</td></tr>';
+                summary.innerHTML = '';
+                return;
+            }
+
+            const avg = (data.reduce((s, r) => s + r.accuracy, 0) / data.length).toFixed(1);
+            const best = Math.max(...data.map(r => r.accuracy));
+            const worst = Math.min(...data.map(r => r.accuracy));
+            summary.innerHTML = `
+                <div class="teacher-stat-card"><span class="ts-label">총 플레이 수</span><span class="ts-value">${data.length}회</span></div>
+                <div class="teacher-stat-card"><span class="ts-label">평균 정답률</span><span class="ts-value">${avg}%</span></div>
+                <div class="teacher-stat-card"><span class="ts-label">최고 정답률</span><span class="ts-value">${best}%</span></div>
+                <div class="teacher-stat-card"><span class="ts-label">최저 정답률</span><span class="ts-value">${worst}%</span></div>
+            `;
+
+            tbody.innerHTML = data.map((r, i) => {
+                const cls = r.accuracy >= 80 ? 'accuracy-high' : r.accuracy >= 50 ? 'accuracy-mid' : 'accuracy-low';
+                return `<tr>
+                    <td>${i + 1}</td>
+                    <td><strong>${escapeHtml(r.nickname || '익명')}</strong></td>
+                    <td class="${cls}">${r.accuracy}%</td>
+                    <td>${r.score} / ${r.totalQuestions}</td>
+                    <td>${escapeHtml(r.category || '전체')}</td>
+                    <td>${r.playedAt}</td>
+                </tr>`;
+            }).join('');
+        }
+
+        /* ════════════════════════════════════════════════════════
+           검증: 문제 데이터 카테고리별 수 콘솔 출력
+        ════════════════════════════════════════════════════════ */
+        (function validateData() {
+            const counts = QUESTIONS.reduce((acc, q) => {
+                acc[q.cat] = (acc[q.cat] || 0) + 1;
+                return acc;
+            }, {});
+            console.log('===== 문제 데이터 검증 =====');
+            console.table(counts);
+            const ok = Object.values(counts).every(v => v === 10) && QUESTIONS.length === 40;
+            console.log(`전체 ${QUESTIONS.length}문제 — ${ok ? '✅ 정상' : '❌ 오류'}`);
+        })();
+
+        /* ── 성적 리포트 ── */
+        function getGrade(rank, total) {
+            const pct = Math.ceil((rank / total) * 100);
+            if (pct <= 20) return 'A';
+            if (pct <= 40) return 'B';
+            if (pct <= 70) return 'C';
+            return 'D';
+        }
+
+        function printTeacherReport() {
+            const data = JSON.parse(localStorage.getItem('quiz_ranking') || '[]');
+            const contentEl = document.getElementById('report-content');
+
+            if (data.length === 0) {
+                contentEl.innerHTML = '<p style="text-align:center;color:#9ca3af;padding:24px;">저장된 성적 데이터가 없습니다.</p>';
+                document.getElementById('report-modal').style.display = 'block';
+                return;
+            }
+
+            const sorted = [...data].sort((a, b) =>
+                b.accuracy !== a.accuracy ? b.accuracy - a.accuracy : b.playedAt.localeCompare(a.playedAt)
+            );
+            const total = sorted.length;
+
+            const rows = sorted.map((r, i) => {
+                const grade = getGrade(i + 1, total);
+                const gradeClass = `grade-${grade.toLowerCase()}`;
+                return `<tr>
+                    <td>${i + 1}</td>
+                    <td><strong>${escapeHtml(r.nickname || '익명')}</strong></td>
+                    <td>${r.accuracy}%</td>
+                    <td>${r.score} / ${r.totalQuestions}</td>
+                    <td>${escapeHtml(r.category || '전체')}</td>
+                    <td class="${gradeClass}">${grade}</td>
+                    <td>${r.playedAt}</td>
+                </tr>`;
+            }).join('');
+
+            contentEl.innerHTML = `
+                <table class="report-table">
+                    <thead>
+                        <tr><th>#</th><th>닉네임</th><th>정답률</th><th>점수</th><th>카테고리</th><th>등급</th><th>일시</th></tr>
+                    </thead>
+                    <tbody>${rows}</tbody>
+                </table>
+                <p style="font-size:0.75rem;color:#9ca3af;text-align:right;">
+                    기준: A 상위20% / B 상위40% / C 상위70% / D 하위30%
+                </p>`;
+
+            document.getElementById('report-modal').style.display = 'block';
+        }
+
+        function closeReportModal() {
+            document.getElementById('report-modal-overlay').classList.remove('open');
+        }
+
+        function copyReport() {
+            const text = document.getElementById('report-text').textContent;
+            navigator.clipboard.writeText(text)
+                .then(() => alert('보고서가 클립보드에 복사되었습니다.'))
+                .catch(() => alert('복사 실패 — 텍스트를 직접 선택하여 복사해 주세요.'));
+        }
+
+        /* ── CSV / PDF 내보내기 ── */
+        function exportCSV() {
+            const data = JSON.parse(localStorage.getItem('quiz_ranking') || '[]');
+            if (data.length === 0) { alert('저장된 데이터가 없습니다.'); return; }
+
+            const sorted = [...data].sort((a, b) =>
+                b.accuracy !== a.accuracy ? b.accuracy - a.accuracy : b.playedAt.localeCompare(a.playedAt)
+            );
+            const total = sorted.length;
+
+            const header = '순위,닉네임,정답률(%),점수,총문제수,카테고리,등급,플레이일시';
+            const rows = sorted.map((r, i) => {
+                const grade = getGrade(i + 1, total);
+                const nick  = (r.nickname || '익명').replace(/,/g, ' ');
+                const cat   = (r.category  || '전체').replace(/,/g, ' ');
+                return `${i + 1},${nick},${r.accuracy},${r.score},${r.totalQuestions},${cat},${grade},${r.playedAt}`;
+            });
+
+            const csv  = '\uFEFF' + [header, ...rows].join('\n');
+            const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+            const url  = URL.createObjectURL(blob);
+            const a    = document.createElement('a');
+            a.href     = url;
+            a.download = `성적리포트_${new Date().toISOString().slice(0, 10)}.csv`;
+            a.click();
+            URL.revokeObjectURL(url);
+        }
+
+        function exportPDF() {
+            const data = JSON.parse(localStorage.getItem('quiz_ranking') || '[]');
+            if (data.length === 0) { alert('저장된 데이터가 없습니다.'); return; }
+
+            const sorted = [...data].sort((a, b) =>
+                b.accuracy !== a.accuracy ? b.accuracy - a.accuracy : b.playedAt.localeCompare(a.playedAt)
+            );
+            const total  = sorted.length;
+            const avg    = (sorted.reduce((s, r) => s + r.accuracy, 0) / total).toFixed(1);
+            const now    = new Date();
+            const pad    = n => String(n).padStart(2, '0');
+            const dateStr = `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+
+            const rows = sorted.map((r, i) => {
+                const grade = getGrade(i + 1, total);
+                const color = grade === 'A' ? '#059669' : grade === 'B' ? '#2563eb'
+                            : grade === 'C' ? '#d97706' : '#dc2626';
+                return `<tr>
+                    <td>${i + 1}</td>
+                    <td>${escapeHtml(r.nickname || '익명')}</td>
+                    <td>${r.accuracy}%</td>
+                    <td>${r.score}/${r.totalQuestions}</td>
+                    <td>${escapeHtml(r.category || '전체')}</td>
+                    <td style="color:${color};font-weight:800;">${grade}</td>
+                    <td>${r.playedAt}</td>
+                </tr>`;
+            }).join('');
+
+            const w = window.open('', '_blank');
+            w.document.write(`<!DOCTYPE html><html lang="ko"><head>
+                <meta charset="UTF-8">
+                <title>성적 리포트 ${dateStr}</title>
+                <style>
+                    body  { font-family:'Malgun Gothic','맑은 고딕',sans-serif; padding:24px; color:#1a1a2e; }
+                    h1    { font-size:1.3rem; margin-bottom:4px; }
+                    .sub  { font-size:0.85rem; color:#6b7280; margin-bottom:16px; }
+                    table { width:100%; border-collapse:collapse; font-size:0.85rem; }
+                    th    { background:#667eea; color:#fff; padding:8px; text-align:center; }
+                    td    { padding:7px 8px; text-align:center; border-bottom:1px solid #e5e7eb; }
+                    tr:nth-child(even) td { background:#f8f7ff; }
+                    .note { font-size:0.75rem; color:#9ca3af; text-align:right; margin-top:12px; }
+                    @media print { button { display:none; } }
+                </style>
+            </head><body>
+                <h1>학생 성적 리포트</h1>
+                <p class="sub">생성 일시: ${dateStr} &nbsp;|&nbsp; 총 ${total}명 &nbsp;|&nbsp; 평균 정답률 ${avg}%</p>
+                <table>
+                    <thead><tr><th>#</th><th>닉네임</th><th>정답률</th><th>점수</th><th>카테고리</th><th>등급</th><th>일시</th></tr></thead>
+                    <tbody>${rows}</tbody>
+                </table>
+                <p class="note">등급 기준: A 상위20% / B 상위40% / C 상위70% / D 하위30%</p>
+                <script>window.onload = () => window.print();<\/script>
+            </body></html>`);
+            w.document.close();
+        }
+
+        /* ── 텍스트 보고서 ── */
+        function buildReportText() {
+            const all = JSON.parse(localStorage.getItem('quiz_ranking') || '[]');
+            const cats = ['한국사', '과학', '지리', '일반상식'];
+            const now = new Date();
+            const pad = n => String(n).padStart(2, '0');
+            const dateStr = `${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())} ${pad(now.getHours())}:${pad(now.getMinutes())}`;
+
+            if (all.length === 0) {
+                return `[ 상식 퀴즈 학급 성적 보고서 ]\n생성 일시: ${dateStr}\n\n데이터 없음 — 학생들이 퀴즈를 먼저 풀어야 합니다.`;
+            }
+
+            const avg = (all.reduce((s, r) => s + r.accuracy, 0) / all.length).toFixed(1);
+            const sortedAll = [...all].sort((a, b) =>
+                b.accuracy !== a.accuracy ? b.accuracy - a.accuracy : b.playedAt.localeCompare(a.playedAt)
+            );
+            const topPlayer = sortedAll[0];
+            const bottom = sortedAll[sortedAll.length - 1];
+
+            const catLines = cats.map(cat => {
+                const recs = all.filter(r => r.category === cat || r.category === '전체');
+                if (!recs.length) return `  ${cat.padEnd(6)}: 데이터 없음`;
+                const cavg = Math.round(recs.reduce((s, r) => s + r.accuracy, 0) / recs.length);
+                const bar = '█'.repeat(Math.round(cavg / 10)).padEnd(10, '░');
+                return `  ${cat.padEnd(6)}: ${bar} ${cavg}%`;
+            }).join('\n');
+
+            const studentLines = sortedAll.slice(0, 20).map((r, i) =>
+                `  ${String(i+1).padStart(2)}. ${(r.nickname || '익명').padEnd(12)} | ${String(r.accuracy).padStart(3)}% | ${r.score}/${r.totalQuestions}점 | ${r.category || '전체'} | ${r.playedAt}`
+            ).join('\n');
+
+            return [
+                `╔══════════════════════════════════════╗`,
+                `  상식 퀴즈 학급 성적 보고서`,
+                `  생성 일시: ${dateStr}`,
+                `╚══════════════════════════════════════╝`,
+                ``,
+                `[ 종합 현황 ]`,
+                `  총 플레이 수   : ${all.length}회`,
+                `  학급 평균 정답률: ${avg}%`,
+                `  최고 정답률    : ${topPlayer.nickname || '익명'} (${topPlayer.accuracy}%)`,
+                `  최저 정답률    : ${bottom.nickname || '익명'} (${bottom.accuracy}%)`,
+                ``,
+                `[ 카테고리별 평균 정답률 ]`,
+                catLines,
+                ``,
+                `[ 학생별 성적 (정답률 순) ]`,
+                studentLines,
+                ``,
+                `── 보고서 끝 ──`,
+            ].join('\n');
+        }
+
+        function openReportModal() {
+            document.getElementById('report-text').textContent = buildReportText();
+            document.getElementById('report-modal-overlay').classList.add('open');
+        }
+
+        function printReport() {
+            const text = document.getElementById('report-text').textContent;
+            const w = window.open('', '_blank');
+            w.document.write(`<pre style="font-family:monospace;font-size:13px;line-height:1.7;white-space:pre-wrap;">${escapeHtml(text)}</pre>`);
+            w.document.close();
+            w.print();
+        }
+    </script>
+
+</body>
+</html>
