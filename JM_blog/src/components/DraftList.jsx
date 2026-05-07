@@ -4,6 +4,7 @@ import styles from './DraftList.module.css';
 
 export default function DraftList({ onEdit }) {
   const [drafts, setDrafts] = useState(getDrafts());
+  const [filter, setFilter] = useState('all');
 
   const handleDelete = (id) => {
     if (!confirm('이 임시저장을 삭제할까요?')) return;
@@ -15,14 +16,41 @@ export default function DraftList({ onEdit }) {
     return d.toLocaleDateString('ko-KR') + ' ' + d.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit' });
   };
 
+  // 현장별 필터링을 위한 고유 현장명 추출
+  const siteNames = [...new Set(drafts.filter(d => d.siteName).map(d => d.siteName))];
+  const filteredDrafts = filter === 'all'
+    ? drafts
+    : drafts.filter(d => d.siteName === filter);
+
   return (
     <div className={styles.container}>
       <div className={styles.header}>
         <h1 className={styles.title}>📝 임시저장 목록</h1>
-        <span className={styles.count}>{drafts.length}개</span>
+        <span className={styles.count}>{filteredDrafts.length}개</span>
       </div>
 
-      {drafts.length === 0 ? (
+      {/* 현장별 필터 */}
+      {siteNames.length > 0 && (
+        <div className={styles.filterRow}>
+          <button
+            className={`${styles.filterBtn} ${filter === 'all' ? styles.active : ''}`}
+            onClick={() => setFilter('all')}
+          >
+            전체
+          </button>
+          {siteNames.map((name) => (
+            <button
+              key={name}
+              className={`${styles.filterBtn} ${filter === name ? styles.active : ''}`}
+              onClick={() => setFilter(name)}
+            >
+              {name}
+            </button>
+          ))}
+        </div>
+      )}
+
+      {filteredDrafts.length === 0 ? (
         <div className={styles.empty}>
           <div className={styles.emptyIcon}>📄</div>
           <p>임시저장된 글이 없습니다.</p>
@@ -32,7 +60,7 @@ export default function DraftList({ onEdit }) {
         </div>
       ) : (
         <div className={styles.list}>
-          {drafts.map((draft) => (
+          {filteredDrafts.map((draft) => (
             <div key={draft.id} className={styles.item}>
               <div className={styles.itemContent}>
                 <h3 className={styles.itemTitle}>{draft.title || '(제목 없음)'}</h3>
@@ -40,6 +68,8 @@ export default function DraftList({ onEdit }) {
                   {draft.content?.replace(/<[^>]+>/g, '').slice(0, 80) || '(내용 없음)'}
                 </p>
                 <div className={styles.itemMeta}>
+                  {draft.siteName && <span className={styles.site}>🏗️ {draft.siteName}</span>}
+                  {draft.phaseLabel && <span className={styles.phase}>{draft.phaseLabel}</span>}
                   {draft.tags && <span className={styles.tag}>🏷️ {draft.tags}</span>}
                   <span className={styles.date}>🕐 {formatDate(draft.updatedAt)}</span>
                   <span className={styles.visibility}>{draft.isPublic ? '🌐 공개' : '🔒 비공개'}</span>

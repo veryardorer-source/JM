@@ -1,0 +1,269 @@
+.container {
+  padding: 32px;
+  max-width: 900px;
+}
+
+.header {
+  margin-bottom: 28px;
+}
+
+.title {
+  font-size: 26px;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin-bottom: 6px;
+}
+
+.subtitle {
+  font-size: 14px;
+  color: #888;
+}
+
+.status {
+  padding: 12px 16px;
+  border-radius: 8px;
+  margin-bottom: 16px;
+  font-size: 14px;
+  font-weight: 500;
+}
+.status.success { background: #e8f9f0; color: #0a8043; border: 1px solid #b2dfdb; }
+.status.error { background: #fff0f0; color: #c62828; border: 1px solid #ffcdd2; }
+.status.info { background: #e3f2fd; color: #1565c0; border: 1px solid #bbdefb; }
+
+.card {
+  background: white;
+  border-radius: 12px;
+  padding: 24px;
+  margin-bottom: 20px;
+  border: 1px solid #e8e8e8;
+  box-shadow: 0 1px 4px rgba(0,0,0,0.04);
+}
+
+.cardTitle {
+  font-size: 16px;
+  font-weight: 700;
+  color: #1a1a1a;
+  margin-bottom: 16px;
+}
+
+/* 요일 선택 */
+.daySelect {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.dayBtn {
+  width: 48px;
+  height: 48px;
+  border-radius: 50%;
+  border: 2px solid #e8e8e8;
+  background: white;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 600;
+  color: #666;
+  transition: all 0.15s;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.dayBtn:hover { border-color: #03c75a; }
+.dayBtn.selected {
+  border-color: #03c75a;
+  background: #03c75a;
+  color: white;
+}
+
+.timeField {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.timeField label {
+  font-size: 13px;
+  font-weight: 600;
+  color: #444;
+}
+
+.timeField input {
+  padding: 8px 12px;
+  border: 1px solid #ddd;
+  border-radius: 8px;
+  font-size: 14px;
+  outline: none;
+}
+.timeField input:focus { border-color: #03c75a; }
+
+.btnSaveSchedule {
+  background: #03c75a;
+  color: white;
+  padding: 10px 24px;
+  border-radius: 8px;
+  font-size: 14px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+  margin-top: 16px;
+}
+.btnSaveSchedule:hover { background: #02a84a; }
+
+/* 발행 대기열 */
+.queue {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.queueItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  background: #fafafa;
+  border-radius: 10px;
+  border: 1px solid #eee;
+}
+
+.queueInfo {
+  flex: 1;
+}
+
+.queueTitle {
+  font-size: 14px;
+  font-weight: 600;
+  color: #1a1a1a;
+}
+
+.queueMeta {
+  font-size: 12px;
+  color: #888;
+  margin-top: 3px;
+  display: flex;
+  gap: 12px;
+}
+
+.queueDate {
+  font-size: 13px;
+  color: #6366f1;
+  font-weight: 600;
+  min-width: 120px;
+  text-align: center;
+}
+
+.queueActions {
+  display: flex;
+  gap: 6px;
+}
+
+.btnQueue {
+  padding: 6px 14px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 500;
+  border: 1px solid #ddd;
+  background: white;
+  cursor: pointer;
+  color: #666;
+}
+.btnQueue:hover { background: #f5f5f5; }
+.btnQueue.publish {
+  background: #03c75a;
+  color: white;
+  border-color: #03c75a;
+}
+.btnQueue.publish:hover { background: #02a84a; }
+
+.queueStatus {
+  padding: 4px 10px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+}
+.queueStatus.pending {
+  background: #fff3e0;
+  color: #e65100;
+}
+.queueStatus.published {
+  background: #e8f9f0;
+  color: #03c75a;
+}
+
+.emptyQueue {
+  text-align: center;
+  padding: 40px;
+  color: #999;
+  font-size: 14px;
+}
+
+/* 초안 추가 모달 */
+.draftPicker {
+  margin-top: 16px;
+}
+
+.draftPickerList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-height: 300px;
+  overflow-y: auto;
+}
+
+.draftPickerItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  background: #f9f9f9;
+  border-radius: 8px;
+  border: 1px solid #eee;
+}
+
+.draftPickerItem button {
+  background: #03c75a;
+  color: white;
+  padding: 5px 12px;
+  border-radius: 6px;
+  font-size: 12px;
+  font-weight: 600;
+  border: none;
+  cursor: pointer;
+}
+
+.draftPickerTitle {
+  font-size: 13px;
+  font-weight: 600;
+  color: #333;
+}
+
+.draftPickerMeta {
+  font-size: 11px;
+  color: #999;
+}
+
+.btnAddToQueue {
+  background: white;
+  color: #03c75a;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  font-weight: 600;
+  border: 1px solid #03c75a;
+  cursor: pointer;
+  margin-top: 12px;
+}
+.btnAddToQueue:hover { background: #e8f9f0; }
+
+.scheduleInfo {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 14px 18px;
+  background: #f0faf5;
+  border-radius: 10px;
+  border: 1px solid #d4f0e0;
+  margin-bottom: 16px;
+  font-size: 14px;
+  color: #0a8043;
+}

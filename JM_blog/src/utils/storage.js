@@ -66,3 +66,43 @@ export const addPosted = (post) => {
   localStorage.setItem('posted_list', JSON.stringify(list));
   return list;
 };
+
+// === 현장 관리 ===
+export const getSites = () => {
+  try {
+    return JSON.parse(localStorage.getItem('blog_sites') || '[]');
+  } catch {
+    return [];
+  }
+};
+
+export const saveSite = (site) => {
+  const sites = getSites();
+  const idx = sites.findIndex((s) => s.id === site.id);
+  if (idx >= 0) {
+    sites[idx] = { ...site, updatedAt: new Date().toISOString() };
+  } else {
+    sites.unshift({ ...site, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() });
+  }
+  localStorage.setItem('blog_sites', JSON.stringify(sites));
+  return sites;
+};
+
+export const deleteSite = (id) => {
+  const sites = getSites().filter((s) => s.id !== id);
+  localStorage.setItem('blog_sites', JSON.stringify(sites));
+  return sites;
+};
+
+// === 발행 스케줄 ===
+export const getSchedule = () => {
+  try {
+    return JSON.parse(localStorage.getItem('blog_schedule') || '{}');
+  } catch {
+    return {};
+  }
+};
+
+export const saveSchedule = (schedule) => {
+  localStorage.setItem('blog_schedule', JSON.stringify(schedule));
+};

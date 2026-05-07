@@ -1,6 +1,9 @@
 import styles from './Layout.module.css';
 
 const NAV_ITEMS = [
+  { key: 'sites', icon: '🏗️', label: '현장 관리' },
+  { key: 'series', icon: '📸', label: '시리즈 생성' },
+  { key: 'schedule', icon: '📅', label: '발행 스케줄' },
   { key: 'ai', icon: '🤖', label: 'AI 글쓰기' },
   { key: 'write', icon: '✏️', label: '직접 글쓰기' },
   { key: 'drafts', icon: '📝', label: '임시저장' },

@@ -387,6 +387,213 @@ app.post('/api/blog/puppeteer-post', async (req, res) => {
   }
 });
 
+// NAS 폴더 사진 목록 조회
+app.get('/api/sites/photos', async (req, res) => {
+  const { folderPath } = req.query;
+  if (!folderPath) return res.status(400).json({ error: '폴더 경로가 필요합니다.' });
+
+  try {
+    const normalizedPath = folderPath.replace(/\//g, '\\');
+    const files = fs.readdirSync(normalizedPath);
+    const imageExts = ['.jpg', '.jpeg', '.png', '.webp', '.bmp'];
+    const images = files
+      .filter(f => imageExts.includes(path.extname(f).toLowerCase()))
+      .map(f => ({
+        name: f,
+        path: path.join(normalizedPath, f),
+        size: fs.statSync(path.join(normalizedPath, f)).size,
+      }));
+    res.json({ images, total: images.length });
+  } catch (err) {
+    res.status(500).json({ error: `폴더 접근 실패: ${err.message}` });
+  }
+});
+
+// NAS 개별 이미지를 base64로 반환
+app.get('/api/sites/photo', async (req, res) => {
+  const { filePath } = req.query;
+  if (!filePath) return res.status(400).json({ error: '파일 경로가 필요합니다.' });
+
+  try {
+    const normalizedPath = filePath.replace(/\//g, '\\');
+    const ext = path.extname(normalizedPath).toLowerCase().replace('.', '');
+    const mime = ext === 'jpg' ? 'jpeg' : ext;
+    const data = fs.readFileSync(normalizedPath);
+    const base64 = `data:image/${mime};base64,${data.toString('base64')}`;
+    res.json({ data: base64, name: path.basename(normalizedPath) });
+  } catch (err) {
+    res.status(500).json({ error: `이미지 로드 실패: ${err.message}` });
+  }
+});
+
+// NAS 하위 폴더 목록 조회
+app.get('/api/sites/subfolders', async (req, res) => {
+  const { folderPath } = req.query;
+  if (!folderPath) return res.status(400).json({ error: '폴더 경로가 필요합니다.' });
+
+  try {
+    const normalizedPath = folderPath.replace(/\//g, '\\');
+    const entries = fs.readdirSync(normalizedPath, { withFileTypes: true });
+    const folders = entries
+      .filter(e => e.isDirectory())
+      .map(e => ({ name: e.name, path: path.join(normalizedPath, e.name) }));
+    res.json({ folders });
+  } catch (err) {
+    res.status(500).json({ error: `폴더 접근 실패: ${err.message}` });
+  }
+});
+
+// 인테리어 시리즈 글 생성 (디자인/시공/마감)
+app.post('/api/ai/generate-series', async (req, res) => {
+  const { apiKey, siteName, phase, keywords, images, location, additionalInfo } = req.body;
+  if (!apiKey) return res.status(400).json({ error: 'Claude API 키가 필요합니다.' });
+  if (!siteName) return res.status(400).json({ error: '현장명을 입력해주세요.' });
+  if (!phase) return res.status(400).json({ error: '단계를 선택해주세요.' });
+
+  const phaseConfig = {
+    design: {
+      label: '디자인/설계',
+      focus: `이 글은 인테리어 프로젝트의 **디자인/설계 단계**를 다룹니다.
+다음 내용을 중심으로 작성하세요:
+- 고객의 요구사항과 라이프스타일 분석
+- 디자인 컨셉과 무드 설명 (모던, 내추럴, 미니멀 등)
+- 공간 활용 계획과 동선 설계
+- 자재 선정 이유와 컬러 스킴
+- 3D 렌더링이나 도면이 있다면 설명
+- "다음 편에서는 시공 과정을 공유하겠습니다" 로 마무리`,
+    },
+    construction: {
+      label: '시공',
+      focus: `이 글은 인테리어 프로젝트의 **시공 단계**를 다룹니다.
+다음 내용을 중심으로 작성하세요:
+- 시공 일정과 공정 순서 설명
+- 철거, 목공, 전기, 설비, 타일, 도배 등 주요 공정별 상세
+- 현장 사진을 활용한 진행 과정 설명
+- 시공 중 발생한 문제와 해결 방법 (전문성 어필)
+- 자재 시공 과정과 품질 관리 포인트
+- "이전 글 디자인 편도 참고해주세요" + "다음 편에서 완성된 결과물을 보여드리겠습니다" 로 마무리`,
+    },
+    finishing: {
+      label: '마감',
+      focus: `이 글은 인테리어 프로젝트의 **마감/완성 단계**를 다룹니다.
+다음 내용을 중심으로 작성하세요:
+- Before & After 비교 (극적인 변화 강조)
+- 완성된 공간 각 영역별 소개 (거실, 주방, 침실, 욕실 등)
+- 디자인 포인트와 인테리어 팁 공유
+- 시공 전체 기간과 비용 범위 (선택적)
+- 고객 만족 포인트
+- "디자인 편과 시공 편도 함께 읽어보세요" + 상담 문의 유도로 마무리`,
+    },
+  };
+
+  const config = phaseConfig[phase];
+  if (!config) return res.status(400).json({ error: '잘못된 단계입니다.' });
+
+  try {
+    const client = new Anthropic({ apiKey });
+
+    const imageCount = images?.length || 0;
+    const imageGuide = imageCount > 0
+      ? `\n\n${imageCount}장의 현장 사진이 제공됩니다. 글 중간중간에 사진을 자연스럽게 배치해주세요.
+사진 위치: {{IMAGE_1}}, {{IMAGE_2}} 등으로 표시. 각 사진 아래 간단한 캡션 필수.
+사진은 최소 4~5장 이상 본문에 배치하여 체류시간을 늘려주세요.`
+      : '';
+
+    const systemPrompt = `당신은 인테리어 전문 블로그 작가입니다. 네이버 블로그 SEO에 최적화된 글을 작성합니다.
+
+## 네이버 SEO 핵심 전략 (C-Rank + D.I.A.)
+
+**C-Rank (창작자 신뢰도):**
+- 인테리어 전문가로서의 전문성과 경험이 느껴지는 글
+- 직접 시공한 현장 경험 기반의 실제 정보
+- 일관된 인테리어 카테고리 키워드 사용
+
+**D.I.A. (문서 품질):**
+- 핵심 키워드를 제목, 소제목, 본문 초반, 결론에 자연스럽게 반복 (5~7회)
+- 소제목(h2, h3)으로 구조화 — 최소 4개 이상의 소제목
+- 2500자 이상의 충실한 본문 (체류시간 확보)
+- 문단은 3~4줄로 짧게 — 모바일 가독성 최적화
+- 사진 + 텍스트 교차 배치 (스크롤 유도)
+
+## 글 스타일
+- 전문적이면서 친근한 톤 (너무 딱딱하지 않게)
+- "~했습니다", "~인데요" 체 혼용으로 자연스럽게
+- 실제 현장 경험담처럼 생생하게
+
+## HTML 형식
+- <h2>, <h3> 태그로 소제목
+- <p> 태그로 문단
+- <strong>, <em> 태그로 강조
+- <ul>, <li> 태그로 목록
+- 줄바꿈은 <br> 사용
+
+## 글 구성
+- 도입부: 공감형 인사 + 현장 소개 (위치, 평형, 스타일)
+- 본문: 소제목별 정보 + 사진 배치
+- 마무리: 요약 + 시리즈 다른 글 언급 + 상담/문의 유도
+
+## 제목 작성법 (네이버 검색 최적화)
+- "${location || '지역명'} + 인테리어" 패턴 포함
+- 구체적인 정보 포함 (평형, 스타일, 단계)
+- 예: "${location || 'OO'} 30평대 아파트 인테리어 - ${config.label} 과정"
+
+## 태그
+- 글 맨 마지막에 <!-- TAGS: 태그1,태그2,태그3 --> 형식으로 추천 태그 10개 포함
+- 지역명+인테리어, 평형+인테리어, 스타일+인테리어 등 조합${imageGuide}`;
+
+    const userMessage = `현장명: ${siteName}
+단계: ${config.label}
+${location ? `지역: ${location}` : ''}
+${keywords ? `키워드: ${keywords}` : ''}
+${additionalInfo ? `추가 정보: ${additionalInfo}` : ''}
+
+${config.focus}
+
+위 정보를 바탕으로 네이버 블로그 포스팅을 HTML 형식으로 작성해주세요.`;
+
+    const response = await client.messages.create({
+      model: 'claude-sonnet-4-6',
+      max_tokens: 6000,
+      system: systemPrompt,
+      messages: [{ role: 'user', content: userMessage }],
+    });
+
+    const generatedText = response.content[0].text;
+
+    // 태그 추출
+    const tagMatch = generatedText.match(/<!-- TAGS: (.+?) -->/);
+    const suggestedTags = tagMatch ? tagMatch[1] : '';
+
+    // 태그 코멘트 제거한 본문
+    let cleanContent = generatedText.replace(/<!-- TAGS: .+? -->/, '').trim();
+
+    // 이미지 삽입
+    if (images && images.length > 0) {
+      images.forEach((img, i) => {
+        const placeholder = `{{IMAGE_${i + 1}}}`;
+        const imgHtml = `<div style="text-align:center;margin:20px 0;"><img src="${img.data}" alt="${img.name || `현장 사진 ${i + 1}`}" style="max-width:100%;border-radius:8px;"></div>`;
+        cleanContent = cleanContent.replace(placeholder, imgHtml);
+      });
+      cleanContent = cleanContent.replace(/\{\{IMAGE_\d+\}\}/g, '');
+    }
+
+    // 제목 추출
+    const titleMatch = cleanContent.match(/<h[12][^>]*>(.+?)<\/h[12]>/);
+    const suggestedTitle = titleMatch ? titleMatch[1].replace(/<[^>]+>/g, '') : `${siteName} - ${config.label}`;
+
+    res.json({
+      title: suggestedTitle,
+      content: cleanContent,
+      tags: suggestedTags,
+      phase,
+      phaseLabel: config.label,
+      siteName,
+    });
+  } catch (err) {
+    res.status(500).json({ error: err.message || '시리즈 글 생성 실패' });
+  }
+});
+
 const PORT = process.env.PORT || 3001;
 app.listen(PORT, () => {
   console.log(`✅ 백엔드 서버 실행 중: http://localhost:${PORT}`);

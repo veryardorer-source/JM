@@ -96,9 +96,47 @@
   flex-wrap: wrap;
 }
 
-.tag, .date, .visibility {
+.tag, .date, .visibility, .site, .phase {
   font-size: 12px;
   color: #999;
+}
+
+.site {
+  color: #03c75a;
+  font-weight: 600;
+}
+
+.phase {
+  background: #e8f9f0;
+  color: #03c75a;
+  padding: 2px 8px;
+  border-radius: 10px;
+  font-weight: 600;
+}
+
+.filterRow {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 16px;
+  flex-wrap: wrap;
+}
+
+.filterBtn {
+  padding: 6px 14px;
+  border-radius: 20px;
+  font-size: 13px;
+  font-weight: 500;
+  border: 1px solid #e0e0e0;
+  background: white;
+  cursor: pointer;
+  color: #666;
+  transition: all 0.15s;
+}
+.filterBtn:hover { background: #f5f5f5; }
+.filterBtn.active {
+  background: #03c75a;
+  color: white;
+  border-color: #03c75a;
 }
 
 .itemActions {

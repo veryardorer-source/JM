@@ -22,3 +22,10 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Blog output - generated artifacts
+blog_output/node_modules/
+blog_output/*.docx
+blog_output/현대마린엔진_*_사진/
+blog_output/린데코리아_*_사진/
+blog_output/package-lock.json
