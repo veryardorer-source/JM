@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(gh api:*)",
+      "Bash(ls \"C:\\\\Users\\\\Administrator\\\\Desktop\\\\JM_클로드/todolist/app/src/\" && git -C \"C:\\\\Users\\\\Administrator\\\\Desktop\\\\JM_클로드\" log --oneline -5)",
+      "Bash(vercel --version)",
+      "Bash(cd \"C:\\\\Users\\\\Administrator\\\\Desktop\\\\JM_클로드\\\\todolist\\\\app\" && vercel link --scope veryardorer-3222s-projects --project dist --token vcp_3YEULsCDMiNsg7b38ag49ODc4zOO9hEGRKlEZ1OWOEFK6KnWGf2m5tZ9 --yes 2>&1)"
+    ]
+  }
+}

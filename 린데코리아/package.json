@@ -1,0 +1,6 @@
+{
+  "dependencies": {
+    "node-poppler": "^9.1.1",
+    "pdf2pic": "^3.2.0"
+  }
+}
