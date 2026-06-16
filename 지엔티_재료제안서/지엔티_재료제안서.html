@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<title>지엔티 재료제안서</title>
+<style>
+  @page {
+    size: A4;
+    margin: 20mm 18mm 22mm 18mm;
+  }
+  * { box-sizing: border-box; }
+  html, body {
+    font-family: "Malgun Gothic", "맑은 고딕", "Apple SD Gothic Neo", sans-serif;
+    color: #1a1a1a;
+    font-size: 10.5pt;
+    line-height: 1.55;
+    margin: 0;
+    padding: 0;
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* 표지 */
+  .cover {
+    page-break-after: always;
+    height: 257mm;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    padding: 30mm 10mm 20mm 10mm;
+    background: linear-gradient(180deg, #f7f5f1 0%, #ffffff 100%);
+  }
+  .cover .badge {
+    font-size: 10pt;
+    letter-spacing: 0.4em;
+    color: #8a8275;
+    text-transform: uppercase;
+  }
+  .cover h1 {
+    font-size: 34pt;
+    font-weight: 700;
+    margin: 0;
+    color: #2b2b2b;
+    letter-spacing: -0.02em;
+    line-height: 1.2;
+  }
+  .cover h2 {
+    font-size: 16pt;
+    font-weight: 400;
+    color: #6a6a6a;
+    margin-top: 12mm;
+    letter-spacing: 0.08em;
+  }
+  .cover .divider {
+    width: 60mm;
+    height: 3px;
+    background: #8a7d63;
+    margin: 14mm 0;
+  }
+  .cover .meta {
+    border-top: 1px solid #d8d2c5;
+    padding-top: 8mm;
+    color: #555;
+    font-size: 10pt;
+  }
+  .cover .meta dt {
+    color: #8a8275;
+    letter-spacing: 0.1em;
+    font-size: 9pt;
+    margin-top: 4mm;
+  }
+  .cover .meta dd {
+    margin: 0 0 0 0;
+    font-size: 11pt;
+  }
+
+  /* 본문 공통 */
+  h3.section {
+    font-size: 16pt;
+    color: #2b2b2b;
+    border-bottom: 2px solid #8a7d63;
+    padding-bottom: 4mm;
+    margin: 0 0 6mm 0;
+    letter-spacing: -0.01em;
+  }
+  h3.section .num {
+    display: inline-block;
+    width: 9mm;
+    height: 9mm;
+    line-height: 9mm;
+    text-align: center;
+    background: #8a7d63;
+    color: #fff;
+    border-radius: 50%;
+    font-size: 11pt;
+    margin-right: 5mm;
+    vertical-align: middle;
+  }
+  h4 {
+    font-size: 11.5pt;
+    color: #4a4030;
+    margin: 6mm 0 3mm 0;
+    padding-left: 3mm;
+    border-left: 3px solid #c2b393;
+  }
+  p { margin: 2mm 0; }
+  .lead {
+    color: #555;
+    font-size: 10pt;
+    margin-bottom: 5mm;
+  }
+
+  /* 표 */
+  table.spec {
+    width: 100%;
+    border-collapse: collapse;
+    margin: 3mm 0 5mm 0;
+    font-size: 9.5pt;
+  }
+  table.spec th {
+    background: #f4efe6;
+    color: #4a4030;
+    font-weight: 600;
+    text-align: left;
+    padding: 2.5mm 3mm;
+    border-bottom: 1.5px solid #8a7d63;
+    border-top: 1.5px solid #8a7d63;
+  }
+  table.spec td {
+    padding: 2.5mm 3mm;
+    border-bottom: 1px solid #e5e0d4;
+    vertical-align: top;
+  }
+  table.spec tr:nth-child(even) td {
+    background: #fafaf7;
+  }
+  table.spec td.cat {
+    font-weight: 600;
+    color: #2b2b2b;
+    width: 22%;
+  }
+
+  /* 박스 */
+  .box {
+    background: #f7f5f1;
+    border-left: 4px solid #8a7d63;
+    padding: 4mm 5mm;
+    margin: 4mm 0;
+    font-size: 10pt;
+    color: #4a4030;
+  }
+  .box .label {
+    font-weight: 700;
+    color: #2b2b2b;
+    display: block;
+    margin-bottom: 1mm;
+  }
+
+  /* 페이지 분리 */
+  .section-page { page-break-before: always; }
+
+  /* 푸터 정보 */
+  .footer-note {
+    margin-top: 8mm;
+    padding-top: 4mm;
+    border-top: 1px dashed #c2b393;
+    font-size: 9pt;
+    color: #777;
+  }
+
+  ul.dot {
+    margin: 2mm 0 3mm 0;
+    padding-left: 5mm;
+  }
+  ul.dot li {
+    margin: 1mm 0;
+  }
+
+  .color-row {
+    display: flex;
+    gap: 3mm;
+    margin: 3mm 0;
+    flex-wrap: wrap;
+  }
+  .swatch {
+    width: 22mm;
+    text-align: center;
+    font-size: 8.5pt;
+    color: #4a4030;
+  }
+  .swatch .chip {
+    width: 22mm;
+    height: 14mm;
+    border: 1px solid #ddd;
+    border-radius: 2mm;
+    margin-bottom: 1mm;
+  }
+</style>
+</head>
+<body>
+
+<!-- ============== 표지 ============== -->
+<section class="cover">
+  <div>
+    <div class="badge">MATERIAL PROPOSAL</div>
+    <div class="divider"></div>
+    <h1>재료 제안서</h1>
+    <h2>Interior Material Reference Book</h2>
+  </div>
+  <dl class="meta">
+    <dt>CLIENT</dt>
+    <dd>지엔티 (GNT)</dd>
+    <dt>SCOPE</dt>
+    <dd>벽지 · 알판 · 사무용가구 · 붙박이가구</dd>
+    <dt>ISSUED</dt>
+    <dd>2026. 05.</dd>
+  </dl>
+</section>
+
+<!-- ============== 안내 ============== -->
+<section>
+  <h3 class="section"><span class="num">·</span>제안서 안내</h3>
+  <p class="lead">본 자료는 사무공간 인테리어 시공에 사용되는 주요 자재의 제조사·브랜드·재질·마감·색상 정보를 한 권으로 정리한 표준 레퍼런스입니다. 현장 여건과 예산에 따라 등급·시리즈는 유연하게 조정 가능합니다.</p>
+
+  <div class="box">
+    <span class="label">구성</span>
+    1. 벽지 (Wallcovering) · 2. 알판 (Panel) · 3. 사무용가구 (Office Furniture) · 4. 붙박이가구 (Built-in Furniture)
+  </div>
+
+  <div class="box">
+    <span class="label">표기 기준</span>
+    · 제조사: 국내 점유율 상위 업체 우선 기재<br>
+    · 모델명·시리즈: 대표 컬렉션 기준 (단종 시 동급 대체)<br>
+    · 색상: 베이스 톤 중심 표기, 실제 발색은 샘플 확인 권장
+  </div>
+</section>
+
+<!-- ============== 1. 벽지 ============== -->
+<section class="section-page">
+  <h3 class="section"><span class="num">1</span>벽지 (Wallcovering)</h3>
+  <p class="lead">사무공간은 합지보다 내구성이 높은 실크벽지를 기본으로 적용하며, 친환경 등급(E0/SE0)을 우선 검토합니다.</p>
+
+  <h4>주요 제조사 · 브랜드</h4>
+  <table class="spec">
+    <thead>
+      <tr><th style="width:18%">제조사</th><th style="width:22%">대표 브랜드 / 컬렉션</th><th>특징</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>LX하우시스</td><td>지인(Z:IN) 벽지 — 베스띠, 디아망, 엘레강스</td><td>국내 점유율 1위. 실크·합지 풀라인업, 친환경 SE0 다수</td></tr>
+      <tr><td>개나리벽지</td><td>모건(Morgan), 까사미아, 베스트</td><td>실크벽지 강세, 패턴·솔리드 색상 폭 넓음</td></tr>
+      <tr><td>신한벽지</td><td>아이비스(IVIS), 오엔, 까사보떼</td><td>친환경(아이비스) 라인, 가성비 우수</td></tr>
+      <tr><td>디아이디(DID)</td><td>DID 실크, 와이드</td><td>광폭(106cm) 벽지로 이음매 최소화</td></tr>
+      <tr><td>제일벽지</td><td>까사데코, 데코마인</td><td>중가 라인 시공성 양호</td></tr>
+      <tr><td>수입</td><td>오즈본앤리틀, 산데르손, 코로(KORO)</td><td>포인트 월 / 임원실 등 디자인 강조 구간</td></tr>
+    </tbody>
+  </table>
+
+  <h4>재질 · 구조</h4>
+  <table class="spec">
+    <tbody>
+      <tr><td class="cat">합지벽지</td><td>종이 2겹 합지. 단가 저렴, 통기성 우수. 사무실에는 회의실·창고 등 보조공간에 적용</td></tr>
+      <tr><td class="cat">실크벽지</td><td>종이 베이스 + PVC 코팅. 오염·물걸레 청소 가능. 사무공간 표준</td></tr>
+      <tr><td class="cat">친환경 벽지</td><td>SE0 / E0 등급. VOC·포름알데히드 저감. 신축·리모델링 권장</td></tr>
+      <tr><td class="cat">기능성 벽지</td><td>방염(난연), 항균, 흡음 — 회의실·임원실·콜센터 등 용도별 선택</td></tr>
+    </tbody>
+  </table>
+
+  <h4>마감 · 텍스처</h4>
+  <ul class="dot">
+    <li><b>무광 솔리드</b> — 사무공간 표준. 빛 반사 적어 모니터 작업 환경에 유리</li>
+    <li><b>엠보싱</b> — 입체 질감, 벽면 미세 결함 커버력 우수</li>
+    <li><b>패브릭 / 리넨 패턴</b> — 임원실·회의실 포인트</li>
+    <li><b>스톤 / 콘크리트 패턴</b> — 모던 사무공간 / 라운지</li>
+    <li><b>우드 그레인</b> — 따뜻한 톤 강조 공간</li>
+  </ul>
+
+  <h4>대표 색상 톤</h4>
+  <div class="color-row">
+    <div class="swatch"><div class="chip" style="background:#f4f1ea"></div>웜 화이트</div>
+    <div class="swatch"><div class="chip" style="background:#e8e4da"></div>아이보리</div>
+    <div class="swatch"><div class="chip" style="background:#d9d4c7"></div>샌드 베이지</div>
+    <div class="swatch"><div class="chip" style="background:#c2bcae"></div>웜 그레이</div>
+    <div class="swatch"><div class="chip" style="background:#9a9588"></div>스톤 그레이</div>
+    <div class="swatch"><div class="chip" style="background:#6b6a66"></div>차콜</div>
+  </div>
+
+  <div class="footer-note">※ 벽지 폭: 합지 53cm / 실크 106cm 광폭 기준. 시공 단위는 평(3.3㎡) 또는 롤 단위.</div>
+</section>
+
+<!-- ============== 2. 알판 ============== -->
+<section class="section-page">
+  <h3 class="section"><span class="num">2</span>알판 (Panel)</h3>
+  <p class="lead">알판은 가구 도어·몸체·벽체 마감에 사용되는 판상 자재의 통칭입니다. 베이스 보드(PB/MDF) 위 마감재(PET, UV, 무늬목 등)를 입혀 사용합니다.</p>
+
+  <h4>주요 제조사 · 브랜드</h4>
+  <table class="spec">
+    <thead>
+      <tr><th style="width:18%">제조사</th><th style="width:22%">주요 제품군</th><th>특징</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>LX하우시스</td><td>LPM·HPL·PET 강화도어, 보닥타일</td><td>도어재·인테리어 필름 종합. 인지도 높음</td></tr>
+      <tr><td>한솔홈데코</td><td>스타일우드, 알판 PB·MDF</td><td>국내 PB 1위. 친환경 E0 등급</td></tr>
+      <tr><td>동화기업</td><td>동화자연마루, MDF 알판</td><td>마루재로 유명, 가구용 MDF 공급 활발</td></tr>
+      <tr><td>한화L&C</td><td>칸스톤, 인테리어 필름</td><td>엔지니어드 스톤·필름 강세</td></tr>
+      <tr><td>현대L&C</td><td>보닥, 하이막스, 인테리어 필름</td><td>하이그로시·솔리드 서피스</td></tr>
+      <tr><td>삼익산업</td><td>HPL, LPM</td><td>가구·인테리어용 고압라미네이트</td></tr>
+      <tr><td>해성DS / EGGER</td><td>유럽산 PB·라미네이트</td><td>수입 고급 라인, 색상·패턴 다양</td></tr>
+    </tbody>
+  </table>
+
+  <h4>베이스 보드 (코어)</h4>
+  <table class="spec">
+    <tbody>
+      <tr><td class="cat">PB (Particle Board)</td><td>나무 입자 압착. 가구 몸체 표준. 두께 15·18·25mm. 단가 저렴</td></tr>
+      <tr><td class="cat">MDF (중밀도섬유판)</td><td>섬유 압착. 표면 매끄러움 → 도장·UV 마감용. 두께 3·9·15·18mm</td></tr>
+      <tr><td class="cat">합판 (Plywood)</td><td>박판 적층. 휨·강도 우수. 도어·구조재</td></tr>
+      <tr><td class="cat">친환경 등급</td><td>SE0 (0.3mg/L 이하) / E0 (0.5mg/L 이하). 사무가구는 E0 이상 권장</td></tr>
+    </tbody>
+  </table>
+
+  <h4>마감재 (표면)</h4>
+  <table class="spec">
+    <tbody>
+      <tr><td class="cat">LPM (저압 멜라민)</td><td>PB·MDF에 멜라민 시트 압착. 사무가구 표준. 내구성·가성비 우수</td></tr>
+      <tr><td class="cat">HPL (고압 라미네이트)</td><td>고압 적층. 내스크래치·내열성 최상. 카운터·상판</td></tr>
+      <tr><td class="cat">PET</td><td>고광택·무광 모두 가능. 색감 선명, 무늬목 표현 우수. 사무·주방 도어</td></tr>
+      <tr><td class="cat">UV 코팅</td><td>고경도 광택 마감. 하이그로시 도어 대표</td></tr>
+      <tr><td class="cat">멤브레인</td><td>PVC 시트 진공 압착. 곡면·몰딩 표현 가능</td></tr>
+      <tr><td class="cat">무늬목 / 천연 베니어</td><td>천연 베니어 부착 후 도장. 임원실·고급 가구의 도어·전면 마감</td></tr>
+      <tr><td class="cat">인테리어 필름</td><td>현장 부착형 PVC 필름(LX·현대 보닥). 리모델링 시 가구·문 재마감</td></tr>
+    </tbody>
+  </table>
+
+  <h4>대표 색상 / 패턴</h4>
+  <div class="color-row">
+    <div class="swatch"><div class="chip" style="background:#ffffff;border:1px solid #ccc"></div>퓨어 화이트</div>
+    <div class="swatch"><div class="chip" style="background:#f0ece2"></div>웜 화이트</div>
+    <div class="swatch"><div class="chip" style="background:#c9b896"></div>오크</div>
+    <div class="swatch"><div class="chip" style="background:#8d6f4a"></div>월넛</div>
+    <div class="swatch"><div class="chip" style="background:#3a3733"></div>다크우드</div>
+    <div class="swatch"><div class="chip" style="background:#9c9c9c"></div>실버 그레이</div>
+    <div class="swatch"><div class="chip" style="background:#1a1a1a"></div>매트 블랙</div>
+  </div>
+
+  <div class="footer-note">※ 표준 규격: 1220 × 2440mm. 무늬목·HPL은 사이즈·결방향 별도 확인.</div>
+</section>
+
+<!-- ============== 3. 사무용가구 ============== -->
+<section class="section-page">
+  <h3 class="section"><span class="num">3</span>사무용가구 (Office Furniture)</h3>
+  <p class="lead">책상·의자·수납장 중심. 국내 메이저 3사(퍼시스·코아스·한샘)와 디자인 의자 전문 시디즈가 사무공간 표준입니다.</p>
+
+  <h4>주요 제조사 · 브랜드</h4>
+  <table class="spec">
+    <thead>
+      <tr><th style="width:18%">제조사</th><th style="width:25%">대표 라인업</th><th>포지셔닝</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>퍼시스 (FURSYS)</td><td>USIT, FX, 클라트, T70</td><td>국내 사무가구 1위. 시스템 가구 표준. 대형 사옥 다수 납품</td></tr>
+      <tr><td>코아스 (KOAS)</td><td>아폴로, 듀에토, 클라우드</td><td>중대형 오피스. 가성비·디자인 균형</td></tr>
+      <tr><td>한샘 오피스</td><td>샘스, 큐브, 메이트</td><td>중소 오피스·스타트업 대응. 빠른 납기</td></tr>
+      <tr><td>시디즈 (SIDIZ)</td><td>T50, T80, T90, 링고</td><td>의자 전문. 사무용 의자 점유율 1위</td></tr>
+      <tr><td>일룸 (iloom)</td><td>데스커(Desker), 린백</td><td>1인용·홈오피스·스타트업</td></tr>
+      <tr><td>리바트 오피스</td><td>워크온, 모디</td><td>현대백화점 그룹. 중고가 라인</td></tr>
+      <tr><td>수입 (참고)</td><td>허먼밀러, 스틸케이스, 비트라</td><td>임원실·디자인 강조 공간. 에어론·립체어</td></tr>
+    </tbody>
+  </table>
+
+  <h4>책상 (Desk)</h4>
+  <table class="spec">
+    <tbody>
+      <tr><td class="cat">일반 책상</td><td>1200 / 1400 / 1600 × 700mm 표준. 1인용 워크스테이션</td></tr>
+      <tr><td class="cat">시스템 책상</td><td>모듈 조합형. ㄱ자·일자·맞대기. 와이어링 덕트 내장</td></tr>
+      <tr><td class="cat">모션 데스크 (전동 높이조절)</td><td>650 ~ 1250mm 가변. 듀얼모터. 좌식·입식 전환. 시디즈 TX, 데스커 모션 등</td></tr>
+      <tr><td class="cat">회의 / 컨퍼런스 테이블</td><td>2400~6000mm. 단판형·연결형. 콘센트 박스 매립</td></tr>
+      <tr><td class="cat">임원 책상</td><td>1800~2400mm. 무늬목·도장 마감. 사이드 보조탁 포함</td></tr>
+    </tbody>
+  </table>
+
+  <h4>상판 · 프레임 재질</h4>
+  <table class="spec">
+    <tbody>
+      <tr><td class="cat">상판</td><td>MFC(멜라민 코팅 PB) — 표준 / HPL — 고내구 / 무늬목 도장 — 임원실 / 강화유리 — 회의실</td></tr>
+      <tr><td class="cat">엣지 (모서리)</td><td>PVC 엣지 1~3mm. ABS 엣지(친환경) / 포스트포밍(일체형) — 모서리 라운드</td></tr>
+      <tr><td class="cat">프레임</td><td>스틸 분체도장(파우더코팅) — 표준 / 알루미늄 — 고급 / 우드 — 카페형 사무공간</td></tr>
+      <tr><td class="cat">서랍 / 캐비닛</td><td>스틸 본체 + 분체도장 / LPM 마감 PB. 슬라이드: 풀오픈 볼베어링</td></tr>
+    </tbody>
+  </table>
+
+  <h4>의자 (Task Chair)</h4>
+  <ul class="dot">
+    <li><b>시디즈 T50</b> — 사무공간 표준 메쉬 의자. 가성비 1순위</li>
+    <li><b>시디즈 T80 / T90</b> — 등판·헤드레스트 강화. 장시간 업무용</li>
+    <li><b>퍼시스 카르페</b> — 메쉬 + 요추 지지</li>
+    <li><b>허먼밀러 에어론 / 임브로디 X2</b> — 임원·CEO실</li>
+    <li><b>회의용 / 응접용</b> — 가죽·패브릭. 회전·고정 선택</li>
+  </ul>
+
+  <h4>대표 색상 톤</h4>
+  <div class="color-row">
+    <div class="swatch"><div class="chip" style="background:#ffffff;border:1px solid #ccc"></div>화이트</div>
+    <div class="swatch"><div class="chip" style="background:#e5e5e5"></div>라이트 그레이</div>
+    <div class="swatch"><div class="chip" style="background:#9a9a9a"></div>그레이</div>
+    <div class="swatch"><div class="chip" style="background:#3a3a3a"></div>차콜</div>
+    <div class="swatch"><div class="chip" style="background:#1a1a1a"></div>블랙</div>
+    <div class="swatch"><div class="chip" style="background:#c9a987"></div>라이트우드</div>
+    <div class="swatch"><div class="chip" style="background:#6b4a2b"></div>월넛</div>
+  </div>
+
+  <div class="footer-note">※ 사무가구는 KS G 4002 / KS G 4007 기준 인증 제품 우선. AS 5년 보증이 업계 표준.</div>
+</section>
+
+<!-- ============== 4. 붙박이가구 ============== -->
+<section class="section-page">
+  <h3 class="section"><span class="num">4</span>붙박이가구 (Built-in Furniture)</h3>
+  <p class="lead">현장 치수 맞춤 제작. 사무공간에서는 탕비실 수납, 임원실 책장·장식장, 회의실 콘솔, 복도 수납장 등에 적용됩니다.</p>
+
+  <h4>주요 제조사 · 시공 방식</h4>
+  <table class="spec">
+    <thead>
+      <tr><th style="width:22%">유형</th><th style="width:26%">대표 업체 / 브랜드</th><th>특징</th></tr>
+    </thead>
+    <tbody>
+      <tr><td>대기업 맞춤 가구</td><td>한샘 키친바흐 / 한샘 우노, 리바트 키친, 에넥스</td><td>본사 설계·제작·시공. AS 체계화. 단가 높음</td></tr>
+      <tr><td>중견 맞춤 가구</td><td>넵스, 우아미, 까사미아 키친</td><td>중상위 가격대. 임원실 / 라운지 적합</td></tr>
+      <tr><td>현장 제작</td><td>인테리어 시공팀 직접 제작</td><td>치수·디자인 자유도 최상. 현장 여건 100% 반영</td></tr>
+      <tr><td>주문 제작 (반맞춤)</td><td>퍼니처바이, 마켓비, 인테리어 가구 공방</td><td>온라인 견적·표준 사이즈 조합</td></tr>
+    </tbody>
+  </table>
+
+  <h4>몸체(본체) 자재</h4>
+  <table class="spec">
+    <tbody>
+      <tr><td class="cat">PB + LPM</td><td>붙박이가구 표준. 두께 18mm. E0 등급 권장</td></tr>
+      <tr><td class="cat">MDF + UV / PET</td><td>표면 매끄러움. 도어 일체형 디자인에 적합</td></tr>
+      <tr><td class="cat">합판 + 무늬목</td><td>임원실 책장·장식장. 고급 마감</td></tr>
+      <tr><td class="cat">내수합판</td><td>탕비실 싱크대 하부장 등 수분 노출 구간</td></tr>
+    </tbody>
+  </table>
+
+  <h4>도어 마감</h4>
+  <table class="spec">
+    <tbody>
+      <tr><td class="cat">멤브레인 도어</td><td>MDF + PVC 시트 진공 압착. 곡선·몰딩 가능. 가성비 표준</td></tr>
+      <tr><td class="cat">UV 하이그로시</td><td>고광택. 화이트·블랙 대표. 빛 반사로 공간 넓어 보임</td></tr>
+      <tr><td class="cat">PET 무광 / 유광</td><td>색감 선명, 내스크래치 양호. 현재 가장 선호되는 마감</td></tr>
+      <tr><td class="cat">무늬목 + 도장</td><td>천연 베니어 + 우레탄 도장. 임원실 표준</td></tr>
+      <tr><td class="cat">도장(라카·우레탄)</td><td>풀컬러 매칭 가능. 무광 / 반광 / 유광 선택</td></tr>
+      <tr><td class="cat">유리 / 금속 인서트</td><td>장식장 / 디스플레이 도어. 클리어·반투명·브론즈 유리</td></tr>
+    </tbody>
+  </table>
+
+  <h4>하드웨어 (경첩 · 슬라이드 · 손잡이)</h4>
+  <table class="spec">
+    <tbody>
+      <tr><td class="cat">경첩</td><td><b>Blum (오스트리아)</b> 클립탑 — 표준 / <b>Hettich (독일)</b> 산시스 / <b>국산</b> 우진플라임, AGB. 댐핑(소프트클로즈) 적용</td></tr>
+      <tr><td class="cat">슬라이드</td><td>Blum 탠덤박스 / Hettich 콴트로 / 국산 케이비(KB). 풀오픈·언더마운트·푸시오픈</td></tr>
+      <tr><td class="cat">손잡이</td><td>Hafele(독일) / 국산 알루미늄 바·매립형 / 푸시오픈 (손잡이 없는 마감)</td></tr>
+      <tr><td class="cat">기타</td><td>LED 센서등(도어 오픈시), 코트행거, 회전 트레이 — Hafele·Vauth-Sagel</td></tr>
+    </tbody>
+  </table>
+
+  <h4>대표 색상 / 마감</h4>
+  <div class="color-row">
+    <div class="swatch"><div class="chip" style="background:#ffffff;border:1px solid #ccc"></div>퓨어 화이트</div>
+    <div class="swatch"><div class="chip" style="background:#efe9dc"></div>아이보리</div>
+    <div class="swatch"><div class="chip" style="background:#d4c8b0"></div>샌드</div>
+    <div class="swatch"><div class="chip" style="background:#a9896a"></div>오크</div>
+    <div class="swatch"><div class="chip" style="background:#6b4a2b"></div>월넛</div>
+    <div class="swatch"><div class="chip" style="background:#2f2f2f"></div>차콜 매트</div>
+    <div class="swatch"><div class="chip" style="background:#0a0a0a"></div>매트 블랙</div>
+  </div>
+
+  <div class="footer-note">※ 붙박이가구는 현장 실측 후 제작. 평균 제작·시공 기간 2~4주. 매립 콘센트·간접조명 등 전기 작업 사전 협의 필요.</div>
+</section>
+
+<!-- ============== 맺음 ============== -->
+<section class="section-page">
+  <h3 class="section"><span class="num">·</span>참고 및 맺음말</h3>
+
+  <h4>견적 / 자재 변동 안내</h4>
+  <ul class="dot">
+    <li>본 자료의 제조사·모델·색상은 <b>일반 표준 기준</b>으로 작성되었으며, 실제 적용 자재는 현장 실측·예산·납기 협의 후 확정됩니다.</li>
+    <li>친환경 등급(SE0/E0), KS·KCL 인증, 방염 인증 등은 요청 시 자재별 인증서를 첨부 드립니다.</li>
+    <li>수입 자재·고급 라인은 단가 변동 폭이 크므로 견적 시점 기준 재확인 권장.</li>
+  </ul>
+
+  <h4>샘플 / 실물 확인</h4>
+  <ul class="dot">
+    <li>벽지 · 알판 · 가구 마감재는 모니터·인쇄물과 실물 발색 차이가 있습니다. <b>최종 선정 전 실물 샘플 확인</b>을 권장드립니다.</li>
+    <li>당사 자료실 / 협력사 쇼룸 동행 방문 안내 가능.</li>
+  </ul>
+
+  <h4>문의</h4>
+  <div class="box">
+    <span class="label">담당</span>
+    인테리어 / 자재 담당자<br>
+    <span class="label" style="margin-top:3mm">연락처</span>
+    별도 안내<br>
+    <span class="label" style="margin-top:3mm">이메일</span>
+    별도 안내
+  </div>
+
+  <div class="footer-note" style="text-align:center;margin-top:20mm;">— 자료 끝 —</div>
+</section>
+
+</body>
+</html>
