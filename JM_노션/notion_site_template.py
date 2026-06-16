@@ -1,6 +1,6 @@
 import urllib.request, json
 
-TOKEN = "ntn_H23137511225x1Um9OQaYDJW1V7e0AGk3dAO7z2znnhewK"
+from notion_auth import TOKEN
 HUB_ID = "376089e9-0a52-8015-ba56-f0837a19d29a"
 
 HEADERS = {"Authorization": f"Bearer {TOKEN}", "Notion-Version": "2022-06-28", "Content-Type": "application/json"}
@@ -348,3 +348,4 @@ print(f"""
   2. 도면·사진 → 해당 토글 안에 파일 첨부
   3. 외부 공유 → 오른쪽 상단 '공유' → '웹에 게시' → 링크 카톡 전송
 """)
+

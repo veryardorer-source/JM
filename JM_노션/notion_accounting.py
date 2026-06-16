@@ -1,6 +1,6 @@
 import urllib.request, json
 
-TOKEN = "ntn_H23137511225x1Um9OQaYDJW1V7e0AGk3dAO7z2znnhewK"
+from notion_auth import TOKEN
 HUB_ID = "376089e9-0a52-8015-ba56-f0837a19d29a"
 ACCOUNTING_PAGE_ID = None  # 새로 생성
 
@@ -206,3 +206,4 @@ add(ACCOUNTING_PAGE_ID, [
 
 print("\n완료!")
 print(f"회계 관리 URL: https://notion.so/{ACCOUNTING_PAGE_ID.replace('-','')}")
+

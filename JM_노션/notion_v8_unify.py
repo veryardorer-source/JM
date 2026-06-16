@@ -8,7 +8,7 @@ notion_v8_unify.py — 현장 DB 단일화(통합)
 """
 import urllib.request, json, sys, io
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
-TOKEN='ntn_H23137511225x1Um9OQaYDJW1V7e0AGk3dAO7z2znnhewK'
+from notion_auth import TOKEN
 H={'Authorization':f'Bearer {TOKEN}','Notion-Version':'2022-06-28','Content-Type':'application/json'}
 def api(m,e,d=None):
     b=json.dumps(d,ensure_ascii=False).encode() if d else None
@@ -58,3 +58,4 @@ print("\n✅ 통합 완료. 현장 = '진행중인 현장' 하나로 단일화."
 print("최종 마스터 속성:")
 for pn,pv in api('GET','/databases/'+SITE).get('properties',{}).items():
     print(f'   - {pn} ({pv["type"]})')
+

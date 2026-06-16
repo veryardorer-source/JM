@@ -7,7 +7,7 @@ notion_v4.py — 권한 3단계 재편 (1단계: API)
 """
 import urllib.request, json
 
-TOKEN='ntn_H23137511225x1Um9OQaYDJW1V7e0AGk3dAO7z2znnhewK'
+from notion_auth import TOKEN
 HUB='376089e9-0a52-8015-ba56-f0837a19d29a'
 SITE_DB='37d089e9-0a52-81e7-834c-e9ef6fb235ea'   # 진행중인 현장
 TASK_DB='37d089e9-0a52-8177-ab3c-e59e8e0a0862'   # 업무 현황
@@ -117,3 +117,4 @@ print(f"전직원 폴더:  https://notion.so/{T1.replace('-','')}")
 print(f"현장팀 폴더:  https://notion.so/{T2.replace('-','')}")
 print(f"경영자 폴더:  https://notion.so/{T3.replace('-','')}")
 print(f"\nT1={T1}\nT2={T2}\nT3={T3}")
+

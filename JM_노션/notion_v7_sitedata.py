@@ -7,7 +7,7 @@ notion_v7_sitedata.py — 현장 목록 → '현장 자료실'(전 직원 공유
 """
 import urllib.request, json, sys, io
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
-TOKEN='ntn_H23137511225x1Um9OQaYDJW1V7e0AGk3dAO7z2znnhewK'
+from notion_auth import TOKEN
 H={'Authorization':f'Bearer {TOKEN}','Notion-Version':'2022-06-28','Content-Type':'application/json'}
 def api(m,e,d=None):
     b=json.dumps(d,ensure_ascii=False).encode() if d else None
@@ -41,3 +41,4 @@ if 'properties' in r:
         print(f'   - {pn} ({pv["type"]})')
 else:
     print('실패')
+

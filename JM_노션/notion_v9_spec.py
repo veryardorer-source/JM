@@ -9,7 +9,7 @@ notion_v9_spec.py — 14개 필수항목 갭 채우기 (신규/보강)
 """
 import urllib.request, json, sys, io
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
-TOKEN='ntn_H23137511225x1Um9OQaYDJW1V7e0AGk3dAO7z2znnhewK'
+from notion_auth import TOKEN
 H={'Authorization':f'Bearer {TOKEN}','Notion-Version':'2022-06-28','Content-Type':'application/json'}
 def api(m,e,d=None):
     b=json.dumps(d,ensure_ascii=False).encode() if d else None
@@ -108,3 +108,4 @@ manual_page('🔧 시공팀 매뉴얼','🔧',
 print('   완료')
 
 print('\n✅ v9 적용 완료')
+

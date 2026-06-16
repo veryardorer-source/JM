@@ -1,7 +1,7 @@
 import urllib.request
 import json
 
-TOKEN = "ntn_H23137511225x1Um9OQaYDJW1V7e0AGk3dAO7z2znnhewK"
+from notion_auth import TOKEN
 HUB_ID = "376089e9-0a52-8015-ba56-f0837a19d29a"
 
 HEADERS = {
@@ -453,3 +453,4 @@ print("  허브 링크 연결 완료! 이제 클릭하면 이동돼요!")
 print("=" * 55)
 for k, v in ids.items():
     print(f"  {k:20} | {v}")
+

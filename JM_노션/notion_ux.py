@@ -1,7 +1,7 @@
 import urllib.request
 import json
 
-TOKEN = "ntn_H23137511225x1Um9OQaYDJW1V7e0AGk3dAO7z2znnhewK"
+from notion_auth import TOKEN
 HUB_ID = "376089e9-0a52-8015-ba56-f0837a19d29a"
 
 # 섹션 페이지 IDs
@@ -598,3 +598,4 @@ print("  UX 개선 완료!")
 print("=" * 60)
 print("  메인 허브: 2컬럼 업무 흐름도 + 빠른 이동 링크")
 print("  각 섹션: 사용방법 토글 + 인라인 DB (한 페이지에서 작성)")
+

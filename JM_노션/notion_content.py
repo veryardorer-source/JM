@@ -1,8 +1,7 @@
 import urllib.request
 import json
 
-TOKEN = "ntn_H23137511225x1Um9OQaYDJW1V7e0AGk3dAO7z2znnhewK"
-
+from notion_auth import TOKEN
 HEADERS = {
     "Authorization": f"Bearer {TOKEN}",
     "Notion-Version": "2022-06-28",
@@ -398,3 +397,4 @@ print("")
 print("=" * 55)
 print("  모든 항목 내용 추가 완료!")
 print("=" * 55)
+

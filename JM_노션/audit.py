@@ -1,7 +1,7 @@
 """audit.py — 전체 워크스페이스 정밀 감사 (구조/중복/연결)"""
 import urllib.request, json, sys, io
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
-TOKEN='ntn_H23137511225x1Um9OQaYDJW1V7e0AGk3dAO7z2znnhewK'
+from notion_auth import TOKEN
 H={'Authorization':f'Bearer {TOKEN}','Notion-Version':'2022-06-28','Content-Type':'application/json'}
 def api(m,e,d=None):
     b=json.dumps(d).encode() if d else None
@@ -54,3 +54,4 @@ for db in dbs:
             print(f"    Σ {pn}: rollup({ro.get('relation_property_name')} . {ro.get('rollup_property_name')} / {ro.get('function')})")
         elif ty=='formula':
             print(f"    ƒ {pn}: {pv['formula'].get('expression','')[:60]}")
+

@@ -2,7 +2,7 @@
 import urllib.request, json, sys, io
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
 
-TOKEN='ntn_H23137511225x1Um9OQaYDJW1V7e0AGk3dAO7z2znnhewK'
+from notion_auth import TOKEN
 H={'Authorization':f'Bearer {TOKEN}','Notion-Version':'2022-06-28','Content-Type':'application/json'}
 def api(m,e,d=None):
     b=json.dumps(d).encode() if d else None
@@ -42,3 +42,4 @@ for n,i in dbs:
     r=api('POST',f'/databases/{i}/query',{})
     cnt=len(r.get('results',[])) if 'results' in r else '?'
     print(f'  {n}: {cnt}행')
+

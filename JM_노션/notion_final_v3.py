@@ -11,7 +11,7 @@ notion_final_v3.py
 
 import urllib.request, json
 
-TOKEN = "ntn_H23137511225x1Um9OQaYDJW1V7e0AGk3dAO7z2znnhewK"
+from notion_auth import TOKEN
 HUB_ID       = "376089e9-0a52-8015-ba56-f0837a19d29a"
 SITE_HUB_ID  = "37d089e9-0a52-815d-a402-db252a8959a8"
 OLD_TEMPLATE = "37d089e9-0a52-817c-8b07-ed490797f0c7"
@@ -412,3 +412,4 @@ print(f"\n현장 템플릿 v3:   https://notion.so/{T.replace('-','')}")
 print(f"도면 외부공유용:  https://notion.so/{ext['id'].replace('-','')}")
 print(f"설정·권한 가이드: https://notion.so/{G.replace('-','')}")
 print(f"메인 허브:        https://notion.so/{HUB_ID.replace('-','')}")
+

@@ -1,6 +1,6 @@
 import urllib.request, json
 
-TOKEN = "ntn_H23137511225x1Um9OQaYDJW1V7e0AGk3dAO7z2znnhewK"
+from notion_auth import TOKEN
 HUB_ID = "376089e9-0a52-8015-ba56-f0837a19d29a"
 
 # notion_final.py 에서 생성된 섹션 IDs
@@ -128,3 +128,4 @@ add(HUB_ID, [
 
 print("  완료!")
 print(f"\n현장 현황판 URL: https://notion.so/{board_id.replace('-','')}")
+

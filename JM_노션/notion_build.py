@@ -5,7 +5,7 @@ notion_build.py — JM 업무 시스템 깨끗한 재구축 (14개 필수항목 
 """
 import urllib.request, json, sys, io, time
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
-TOKEN='ntn_H23137511225x1Um9OQaYDJW1V7e0AGk3dAO7z2znnhewK'
+from notion_auth import TOKEN
 HUB='376089e9-0a52-8015-ba56-f0837a19d29a'
 H={'Authorization':f'Bearer {TOKEN}','Notion-Version':'2022-06-28','Content-Type':'application/json'}
 def api(m,e,d=None):
@@ -254,3 +254,4 @@ print('   예시 완료')
 print('\n✅ 전체 구축 완료')
 print('새 시스템 루트:', 'https://notion.so/'+ROOT.replace('-',''))
 print('IDs:',json.dumps({'ROOT':ROOT,'DASH':DASH,'SITE':SITE,'SCH':SCH,'TASK':TASK,'EXP':EXP,'WDR':WDR,'EMP':EMP,'FIN':FIN,'ACC':ACC,'CRM':CRM},ensure_ascii=False))
+

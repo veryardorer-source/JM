@@ -1,7 +1,7 @@
 import urllib.request
 import json
 
-TOKEN = "ntn_H23137511225x1Um9OQaYDJW1V7e0AGk3dAO7z2znnhewK"
+from notion_auth import TOKEN
 HUB_ID = "376089e9-0a52-8015-ba56-f0837a19d29a"
 
 HEADERS = {
@@ -305,3 +305,4 @@ print("  섹션 페이지 + 내용 구성 완료!")
 print("=" * 55)
 for k, v in new_ids.items():
     print(f"  {k:20} | {v}")
+

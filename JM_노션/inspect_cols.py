@@ -1,7 +1,7 @@
 """inspect_cols.py — 컬럼 안 내용 덤프"""
 import urllib.request, json, sys, io
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
-TOKEN='ntn_H23137511225x1Um9OQaYDJW1V7e0AGk3dAO7z2znnhewK'
+from notion_auth import TOKEN
 H={'Authorization':f'Bearer {TOKEN}','Notion-Version':'2022-06-28','Content-Type':'application/json'}
 def api(m,e,d=None):
     b=json.dumps(d).encode() if d else None
@@ -34,3 +34,4 @@ for b in r['results']:
     if b['type']=='column_list':
         print('column_list', b['id'])
         dump(b['id'],1)
+

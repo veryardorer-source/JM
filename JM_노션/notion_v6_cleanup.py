@@ -5,7 +5,7 @@ notion_v6_cleanup.py — 안전 정리(데이터 무영향)
 """
 import urllib.request, json, sys, io
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
-TOKEN='ntn_H23137511225x1Um9OQaYDJW1V7e0AGk3dAO7z2znnhewK'
+from notion_auth import TOKEN
 H={'Authorization':f'Bearer {TOKEN}','Notion-Version':'2022-06-28','Content-Type':'application/json'}
 def api(m,e,d=None):
     b=json.dumps(d,ensure_ascii=False).encode() if d else None
@@ -26,3 +26,4 @@ for nm,dbid in [('현장 경비·영수증',EXPENSE),('출금 요청 관리',WIT
         r=api('PATCH','/databases/'+dbid,{'properties':{'연결현장':None}})
         print('  →', '✅ 제거됨' if '연결현장' not in r.get('properties',{}) else '⚠️ 확인필요')
 print('\n완료. 남은 현장 relation = 현장연결(→진행중인 현장) 하나로 정리됨.')
+

@@ -9,7 +9,7 @@ notion_v10_privacy.py — 권한 분리 수정
 """
 import urllib.request, json, sys, io
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
-TOKEN='ntn_H23137511225x1Um9OQaYDJW1V7e0AGk3dAO7z2znnhewK'
+from notion_auth import TOKEN
 H={'Authorization':f'Bearer {TOKEN}','Notion-Version':'2022-06-28','Content-Type':'application/json'}
 def api(m,e,d=None):
     b=json.dumps(d,ensure_ascii=False).encode() if d else None
@@ -64,3 +64,4 @@ left=[pn for pn,pv in api('GET','/databases/'+SITE)['properties'].items()
 print('   ', left if left else '✅ 없음 (금액/재무 열 모두 제거됨)')
 print('전직원 현장 최종 열:')
 for pn in api('GET','/databases/'+SITE)['properties']: print('   -',pn)
+

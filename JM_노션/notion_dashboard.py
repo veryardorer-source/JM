@@ -8,7 +8,7 @@ notion_dashboard.py
 """
 import urllib.request, json
 
-TOKEN='ntn_H23137511225x1Um9OQaYDJW1V7e0AGk3dAO7z2znnhewK'
+from notion_auth import TOKEN
 HUB='376089e9-0a52-8015-ba56-f0837a19d29a'
 EXPEN='37d089e9-0a52-814b-82bc-ff7dffbda124'   # 경비·영수증
 PAYOU='37d089e9-0a52-818d-bc2d-de8f73abc1ac'   # 출금 요청
@@ -171,3 +171,4 @@ print("\n✅ 완료!")
 print(f"🏠 통합 대시보드:  https://notion.so/{D.replace('-','')}")
 print(f"💰 재무 현황:      https://notion.so/{F.replace('-','')}")
 print(f"\nSITE_DB={SITE}\nTASK_DB={TASK}\nFIN_DB={FIN}")
+

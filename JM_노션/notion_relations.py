@@ -6,7 +6,7 @@ notion_relations.py
 """
 import urllib.request, json
 
-TOKEN='ntn_H23137511225x1Um9OQaYDJW1V7e0AGk3dAO7z2znnhewK'
+from notion_auth import TOKEN
 BOARD='37d089e9-0a52-81d4-a300-db3a4016db73'   # 현장 현황판 (master)
 STAFF='37d089e9-0a52-81b0-938f-f5ea760a77a5'   # 직원 업무 현황
 EXPEN='37d089e9-0a52-814b-82bc-ff7dffbda124'   # 경비·영수증
@@ -74,3 +74,4 @@ if rollups:
 
 print("\n✅ 완료! 현황판에서 각 현장의 경비·출금·업무가 자동 집계됩니다.")
 print(f"현황판: https://notion.so/{BOARD.replace('-','')}")
+

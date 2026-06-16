@@ -8,7 +8,7 @@ notion_v5_mobile.py — 모바일 가로폭 수정
 """
 import urllib.request, json, sys, io
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
-TOKEN='ntn_H23137511225x1Um9OQaYDJW1V7e0AGk3dAO7z2znnhewK'
+from notion_auth import TOKEN
 H={'Authorization':f'Bearer {TOKEN}','Notion-Version':'2022-06-28','Content-Type':'application/json'}
 def api(m,e,d=None):
     b=json.dumps(d,ensure_ascii=False).encode() if d else None
@@ -85,3 +85,4 @@ print('DASH column_list:', dash_cl)
 if hub_cl: fix(HUB, hub_cl, 'HUB 메인 3열 → 1단')
 if dash_cl: fix(DASH, dash_cl, '통합 대시보드 2열 → 1단 (헤딩 병합)', merge_dup=True)
 print('\n✅ 완료. 모바일에서 다시 확인해보세요.')
+

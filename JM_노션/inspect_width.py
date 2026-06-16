@@ -1,7 +1,7 @@
 """inspect_width.py — 모바일에서 가로로 넓어지는 블록(컬럼/표) 탐색"""
 import urllib.request, json, sys, io
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
-TOKEN='ntn_H23137511225x1Um9OQaYDJW1V7e0AGk3dAO7z2znnhewK'
+from notion_auth import TOKEN
 H={'Authorization':f'Bearer {TOKEN}','Notion-Version':'2022-06-28','Content-Type':'application/json'}
 def api(m,e,d=None):
     b=json.dumps(d).encode() if d else None
@@ -41,3 +41,4 @@ PAGES=[('🏠 통합 대시보드','37d089e9-0a52-81a3-a7c5-cac25d3bfa87'),
 for n,i in PAGES:
     print(f"\n===== {n} =====")
     walk(i, path=n)
+

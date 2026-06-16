@@ -8,7 +8,7 @@ notion_expense.py
 
 import urllib.request, json
 
-TOKEN = "ntn_H23137511225x1Um9OQaYDJW1V7e0AGk3dAO7z2znnhewK"
+from notion_auth import TOKEN
 HUB_ID = "376089e9-0a52-8015-ba56-f0837a19d29a"
 
 HEADERS = {
@@ -246,3 +246,4 @@ print(f"\n현장 경비·영수증:  https://notion.so/{RP.replace('-','')}")
 print(f"출금 요청 관리:    https://notion.so/{PP.replace('-','')}")
 print(f"\n영수증 DB:  {RECEIPT_DB_ID}")
 print(f"출금 DB:    {PAYOUT_DB_ID}")
+

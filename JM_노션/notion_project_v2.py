@@ -10,7 +10,7 @@ notion_project_v2.py
 
 import urllib.request, json
 
-TOKEN = "ntn_H23137511225x1Um9OQaYDJW1V7e0AGk3dAO7z2znnhewK"
+from notion_auth import TOKEN
 HUB_ID = "376089e9-0a52-8015-ba56-f0837a19d29a"
 
 # 기존 섹션 IDs (notion_final.py 에서 생성)
@@ -692,3 +692,4 @@ print("  1. 현장 템플릿 페이지를 복제해서 실제 현장 페이지�
 print("  2. Google Drive에 현장별 폴더 생성 후 링크 연결")
 print("  3. 현장 현황판에 진행중인 현장 입력")
 print("  4. Plus 플랜 업그레이드 후 → DB Relation 연동으로 자동화 가능")
+

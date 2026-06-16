@@ -1,7 +1,7 @@
 import urllib.request
 import json
 
-TOKEN = "ntn_H23137511225x1Um9OQaYDJW1V7e0AGk3dAO7z2znnhewK"
+from notion_auth import TOKEN
 HUB_ID = "376089e9-0a52-8015-ba56-f0837a19d29a"
 
 # 기존 섹션 페이지 IDs (wrap.py 결과)
@@ -317,3 +317,4 @@ print("  📊 프로젝트 관리 — 진행률(%), 우선순위 추가")
 print("  👥 고객 CRM — 마지막연락일, 팔로업예정일, 희망완공일 추가")
 print("")
 print("  허브 구조 재편: 영업·현장·마케팅·공통·대표전용")
+
