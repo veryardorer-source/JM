@@ -34,15 +34,18 @@ USAGE=[
  ('아카이브','📖 사용법(관리자): 완료한 공사 기록(포트폴리오). 완성 사진·도면 보관, 마케팅 활용 체크. 🔴 대표·이사만 봅니다.'),
 ]
 
-# 모든 페이지 가져오기
+ROOT='381089e9-0a52-81b5-83a3-c42ce799c0d6'
+# 루트에서 직접 훑기(검색 색인 안 기다림)
 def all_pages():
     out=[]
-    res=api('POST','/search',{'filter':{'property':'object','value':'page'},'page_size':100})
-    for p in res.get('results',[]):
-        if p.get('in_trash') or p.get('archived'): continue
-        t=p.get('properties',{}).get('title',{})
-        nm=''.join(x.get('plain_text','') for x in (t.get('title',[]) if isinstance(t,dict) else []))
-        out.append((nm,p['id']))
+    def walk(pid,depth=0):
+        if depth>3: return
+        r=api('GET','/blocks/'+pid+'/children?page_size=100')
+        for b in r.get('results',[]):
+            if b['type']=='child_page':
+                out.append((b['child_page']['title'], b['id']))
+                walk(b['id'],depth+1)
+    walk(ROOT)
     return out
 
 def first_callout(pid):
