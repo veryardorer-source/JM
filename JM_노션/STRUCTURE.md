@@ -8,7 +8,7 @@
 
 ```powershell
 $env:NOTION_TOKEN="여기에_새_Notion_토큰"
-python notion_v10_privacy.py
+python notion_preflight_audit.py
 ```
 
 > 이미 노출된 토큰은 폐기하고 Notion에서 새 internal integration token을 발급하는 것을 권장합니다.
@@ -17,6 +17,7 @@ python notion_v10_privacy.py
 
 - 기준일: 2026-06-16
 - 현재 정식 구축 스크립트: `notion_build.py`
+- 직원 초대 전 읽기 전용 점검: `notion_preflight_audit.py`
 - 권한 분리 보정 스크립트: `notion_v10_privacy.py`
 - 옛 HUB(백업 보존): `376089e9-0a52-8015-ba56-f0837a19d29a`
 - 새 루트 `JM 업무 시스템`: `381089e9-0a52-81b5-83a3-c42ce799c0d6`
@@ -80,6 +81,7 @@ python notion_v10_privacy.py
 - 전 직원 현장 DB에서 경비합계·출금합계·총지출 열 제거
 - 경비/출금/재무/회계에서 현장 relation을 단방향으로 변경
 - 현장 카드에는 운영 정보 relation만 유지
+- 사진·도면·자료는 현장 DB 속성칸이나 본문 직접 나열 대신 각 현장 페이지의 하위 사진첩 페이지에서 관리
 - 현장별 재무의 총지출은 관리자 직접 입력 방식으로 변경
 - 수익 공식은 `계약금액 - 총지출`
 
@@ -99,8 +101,13 @@ python notion_v10_privacy.py
 
 | 파일 | 용도 |
 | --- | --- |
+| `notion_preflight_audit.py` | 새 시스템 권한·민감정보·사진 필드·재무 구조 읽기 전용 점검 |
+| `notion_site_album_pages.py` | 각 현장 카드에 사진첩 하위 페이지를 만들어 모바일 스크롤을 짧게 유지 |
 | `notion_build.py` | 14개 필수항목 기준으로 새 JM 업무 시스템 구축 |
 | `notion_v10_privacy.py` | 전 직원 현장 DB에서 재무 노출 제거 및 권한 구조 보정 |
+| `notion_usage.py` | 각 페이지 첫 안내 박스를 직원용 사용법으로 보강 |
+| `notion_decorate.py` | 메인 대시보드 커버·직원 모바일 안내·사진 삭제 안내·폴더 바로가기 보강 |
+| `notion_applicants.py` | 지원자 이력서 DB를 관리자 전용에 생성하고 직원 명부 이력서 칸 제거 |
 | `audit.py` | 구조, 중복, relation 상태 점검 |
 | `inspect.py` / `inspect_cols.py` / `inspect_width.py` | 노션 블록 구조와 모바일 폭 문제 점검 |
 | `notion_v5_mobile.py` | 옛 HUB의 다단 레이아웃을 모바일 친화적으로 정리 |
@@ -109,12 +116,14 @@ python notion_v10_privacy.py
 | `notion_v8_unify.py` | 현장 DB 단일화 |
 | `notion_v9_spec.py` | 14개 필수항목 보강 |
 
-나머지 `notion_*` 파일은 이전 단계 작업 이력 또는 보조 구축 스크립트입니다. 실행하면 실제 Notion 워크스페이스가 변경될 수 있으니, 실행 전 목적과 대상 ID를 확인하세요.
+나머지 `notion_*` 파일은 이전 단계 작업 이력 또는 보조 구축 스크립트입니다. 예전 HUB ID를 대상으로 하는 파일이 있으므로 실행하면 실제 Notion 워크스페이스가 의도와 다르게 변경될 수 있습니다. 실행 전 목적과 대상 ID를 확인하세요.
 
 ## 남은 작업
 
 - 새 루트 `JM 업무 시스템`을 Notion 사이드바 최상위로 드래그
 - 직원·게스트 초대와 관리자 전용 페이지 권한 확인
+- 메인 대시보드 모바일 안내 적용 후 직원 휴대폰에서 확인
+- 잘못 올라간 사진은 각 사진첩 하위 페이지에서 직접 삭제
 - 매뉴얼 내용 채우기
 - 만족 시 옛 HUB 백업 삭제 여부 결정
 - 이미 노출된 Notion 토큰 폐기 및 새 토큰으로 교체

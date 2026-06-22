@@ -1,7 +1,7 @@
 """notion_applicants.py — 채용 지원자 이력서 DB 신규 + 직원명부 이력서칸 제거(되돌리기)"""
-import urllib.request, json, sys, io, os
+import urllib.request, json, sys, io
 sys.stdout = io.TextIOWrapper(sys.stdout.buffer, encoding='utf-8')
-TOKEN=os.environ['NOTION_TOKEN']
+from notion_auth import TOKEN
 H={'Authorization':f'Bearer {TOKEN}','Notion-Version':'2022-06-28','Content-Type':'application/json'}
 def api(m,e,d=None):
     b=json.dumps(d,ensure_ascii=False).encode() if d else None
@@ -12,8 +12,32 @@ def api(m,e,d=None):
         err=json.loads(ex.read()); print('  ERR:',err.get('message','')[:150]); return err
 def opt(n,c='default'): return {'name':n,'color':c}
 
-F_MGR='381089e9-0a52-8129-96e6-c5b028be93e7'  # 🔴 관리자 전용
-EMP='381089e9-0a52-81db-83de-f502d3b4ba64'    # 직원 명부
+ROOT='381089e9-0a52-81b5-83a3-c42ce799c0d6'
+
+def find_child_page(parent_id, keyword):
+    r=api('GET','/blocks/'+parent_id+'/children?page_size=100')
+    for b in r.get('results',[]):
+        if b['type']=='child_page' and keyword in b['child_page']['title']:
+            return b['id']
+    raise RuntimeError(f'페이지를 찾지 못했습니다: {keyword}')
+
+def find_database_under(parent_id, title, depth=0):
+    if depth>4:
+        return None
+    r=api('GET','/blocks/'+parent_id+'/children?page_size=100')
+    for b in r.get('results',[]):
+        if b['type']=='child_database' and b['child_database']['title']==title:
+            return b['id']
+        if b['type']=='child_page' and b.get('has_children'):
+            found=find_database_under(b['id'], title, depth+1)
+            if found:
+                return found
+    return None
+
+F_MGR=find_child_page(ROOT, '관리자 전용')
+EMP=find_database_under(ROOT, '직원 명부')
+if not EMP:
+    raise RuntimeError('DB를 찾지 못했습니다: 직원 명부')
 
 # 1) 직원 명부에서 잘못 넣은 이력서 칸 제거 + 안내문 원복
 print('1. 직원 명부 이력서 칸 제거...')
