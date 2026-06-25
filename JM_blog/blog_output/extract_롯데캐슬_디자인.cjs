@@ -8,7 +8,7 @@ const OUT_DIR = path.join(__dirname, "롯데캐슬_디자인_사진");
 // 본문 등장 순서대로 번호 부여
 const images = [
   // 01. Before
-  { folder: "001_현장사진", file: "KakaoTalk_20260512_172627486_06.jpg", order: "01", label: "Before - 기존 부동산 내부" },
+  { folder: "001_현장사진", file: "KakaoTalk_20260512_172627486_04.jpg", order: "01", label: "Before - 기존 부동산 내부" },
 
   // 02. 평면도 (PDF는 아래 별도)
 
