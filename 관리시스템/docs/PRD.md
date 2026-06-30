@@ -103,7 +103,7 @@ receipts, schedules, withdrawal_requests
 - [ ] **SNS/블로그 포스팅 관리** (9장) — 현장별 디자인/시공/마감 상태판 → AI 자동 초안
 - [ ] **영수증/출금 현장별 연결** (DB에 project_id 추가)
 - [ ] 모바일 반응형 (☰ 햄버거 메뉴, 공정표 카드형) — `mobile_audit.md`
-- [ ] **가입 승인 기능** 구현 (4장 ②) → `actual_schema_and_approval_plan.md`
+- [x] **가입 승인 게이트** — 권한 부여 전(role=pending/미지정)에는 '승인 대기' 화면만, 전 페이지 접근 차단 (AuthGate). 관리자가 직원관리에서 역할 부여 시 사용 가능. (UI 레벨)
 - [ ] 직원 가입 완료 후 "신규 가입 허용" OFF
 - [ ] RLS 역할별 세분화 (현장팀: 주민번호/계좌·재무 차단)
 - [ ] 재무(`finance_*`) 기능 실제 사용 범위 대표와 확정
