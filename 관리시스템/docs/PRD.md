@@ -105,7 +105,7 @@ receipts, schedules, withdrawal_requests
 - [ ] 모바일 반응형 (☰ 햄버거 메뉴, 공정표 카드형) — `mobile_audit.md`
 - [x] **가입 승인 게이트** — 권한 부여 전(role=pending/미지정)에는 '승인 대기' 화면만, 전 페이지 접근 차단 (AuthGate). 관리자가 직원관리에서 역할 부여 시 사용 가능. (UI 레벨)
 - [ ] 직원 가입 완료 후 "신규 가입 허용" OFF
-- [ ] RLS 역할별 세분화 (현장팀: 주민번호/계좌·재무 차단)
+- [x] RLS 역할별 세분화 (현장팀: 주민번호/계좌·재무 차단) — 2026-07-02, `db/rls_sensitive.sql`+`db/rls_money.sql`+`db/rls_chat.sql`. 상세: `docs/security_status.md`
 - [ ] 재무(`finance_*`) 기능 실제 사용 범위 대표와 확정
 - [ ] **재정관리 "한눈에 보기"(통장 잔액·이번 달 고정지출·급여) 강화** (10장) — 추후 구체화 후 개발
 - [x] **권한(역할) 체계** — admin/designer/field/partner, 외부협력업체=현장 관련(금전 제외) 보기 전용 (11장)
@@ -160,7 +160,7 @@ receipts, schedules, withdrawal_requests
 - **급여를 어디서 관리?** — 제안: 급여의 *금액/지급 흐름*(매월 총액)은 **재정관리(급여내역 탭, 현행 유지)**. 직원 *개인정보·계좌·근태*는 **직원정보내역**. → 돈은 재정관리, 사람은 직원정보로 분리.
 - **근태(조퇴/결근/연차) 관리** — 직원정보내역 쪽에 직원별 근태 기록(새 테이블)으로 두는 안. 별도 기능이라 범위·항목 추후 확정.
 - 통장 잔액을 **수동 입력**으로 충분한지(엑셀/은행 캡처 첨부 병행?), 계좌를 몇 개까지 관리할지.
-- 재정관리 데이터의 **DB 레벨 접근제한**(현재는 화면만 관리자, RLS는 authenticated 공통) 강화 여부.
+- ~~재정관리 데이터의 DB 레벨 접근제한~~ → **완료(2026-07-02)**: employees·급여·근태·finance_* 는 `db/rls_sensitive.sql`로 **admin 전용 RLS** 적용됨(더 이상 authenticated 공통 아님).
 
 > 상태: 대표가 항목을 조금 더 정리한 뒤 개발 예정. 지금은 문서화만.
 
@@ -182,11 +182,13 @@ receipts, schedules, withdrawal_requests
 - **편집 불가**: 모든 추가/수정/삭제/업로드 버튼 숨김. 대시보드 공정표 편집도 차단.
 
 ### 구현 방식 / 한계
-- 현재는 **앱 화면(UI) 레벨 잠금**. 헬퍼: `canEdit()`(partner=불가), `canSeeMoney()`(field·partner=숨김) — `lib/auth-context.tsx`. 메뉴 필터 `PARTNER_HIDDEN`(`components/Sidebar.tsx`).
-- **DB 레벨(RLS) 차단은 미적용** — 대표가 "앱 화면만 잠금(빠름)" 선택(2026-06-30). 외부 회사를 완전 신뢰 못 해 기술적 우회까지 막아야 하면, 추후 역할별 RLS 추가 필요.
+- **앱 화면(UI) 레벨 잠금**. 헬퍼: `canEdit()`(partner=불가), `canSeeMoney()`(field·partner=숨김) — `lib/auth-context.tsx`. 메뉴 필터 `PARTNER_HIDDEN`(`components/Sidebar.tsx`).
+- **DB 레벨(RLS) 차단도 적용됨(2026-07-02)** — 화면 숨김에 더해 DB가 강제: 금전/서류/현장자료는 역할별(`db/rls_money.sql`), 채팅은 참여자 기준(`db/rls_chat.sql`), 민감정보는 admin 전용(`db/rls_sensitive.sql`). partner는 금전·채팅·서류 insert/update 불가, pending은 업무 데이터 접근 불가. (초기엔 "앱 화면만 잠금" 선택(2026-06-30)이었으나 이후 DB까지 강화)
+- **남은 한계**: partner "배정된 현장만"은 `project_assignments`에 `user_id` 연결이 없어 보류(전 현장 자료 읽기 가능). 상세: `docs/security_status.md`.
 
 ### 추후 검토
-- 역할별 **DB RLS 세분화**(로드맵 8장 항목과 연계).
+- partner **배정 현장 기반 RLS**(`project_assignments.user_id` 추가 필요).
+- Storage(uploads) 비공개 버킷 + signed URL.
 - 가입 승인 흐름(4장)과 연결 — 신규 가입자가 즉시 사용되지 않도록.
 
 ## 12. 구현 완료 기능 (2026-06-29~30 대량 추가)
@@ -297,9 +299,9 @@ receipts, schedules, withdrawal_requests
 - `message_reactions`(message_id, user_id, emoji, unique) — `db/chat_features.sql`
 - `messages` 컬럼 추가: reply_to_id, reply_preview, is_deleted, edited_at, pinned — `db/chat_features.sql`
 - `chat_reads`(user_id, conv_key, last_read_at, PK(user_id,conv_key)) — `db/chat_reads.sql`
-- 실시간 publication에 message_reactions·chat_reads 추가. 모두 permissive RLS(로그인 사용자 허용).
+- 실시간 publication에 message_reactions·chat_reads 추가. **초기엔 permissive였으나 2026-07-02 `db/rls_chat.sql`로 참여자·본인 기준 RLS로 교체됨.**
 
 ### 남은 채팅 과제
-- **messages RLS**(13장 A) 아직 미적용 — 현재 채팅 테이블은 앱 로직으로만 범위 제어. 반응/읽음 테이블도 permissive라, messages RLS 설계 시 함께 정비 필요.
+- ~~messages RLS 미적용~~ → **완료(2026-07-02, `db/rls_chat.sql`)**: messages/chat_rooms/chat_room_members/message_reactions/chat_reads 참여자·본인 기준, insert는 승인 실무역할만(partner·pending 차단). 상세·검증쿼리: `docs/security_status.md`.
 - 읽음 표시는 상대의 "대화 열람 시각" 기준(개별 메시지 단위 아님) — 실무 충분하나 카톡식 메시지별 정밀도는 아님.
 - 안읽음 좌측 배지는 여전히 기기별 localStorage(읽음확인 DB와는 별개).

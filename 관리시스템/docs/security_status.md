@@ -39,6 +39,25 @@
 - **company_documents**: admin=전체, designer·field=`전체공개`만, 쓰기=admin. partner·미승인 차단.
 - **project_files**: 승인자 읽기, 쓰기=admin·designer·field(파트너 보기전용).
 
+## 접근 요약 (한눈에)
+
+**테이블 성격별**
+- **admin 전용**: employees, employee_salaries, employee_attendance, finance_fixed_costs, finance_payroll, finance_project_profit, finance_sales, finance_quotes
+- **본인 데이터만**: notifications(본인 알림만 조회/수정/삭제), chat_reads(본인 읽음행만 upsert)
+- **역할별 제한**: receipts·withdrawal_requests·payments(admin·designer·field), project_costs(admin·designer), company_documents(admin 전체·designer/field는 전체공개만·쓰기 admin), project_files(승인자 읽기·비파트너 쓰기)
+- **채팅 참여자 기준**: messages·chat_rooms·chat_room_members·message_reactions(참여자·본인, insert는 승인 실무역할만)
+
+**역할별**
+| 역할 | 접근 |
+|---|---|
+| **admin** | 전체 |
+| **designer** | 현장·자료·채팅·영수증/출금/수금/비용, 회사서류(전체공개+본인권한)·현장자료. **급여/직원정보/재정(finance_*) 차단** |
+| **field** | 현장·자료·채팅·영수증/출금/수금. **비용(project_costs)·급여/직원정보/재정 차단**, 회사서류는 전체공개만 |
+| **partner(외부협력업체)** | 현장 관련(금전 제외) **읽기 전용**. 채팅·금전·서류 insert/update 불가, 화면도 숨김 |
+| **pending(미승인)** | **업무 데이터 접근 불가**(읽기·쓰기 모두). 승인(`isApproved`) 전엔 RLS가 차단 |
+
+> ⚠️ rls_* SQL을 운영 DB에 (재)적용할 때는 **스냅샷/백업 후** 실행. drop+create 방식이라 재실행은 안전하지만 정책 교체 중 순간적 영향 가능.
+
 ## 남은 보안 과제 (roadmap, 미구현)
 - **partner "배정 현장만" DB 제한**: `project_assignments`가 `employee_name`(텍스트)로 연결돼 있어 `auth.uid()`와 못 맞춤. → 배정 테이블에 `user_id` 컬럼 추가 후 projects/project_files에 배정 기반 RLS 필요.
 - **Storage(uploads) 비공개화 + signed URL**: 현재 public 버킷. 계약서·직원자료는 private 전환 검토.
