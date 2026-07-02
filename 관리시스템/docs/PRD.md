@@ -249,8 +249,8 @@ receipts, schedules, withdrawal_requests
 ### A. 보안 (최우선)
 - [x] **민감 테이블 DB(RLS) 관리자 전용 — 적용 완료(2026-07-02)** — `db/rls_sensitive.sql` 실행됨(`my_role()` 헬퍼 + employees/employee_salaries/employee_attendance/finance_* admin 전용). 로그인만 한 사용자가 URL로 직접 요청해도 차단. 관리자 전용 화면 테이블이라 앱 영향 없음.
 - [x] **알림(notifications) RLS — 적용 완료(2026-07-02)** — `db/rls_notifications.sql`. 본인 알림만 select/update/delete, insert는 로그인 사용자 허용(알림 발송 유지).
-- [~] **채팅(messages) RLS** — SQL 작성 완료(`db/rls_chat.sql`: messages/chat_rooms/chat_room_members/message_reactions/chat_reads 참여자·본인 기준), **적용 대기**. 헬퍼 `is_room_member`/`can_see_message`(security definer)로 재귀 방지.
-- [x] **금전/내부자료 RLS** — SQL 작성 완료(`db/rls_money.sql`: receipts/withdrawal_requests/payments=admin·designer·field, project_costs=admin·designer, company_documents=admin전체·그외 전체공개, project_files=승인자 읽기·비파트너 쓰기), **적용 대기**. (현재 화면 권한과 일치하도록 설계 — 기능 안 깨짐)
+- [x] **채팅(messages) RLS — 적용 완료(2026-07-02)** — `db/rls_chat.sql`: messages/chat_rooms/chat_room_members/message_reactions/chat_reads 참여자·본인 기준. 헬퍼 `is_room_member`/`can_see_message`(security definer)로 재귀 방지. 대표 실행 확인·앱 정상.
+- [x] **금전/내부자료 RLS — 적용 완료(2026-07-02)** — `db/rls_money.sql`: receipts/withdrawal_requests/payments=admin·designer·field, project_costs=admin·designer, company_documents=admin전체·그외 전체공개, project_files=승인자 읽기·비파트너 쓰기. 현재 화면 권한과 일치(기능 안 깨짐). 대표 실행 확인·앱 정상.
 - [x] **푸시 발송 API 대상자 검증 — 완료(2026-07-02)** — `/api/push/send`가 클라이언트 `userIds`를 안 믿고 `{event: dm|room|mention|broadcast}`로 **서버가 수신자 계산·검증**(DM 당사자/방 멤버십/승인역할). 인앱 알림 행도 서버(service role)에서 생성. `lib/notify.ts` = notifyOthers/notifyDM/notifyRoom/notifyMention.
 - [ ] **partner(외부협력업체) DB 레벨 제한** — 현재 UI 차단 + project_files 쓰기 차단(rls_money). "배정된 현장만"은 `project_assignments`에 `user_id` 없음 → 컬럼 추가 후 RLS 필요(보류). 상세: `docs/security_status.md`.
 - [ ] **Storage 버킷 보안** — `uploads`가 public. 계약서·직원자료·경리자료는 **private bucket + signed URL**로. (사진 표시 로직 전면 영향 → 카테고리별 분리 검토.)

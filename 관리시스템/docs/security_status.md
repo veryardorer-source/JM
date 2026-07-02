@@ -13,11 +13,11 @@
 | `rls_sensitive.sql` | employees/employee_salaries/employee_attendance/finance_* → **admin 전용** + `my_role()` | ✅ 적용 | 2026-07-02, 대표 실행 "Success" |
 | `rls_notifications.sql` | notifications → 본인것만 select/update/delete, insert 허용 | ✅ 적용 | 2026-07-02, 대표 실행 "됐어" |
 | `chat_features.sql` | messages 컬럼(reply/edit/delete/pin) + `message_reactions` + realtime | ✅ 적용 | 2026-07-02, 대표 "실행했어" |
-| `chat_reads.sql` | `chat_reads`(읽음확인) 테이블 + realtime | ⛔ **미확인 — 실행 필요** | 생성만 됨. 대표 실행 확인 안 됨 |
-| `rls_chat.sql` | **채팅 RLS 정비**(messages/chat_rooms/chat_room_members/message_reactions/chat_reads 참여자·본인 기준) | ⛔ **미적용 — 실행 필요** | 2026-07-02 신규 작성. auth_all 대체 |
-| `rls_money.sql` | **금전/내부자료 RLS**(receipts/withdrawal_requests/payments/project_costs/company_documents/project_files 역할 기준) | ⛔ **미적용 — 실행 필요** | 2026-07-02 신규 작성. auth_all 대체 |
+| `chat_reads.sql` | `chat_reads`(읽음확인) 테이블 + realtime | ✅ 적용 | 2026-07-02, 대표 실행 (Success) |
+| `rls_chat.sql` | **채팅 RLS 정비**(messages/chat_rooms/chat_room_members/message_reactions/chat_reads 참여자·본인 기준) | ✅ 적용 | 2026-07-02, 대표 실행 (Success). auth_all 대체 |
+| `rls_money.sql` | **금전/내부자료 RLS**(receipts/withdrawal_requests/payments/project_costs/company_documents/project_files 역할 기준) | ✅ 적용 | 2026-07-02, 대표 실행 (Success). auth_all 대체 |
 
-### 실행 순서 권장
+### 실행 순서 (완료됨 — 2026-07-02 이 순서로 적용)
 1. `chat_reads.sql` (테이블이 있어야 `rls_chat.sql`이 chat_reads 정책을 걺)
 2. `rls_chat.sql`
 3. `rls_money.sql`
