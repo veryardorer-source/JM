@@ -137,6 +137,8 @@ erDiagram
 
 ## 접근 제어 매트릭스 (RLS)
 
+> ⚠️ **이 표는 초기 설계안(목표)이며 실제 구현과 다릅니다.** 역할은 실제로 `admin/designer/field/partner`(+pending)이고, 테이블명도 다릅니다(customers/tasks/manuals 등은 미구현). **실제 적용된 RLS는 `docs/security_status.md`를 참고하세요** — admin전용(민감/재정), 본인데이터(알림·읽음), 역할별(금전·서류·현장자료), 채팅 참여자 기준, pending 업무데이터 차단. 아래 매트릭스는 향후 세분화(마스킹·경리 역할 등) 방향으로만 참고.
+
 R=조회, W=생성/수정, –=불가, △=조건부(본인/마스킹)
 
 | 테이블 | 대표 | 이사 | 디자인 | 현장 | 경리 |
@@ -152,8 +154,8 @@ R=조회, W=생성/수정, –=불가, △=조건부(본인/마스킹)
 | manuals / notices | RW | RW | R | R | R |
 | audit_logs | R | R | – | – | – |
 
-### 민감정보 컬럼 마스킹
-단일 `authenticated` 역할 한계 때문에 컬럼 단위 제한은 `security_invoker` 뷰로 처리한다. 앱은 가능한 한 뷰를 통해 읽는다.
+### 민감정보 컬럼 마스킹 (미구현 — 향후 방향)
+> 현재는 `profiles.role` 기반 RLS(`my_role()` 헬퍼)로 **테이블/행 단위** 접근을 제어한다(단일 authenticated 전제는 더 이상 아님). 아래 컬럼 단위 마스킹(security_invoker 뷰)은 아직 미구현이며, 필요 시 후속 과제.
 
 - `projects_v` — `contract_amount`는 관리자(대표/이사)에게만 노출
 - `customers_v` — `phone`/`email`은 현장팀에게 NULL 마스킹
