@@ -272,3 +272,33 @@ receipts, schedules, withdrawal_requests
 - [ ] **아이콘 정비** — 이모지 → lucide 선형 아이콘(직원·거래처 공유 화면 신뢰감).
 
 > 리뷰 총평: "만들다 만 앱"이 아니라 실제 업무 흐름을 잘 반영. 다음 단계는 기능 추가보다 **보안(RLS·storage)·출금 승인·현장 손익 요약·알림 자동화** 다듬기가 효과 큼.
+
+## 14. 채팅 "잔디(JANDI)화" — 협업 메신저 수준 확장 (2026-07-02)
+
+대표 요청: "협업툴 잔디에 있는 기능은 다 사용가능했으면 좋겠어." 화상통화·외부연동(캘린더/웹훅)은 소규모 사내툴에 과함·유지비 커서 제외, 나머지 실무 기능을 이식. (모두 배포 완료, 저장소 `jm-system` master)
+
+### 업로드/보기 통일 (선행 작업)
+- 공용 단일파일 업로드칸 `FileDropInput` — **클릭 · 드래그 · Ctrl+V 붙여넣기(PC 캡처)** 지원. 회사서류·견적서·매출매입에 적용.
+- 사진 뷰어 통일 — 다운로드 없이 앱 안에서 **큰 화면 + 좌우 넘김 + 내보내기(공유)/저장**. 영수증·출금·수금·현장사진·채팅 사진 동일 패턴. (`lib/media.ts`: viewInBrowser/shareUrl/downloadUrl)
+
+### 추가된 채팅 기능
+- **답장(인용)** — 특정 메시지에 답글, 인용 블록 클릭 시 원문으로 스크롤 이동. (`reply_to_id`, `reply_preview`)
+- **이모지 반응** — 👍❤️😂😮🙏✅ 토글, 개수 표시, 실시간. (`message_reactions` 테이블)
+- **@멘션** — 입력창 옆 @ 버튼으로 직원 선택 삽입, 언급된 사람에게 알림+푸시, 텍스트 강조.
+- **메시지 수정/삭제** — 내 메시지 수정(수정됨 표시)·삭제(소프트 삭제, "삭제된 메시지입니다"). 관리자는 전체 삭제 가능. (`edited_at`, `is_deleted`)
+- **공지 고정** — 메시지 상단 고정, 노란 바 표시·클릭 시 이동. (`pinned`)
+- **대화 검색** — 헤더 🔍, 방 안 내용 필터.
+- **방 관리** — 방 이름 변경, 멤버 추가/내보내기, 나가기(⚙️, 채팅방 한정).
+- **읽음 확인** — 내가 보낸 메시지에 1:1='읽음' / 단체방=안 읽은 사람 수(전원 읽으면 '읽음'), 실시간 감소. 전체 채팅방은 인원多로 생략. (`chat_reads` 테이블: user_id+conv_key별 마지막 읽은 시각)
+- 채팅 화면에선 통합검색 FAB 숨김(전송 버튼 겹침 해소).
+
+### 신규 테이블 / 컬럼
+- `message_reactions`(message_id, user_id, emoji, unique) — `db/chat_features.sql`
+- `messages` 컬럼 추가: reply_to_id, reply_preview, is_deleted, edited_at, pinned — `db/chat_features.sql`
+- `chat_reads`(user_id, conv_key, last_read_at, PK(user_id,conv_key)) — `db/chat_reads.sql`
+- 실시간 publication에 message_reactions·chat_reads 추가. 모두 permissive RLS(로그인 사용자 허용).
+
+### 남은 채팅 과제
+- **messages RLS**(13장 A) 아직 미적용 — 현재 채팅 테이블은 앱 로직으로만 범위 제어. 반응/읽음 테이블도 permissive라, messages RLS 설계 시 함께 정비 필요.
+- 읽음 표시는 상대의 "대화 열람 시각" 기준(개별 메시지 단위 아님) — 실무 충분하나 카톡식 메시지별 정밀도는 아님.
+- 안읽음 좌측 배지는 여전히 기기별 localStorage(읽음확인 DB와는 별개).
