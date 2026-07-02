@@ -248,6 +248,9 @@ receipts, schedules, withdrawal_requests
 
 ### A. 보안 (최우선)
 - [x] **민감 테이블 DB(RLS) 관리자 전용 — 적용 완료(2026-07-02)** — `db/rls_sensitive.sql` 실행됨(`my_role()` 헬퍼 + employees/employee_salaries/employee_attendance/finance_* admin 전용). 로그인만 한 사용자가 URL로 직접 요청해도 차단. 관리자 전용 화면 테이블이라 앱 영향 없음.
+- [x] **알림(notifications) RLS — 적용 완료(2026-07-02)** — `db/rls_notifications.sql`. 본인 알림만 select/update/delete, insert는 로그인 사용자 허용(알림 발송 유지).
+- [ ] **채팅(messages) RLS** — 내 DM/전체방/내가 속한 방만 select, sender=본인만 insert. 방 멤버십 참조라 신중 설계 필요(잘못하면 채팅 깨짐).
+- [ ] **푸시 발송 API 대상자 검증** — 서버가 수신자 계산/관계 검증.
 - [ ] **partner(외부협력업체) DB 레벨 제한** — 현재 UI만 차단. "배정된 현장만", 금액/내부문서 DB 차단으로 강화. `project_assignments` 기반 RLS 필요.
 - [ ] **Storage 버킷 보안** — `uploads`가 public. 계약서·직원자료·경리자료는 **private bucket + signed URL**로. (사진 표시 로직 전면 영향 → 카테고리별 분리 검토.)
 - [ ] **가입 정책 정리** — 로그인 화면 "회원가입" 노출. 관리자 초대 방식이면 숨기거나 승인대기 흐름 강조(AuthGate는 이미 있음).
