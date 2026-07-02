@@ -305,3 +305,17 @@ receipts, schedules, withdrawal_requests
 - ~~messages RLS 미적용~~ → **완료(2026-07-02, `db/rls_chat.sql`)**: messages/chat_rooms/chat_room_members/message_reactions/chat_reads 참여자·본인 기준, insert는 승인 실무역할만(partner·pending 차단). 상세·검증쿼리: `docs/security_status.md`.
 - 읽음 표시는 상대의 "대화 열람 시각" 기준(개별 메시지 단위 아님) — 실무 충분하나 카톡식 메시지별 정밀도는 아님.
 - 안읽음 좌측 배지는 여전히 기기별 localStorage(읽음확인 DB와는 별개).
+
+## 15. 견적 기능 범위 기준 (2026-07-02 확정)
+
+**JM 관리시스템 본체에 포함되는 견적 기능 = "견적서 파일 첨부·보관"까지만.**
+- 현장 상세 → 자료 탭에 **`견적서`·`계약서` 카테고리**(도면·3D·사진과 동일한 파일 보관용).
+- 견적서/계약서 PDF·엑셀 파일 **첨부 / 보기 / 다운로드 / 공유**.
+- (별개로 재정관리 §12에 `견적서 탭`(finance_quotes)이 있으나, 이 역시 "현장명·금액·첨부파일 보관" 수준 — 계산 로직 아님.)
+
+**본체에 넣지 않는 것 = "견적 프로그램"(별도 프로젝트).**
+- 견적서 직접 작성, 공종/품목/단가 입력, 자동 계산, 단가표(`price_book`) 관리, 엑셀 견적서 생성, 개략견적 계산기.
+- 관련 코드: `/estimates` 라우트, `db/estimates.sql`, `src/lib/estimate.ts`, `src/lib/estimate-excel.ts`, `exceljs` 의존성.
+- **위치**: `jm-system` 저장소의 **`estimate-program` 브랜치**에 보존(2026-07-02 분리). 향후 별도 저장소로 이관 가능. 본체(master)에는 병합 금지.
+
+**규칙**: master에는 `/estimates` 라우트·견적 계산 로직·`price_book`·`exceljs`를 두지 않는다. 견적 "작성/계산"이 필요하면 estimate-program(별도)에서 진행.
