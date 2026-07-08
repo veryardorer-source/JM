@@ -256,10 +256,16 @@
     .cta-btn { display: none; }
     footer { padding: 36px 50px; }
     .history-section { padding: 0; }
-    .history-inner { padding: 56px 60px; max-width: 100%; page-break-before: always; }
-    .hist-list { columns: 4; column-gap: 26px; }
-    .hist-list li { font-size: 11px; line-height: 1.75; }
-    .hist-year { break-inside: auto; }
+    .history-inner { padding: 46px 60px 34px; max-width: 100%; page-break-before: always; }
+    .history-years { gap: 0; }
+    /* 연혁 = 연도별 1페이지 */
+    .hist-year { break-inside: avoid; page-break-inside: avoid; padding-top: 7mm; }
+    .hist-year:not(:first-child) {
+      page-break-before: always; min-height: 176mm; align-content: center;
+    }
+    .hist-year-label .hy-num { font-size: 40px; }
+    .hist-list { columns: 4; column-gap: 28px; }
+    .hist-list li { font-size: 12.5px; line-height: 2.15; }
   }
 
   /* ============ PROJECT HISTORY ============ */
