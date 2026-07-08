@@ -60,7 +60,10 @@
 
 ## 남은 보안 과제 (roadmap, 미구현)
 - **partner "배정 현장만" DB 제한**: `project_assignments`가 `employee_name`(텍스트)로 연결돼 있어 `auth.uid()`와 못 맞춤. → 배정 테이블에 `user_id` 컬럼 추가 후 projects/project_files에 배정 기반 RLS 필요.
-- **Storage(uploads) 비공개화 + signed URL**: 현재 public 버킷. 계약서·직원자료는 private 전환 검토.
+- **Storage(uploads) 비공개화 + signed URL**: 현재 public 버킷 — 손익표·매출매입·견적서·급여 관련 첨부까지 public URL로 접근 가능(URL을 아는 사람은 로그인 없이 열람 가능). **민감 파일(재정·계약·직원자료)은 private bucket + signed URL(만료시간부) 전환이 필요.**
+  - 전환 시 영향: 사진 표시·공유·오피스 뷰어 로직 전반 수정 필요 → 카테고리별(민감/일반) 버킷 분리 방식 권장.
+  - **뷰어 유의점**: 엑셀·PDF "바로 열기"는 MS Office/Google 뷰어에 **파일 URL을 전달**하는 방식이라 외부 서비스가 해당 파일을 읽음. 민감 파일을 private+signed URL로 바꿔도 뷰어에 전달하면 그 순간은 외부에 노출됨 — 민감 재무 파일은 뷰어 대신 다운로드 열람으로 정책 결정 필요.
+- **link-preview API SSRF 방어 적용(2026-07-07)**: 리다이렉트 매 단계 호스트 재검사(수동 follow, 최대 5회), IPv6·IPv4-mapped·localhost 변형·사설망으로 풀리는 도메인(DNS lookup) 차단, 본문은 최대 2MB까지만 스트리밍으로 읽음. 실패 시 조용히 `{url}` 반환(채팅은 링크만 표시).
 - **감사 로그**: 상태변경·삭제·금액수정 이력.
 - **방 관리 UI**: 현재 채팅방 설정(⚙️)은 non-partner에게 노출되나 RLS상 멤버 추가/삭제는 방 생성자·admin만 성공 → 필요 시 UI도 생성자/admin에게만 노출로 정리.
 
