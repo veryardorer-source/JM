@@ -58,6 +58,14 @@
 
 > ⚠️ rls_* SQL을 운영 DB에 (재)적용할 때는 **스냅샷/백업 후** 실행. drop+create 방식이라 재실행은 안전하지만 정책 교체 중 순간적 영향 가능.
 
+## 구버전 SQL 정리 (2026-07-07)
+`db/` 안의 옛 "authenticated 전체허용(auth_all)" 정책 잔재를 전부 최신 RLS 기준으로 수정 — **어떤 파일을 재실행해도 보안이 느슨해지지 않음.**
+- `security_and_realtime.sql`: 공용 5테이블(profiles/projects/notices/schedules/project_assignments)만 auth_all 유지(의도된 설계), 채팅·알림은 테이블 생성만(정책은 rls_chat/rls_notifications)
+- `finance_quotes.sql`·`employee_records.sql`: admin 전용 / `payments.sql`: admin·designer·field / `chat_features.sql`·`chat_reads.sql`: 정책 제거(rls_chat 참조)
+- **⚠️ 운영 DB에 아직 전체허용으로 남아 있는 2건 — 아래 실행 권장**:
+  - `work_logs`(작업일지): partner·pending도 읽기 가능한 상태 → `db/worklogs.sql`의 RLS 블록 실행
+  - `push_subscriptions`(푸시 구독): 타인 구독정보 조회 가능한 상태 → `db/push_subscriptions.sql`의 RLS 블록 실행
+
 ## 남은 보안 과제 (roadmap, 미구현)
 - **partner "배정 현장만" DB 제한**: `project_assignments`가 `employee_name`(텍스트)로 연결돼 있어 `auth.uid()`와 못 맞춤. → 배정 테이블에 `user_id` 컬럼 추가 후 projects/project_files에 배정 기반 RLS 필요.
 - **Storage(uploads) 비공개화 + signed URL**: 현재 public 버킷 — 손익표·매출매입·견적서·급여 관련 첨부까지 public URL로 접근 가능(URL을 아는 사람은 로그인 없이 열람 가능). **민감 파일(재정·계약·직원자료)은 private bucket + signed URL(만료시간부) 전환이 필요.**
