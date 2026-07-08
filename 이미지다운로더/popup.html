@@ -1,0 +1,150 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<style>
+  body {
+    width: 420px;
+    margin: 0;
+    font-family: "Malgun Gothic", "맑은 고딕", sans-serif;
+    font-size: 13px;
+    background: #fff;
+    color: #222;
+  }
+  header {
+    padding: 10px 12px;
+    border-bottom: 1px solid #e5e5e5;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  header strong { font-size: 14px; }
+  #count { color: #03c75a; font-weight: bold; }
+  .toolbar {
+    padding: 8px 12px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-bottom: 1px solid #eee;
+    flex-wrap: wrap;
+  }
+  .toolbar label { display: flex; align-items: center; gap: 4px; }
+  .toolbar input[type="number"] {
+    width: 60px;
+    padding: 3px 5px;
+    border: 1px solid #ccc;
+    border-radius: 4px;
+  }
+  button {
+    border: none;
+    border-radius: 6px;
+    padding: 7px 14px;
+    cursor: pointer;
+    font-family: inherit;
+    font-size: 13px;
+  }
+  #downloadBtn {
+    background: #03c75a;
+    color: #fff;
+    font-weight: bold;
+    flex: 1;
+  }
+  #downloadBtn:disabled { background: #a5d9bd; cursor: default; }
+  .ghost {
+    background: #f1f3f5;
+    color: #333;
+  }
+  #grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 6px;
+    padding: 10px 12px;
+    max-height: 380px;
+    overflow-y: auto;
+  }
+  .item {
+    position: relative;
+    border: 2px solid #ddd;
+    border-radius: 6px;
+    overflow: hidden;
+    cursor: pointer;
+    aspect-ratio: 1 / 1;
+    background: #f8f9fa;
+  }
+  .item.checked { border-color: #03c75a; }
+  .item img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    display: block;
+  }
+  .item .size {
+    position: absolute;
+    left: 0; right: 0; bottom: 0;
+    background: rgba(0,0,0,.55);
+    color: #fff;
+    font-size: 10px;
+    text-align: center;
+    padding: 1px 0;
+  }
+  .item .check {
+    position: absolute;
+    top: 3px; right: 3px;
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    background: rgba(255,255,255,.9);
+    border: 1px solid #bbb;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 11px;
+    color: transparent;
+  }
+  .item.checked .check {
+    background: #03c75a;
+    border-color: #03c75a;
+    color: #fff;
+  }
+  footer {
+    padding: 10px 12px;
+    border-top: 1px solid #e5e5e5;
+    display: flex;
+    gap: 8px;
+  }
+  #status {
+    padding: 0 12px 10px;
+    color: #666;
+    font-size: 12px;
+    min-height: 16px;
+  }
+  #empty {
+    padding: 30px 12px;
+    text-align: center;
+    color: #888;
+    display: none;
+  }
+</style>
+</head>
+<body>
+  <header>
+    <strong>이미지 전체 다운로드 <span style="color:#03c75a;font-size:11px;">v1.2</span></strong>
+    <span>총 <span id="count">0</span>개 (선택 <span id="selCount">0</span>개)</span>
+  </header>
+
+  <div class="toolbar">
+    <label>최소 크기 <input type="number" id="minSize" value="200" step="50" min="0"> px</label>
+    <button class="ghost" id="selectAll">전체 선택</button>
+    <button class="ghost" id="deselectAll">전체 해제</button>
+  </div>
+
+  <div id="grid"></div>
+  <div id="empty">이 페이지에서 이미지를 찾지 못했습니다.</div>
+  <div id="status"></div>
+
+  <footer>
+    <button id="downloadBtn">선택한 이미지 다운로드</button>
+  </footer>
+
+  <script src="popup.js"></script>
+</body>
+</html>
