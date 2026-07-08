@@ -159,6 +159,8 @@
   .contact-card .label { font-size: 12px; letter-spacing: 3px; color: #b8956a; margin-bottom: 12px; font-weight: 600; }
   .contact-card strong { display: block; font-size: 21px; font-weight: 700; margin-bottom: 6px; }
   .contact-card p { color: #666; font-size: 14px; }
+  .contact-card .sns { display: inline-flex; align-items: center; gap: 7px; line-height: 2.1; }
+  .sns-ic { width: 16px; height: 16px; flex-shrink: 0; }
 
   /* ============ FOOTER ============ */
   footer { background: #0f0f0f; color: rgba(255,255,255,0.6); padding: 50px 60px; text-align: center; font-size: 13px; line-height: 2; }
@@ -190,38 +192,99 @@
     }
     .pf-images .main, .pf-images .sub { grid-row: auto; height: 240px; }
     .pf-desc { grid-template-columns: 1fr; gap: 14px; }
+    .hist-year { grid-template-columns: 1fr; gap: 10px; }
+    .hist-list { columns: 1; }
+    .history-inner { padding: 70px 24px; }
   }
 
   /* ============ PRINT / PDF ============ */
   @media print {
-    @page { size: A4; margin: 0; }
-    html, body { width: 210mm; }
+    @page { size: A4 landscape; margin: 0; }
+    html, body { width: 297mm; }
     body { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
-    .hero { height: 297mm; min-height: 0; page-break-after: always; }
-    section, .values-inner, .process-inner, .contact-inner, .stats { page-break-inside: avoid; }
-    section { padding: 70px 50px; max-width: 100%; }
-    .values-section, .process-section, .contact-section { padding: 0; }
-    .values-inner, .process-inner, .contact-inner { padding: 70px 50px; max-width: 100%; }
-    .stats { padding: 50px; }
+    .hero { height: 210mm; min-height: 0; page-break-after: always; }
+    /* 앞부분 섹션 = 각 1페이지, 내용 세로 중앙 정렬로 빈공간 최소화 */
+    section { padding: 0 64px; max-width: 100%; }
+    #about, #strengths {
+      height: 210mm; overflow: hidden; page-break-after: always;
+      display: flex; flex-direction: column; justify-content: center; padding: 14mm 72px;
+    }
+    .values-section, .process-section {
+      height: 210mm; overflow: hidden; page-break-after: always;
+      display: flex; flex-direction: column; justify-content: center;
+    }
+    .values-inner, .process-inner { padding: 0 72px; max-width: 1280px; margin: 0 auto; }
+    .contact-section { padding: 0; }
+    .contact-inner { padding: 60px 64px; max-width: 1100px; page-break-inside: avoid; }
+    /* 앞부분 섹션 내부 여백 축소(한 페이지에 담기게) */
+    .section-head { margin-bottom: 30px; }
+    .strengths-grid { margin-top: 20px; gap: 30px 50px; }
+    .process-list { margin-top: 24px; }
+    .stats { padding: 52px 64px; page-break-before: always; }
+    /* 가로 인쇄 시 데스크톱 다단 레이아웃 복원 (모바일 900px 규칙 무력화) */
+    .about-grid { grid-template-columns: 1fr 1fr; }
+    .values-grid { grid-template-columns: repeat(3, 1fr); }
+    .strengths-grid { grid-template-columns: repeat(2, 1fr); }
+    .process-list { grid-template-columns: repeat(6, 1fr); }
+    .stats-grid { grid-template-columns: repeat(4, 1fr); }
+    .contact-info { grid-template-columns: repeat(3, 1fr); }
+    .hero-meta { flex-direction: row; }
     .pf-page {
       page-break-before: always; page-break-inside: avoid;
-      padding: 18mm 16mm; max-width: 210mm; height: 297mm;
+      padding: 11mm 15mm; max-width: 297mm; height: 210mm;
       box-sizing: border-box; display: flex; flex-direction: column;
     }
-    .pf-page-head { margin-bottom: 24px; padding-bottom: 18px; }
-    .pf-page-head .left h3 { font-size: 28px; }
-    .pf-page-head .left h3 small { font-size: 13px; }
-    .pf-images { flex: 1 1 auto; max-height: 175mm; margin-bottom: 18px; gap: 8px; }
-    .pf-images.single, .pf-images.dual, .pf-images.triple-sub { max-height: 175mm; height: auto; }
-    .pf-desc { padding-top: 16px; gap: 24px; }
-    .pf-desc p { font-size: 13px; line-height: 1.7; }
+    .pf-page-head { margin-bottom: 12px; padding-bottom: 11px; }
+    .pf-page-head .left h3 { font-size: 25px; }
+    .pf-page-head .left h3 small { font-size: 12px; }
+    .pf-images { flex: 0 0 auto; height: 112mm; max-height: none; margin-bottom: 10px; gap: 8px;
+      display: grid; grid-template-columns: 2fr 1fr; grid-template-rows: repeat(3, 1fr); }
+    .pf-images.single, .pf-images.dual, .pf-images.triple-sub {
+      height: 112mm; max-height: none;
+      grid-template-columns: 2fr 1fr; grid-template-rows: repeat(3, 1fr); }
+    .pf-images .main { grid-row: 1 / 4; height: auto; }
+    .pf-images .sub { grid-row: auto; height: auto; }
+    .pf-images img { width: 100%; height: 100%; object-fit: cover; }
+    .pf-desc { grid-template-columns: 1fr 2fr; }
+    .pf-desc { padding-top: 11px; gap: 30px; }
+    .pf-desc p { font-size: 12.5px; line-height: 1.6; }
     .pf-desc .tags span { font-size: 11px; padding: 3px 10px; }
-    .pf-intro { padding: 70px 50px; page-break-after: avoid; }
+    .pf-intro { min-height: 148mm; padding: 30px 64px; page-break-after: avoid;
+      display: flex; flex-direction: column; justify-content: center; }
     .strength-item, .value-card, .process-step { break-inside: avoid; }
     a { color: inherit !important; text-decoration: none !important; }
     .cta-btn { display: none; }
     footer { padding: 36px 50px; }
+    .history-section { padding: 0; }
+    .history-inner { padding: 56px 60px; max-width: 100%; page-break-before: always; }
+    .hist-list { columns: 4; column-gap: 26px; }
+    .hist-list li { font-size: 11px; line-height: 1.75; }
+    .hist-year { break-inside: auto; }
   }
+
+  /* ============ PROJECT HISTORY ============ */
+  .history-section { background: #faf8f4; max-width: none; padding: 0; }
+  .history-inner { max-width: 1280px; margin: 0 auto; padding: 110px 60px; }
+  .history-years { display: flex; flex-direction: column; gap: 38px; }
+  .hist-year {
+    display: grid; grid-template-columns: 130px 1fr; gap: 30px;
+    align-items: start; border-top: 2px solid #1a1a1a; padding-top: 22px;
+  }
+  .hist-year-label .hy-num {
+    display: block; font-family: 'Noto Serif KR', serif;
+    font-size: 34px; font-weight: 700; color: #1a1a1a; line-height: 1; letter-spacing: -1px;
+  }
+  .hist-year-label .hy-cnt {
+    display: inline-block; margin-top: 10px; font-size: 12px;
+    color: #b8956a; font-weight: 600; letter-spacing: 1px;
+  }
+  .hist-list { list-style: none; columns: 3; column-gap: 34px; margin: 0; padding: 0; }
+  .hist-list li { font-size: 13px; color: #444; line-height: 1.95; break-inside: avoid; }
+  .hist-list li b {
+    display: inline-block; min-width: 44px; color: #b8956a; font-weight: 700;
+    font-variant-numeric: tabular-nums; margin-right: 4px;
+  }
+
 </style>
 </head>
 <body>
@@ -311,7 +374,7 @@
       <div class="strength-num">03</div>
       <div>
         <h4>대표실 · 회의실 · 라운지 종합 설계 역량</h4>
-        <p>현대마린엔진 대표실, 세영 대표실, 다원이엔씨 사무실 — 임원공간부터 직원 라운지까지 한 흐름으로 설계한 실적이 풍부합니다.</p>
+        <p>세영 대표실, MH에탄올 임원실, 다원이엔씨 사무실 — 임원공간부터 직원 라운지까지 한 흐름으로 설계한 실적이 풍부합니다.</p>
       </div>
     </div>
     <div class="strength-item">
@@ -332,7 +395,7 @@
       <div class="strength-num">06</div>
       <div>
         <h4>전문직 · 미디어 · 글로벌 기업 신뢰도</h4>
-        <p>이홍열 변호사사무실, 키움에셋플래너, 서경방송, 헥사곤(글로벌 측정), 한국카본 등 — 신중함이 요구되는 전문 클라이언트의 공간을 다수 시공한 검증된 파트너입니다.</p>
+        <p>이홍열 변호사사무실, 법무법인 디에이치, 서경방송, 헥사곤(글로벌 측정), 한국카본 등 — 신중함이 요구되는 전문 클라이언트의 공간을 다수 시공한 검증된 파트너입니다.</p>
       </div>
     </div>
   </div>
@@ -388,10 +451,10 @@
     </div>
   </div>
   <div class="pf-images triple-sub">
-    <div class="main"><img src="JM_회사소개서_이미지/mh_new_03.jpg" alt="MH에탄올 화이트 미니멀 복도 + MH 사인"></div>
-    <div class="sub"><img src="JM_회사소개서_이미지/mh_01.jpg" alt="MH에탄올 임원 응접실"></div>
-    <div class="sub"><img src="JM_회사소개서_이미지/mh_04.jpg" alt="MH에탄올 화이트 LED 코브 라이트"></div>
-    <div class="sub"><img src="JM_회사소개서_이미지/mh_06.jpg" alt="MH에탄올 코너 디테일"></div>
+    <div class="main"><img src="JM_회사소개서_이미지/mh_r_01.jpg" alt="MH에탄올 리셉션 카운터 + MH 백라이트 사인"></div>
+    <div class="sub"><img src="JM_회사소개서_이미지/mh_r_02.jpg" alt="MH에탄올 대표 집무실"></div>
+    <div class="sub"><img src="JM_회사소개서_이미지/mh_r_03.jpg" alt="MH에탄올 회의실"></div>
+    <div class="sub"><img src="JM_회사소개서_이미지/mh_r_04.jpg" alt="MH에탄올 임원 응접실"></div>
   </div>
   <div class="pf-desc">
     <div><div class="label">PROJECT NOTE</div></div>
@@ -416,10 +479,10 @@
     </div>
   </div>
   <div class="pf-images triple-sub">
-    <div class="main"><img src="JM_회사소개서_이미지/dawon_new_03.jpg" alt="다원이엔씨 David E&C 백라이트 사인"></div>
-    <div class="sub"><img src="JM_회사소개서_이미지/dawon_new_05.jpg" alt="다원이엔씨 곡선 LED + 글래스 미팅룸"></div>
-    <div class="sub"><img src="JM_회사소개서_이미지/dawon_new_07.jpg" alt="다원이엔씨 사무공간"></div>
-    <div class="sub"><img src="JM_회사소개서_이미지/dawon_new_08.jpg" alt="다원이엔씨 디테일"></div>
+    <div class="main"><img src="JM_회사소개서_이미지/dawon_r_01.jpg" alt="다원이엔씨 곡선 LED 천장 + 오픈 오피스"></div>
+    <div class="sub"><img src="JM_회사소개서_이미지/dawon_r_02.jpg" alt="다원이엔씨 곡선 우드 벽 + 화이트 카운터"></div>
+    <div class="sub"><img src="JM_회사소개서_이미지/dawon_r_03.jpg" alt="다원이엔씨 곡선 글래스 미팅룸"></div>
+    <div class="sub"><img src="JM_회사소개서_이미지/dawon_r_04.jpg" alt="다원이엔씨 직원 라운지"></div>
   </div>
   <div class="pf-desc">
     <div><div class="label">PROJECT NOTE</div></div>
@@ -444,10 +507,10 @@
     </div>
   </div>
   <div class="pf-images triple-sub">
-    <div class="main"><img src="JM_회사소개서_이미지/seogyeong_new_06.jpg" alt="서경방송 2층 메인 사무공간"></div>
-    <div class="sub"><img src="JM_회사소개서_이미지/seogyeong_05.jpg" alt="서경방송 화이트 진열장"></div>
-    <div class="sub"><img src="JM_회사소개서_이미지/seogyeong_03.jpg" alt="서경방송 글래스 파티션"></div>
-    <div class="sub"><img src="JM_회사소개서_이미지/seogyeong_01.jpg" alt="서경방송 우드 슬랫 복도"></div>
+    <div class="main"><img src="JM_회사소개서_이미지/sg_r_01.jpg" alt="서경방송 우드 슬랫 복도 + 서경방송 사인"></div>
+    <div class="sub"><img src="JM_회사소개서_이미지/sg_r_02.jpg" alt="서경방송 백라이트 사인 월"></div>
+    <div class="sub"><img src="JM_회사소개서_이미지/sg_r_03.jpg" alt="서경방송 회의실"></div>
+    <div class="sub"><img src="JM_회사소개서_이미지/sg_r_04.jpg" alt="서경방송 글래스 도어 사인"></div>
   </div>
   <div class="pf-desc">
     <div><div class="label">PROJECT NOTE</div></div>
@@ -472,10 +535,10 @@
     </div>
   </div>
   <div class="pf-images triple-sub">
-    <div class="main"><img src="JM_회사소개서_이미지/gnt_factory_03.jpg" alt="지엔티 1공장 마감"></div>
-    <div class="sub"><img src="JM_회사소개서_이미지/gnt_factory_04.jpg" alt="지엔티 1공장 디테일"></div>
-    <div class="sub"><img src="JM_회사소개서_이미지/gnt_03.jpg" alt="지엔티 외부 정비"></div>
-    <div class="sub"><img src="JM_회사소개서_이미지/gnt_01.jpg" alt="지엔티 출입구"></div>
+    <div class="main"><img src="JM_회사소개서_이미지/gnt_r_01.jpg" alt="지엔티 GNT 사인 + 글래스 파티션 복도"></div>
+    <div class="sub"><img src="JM_회사소개서_이미지/gnt_r_02.jpg" alt="지엔티 브랜드 히스토리 월"></div>
+    <div class="sub"><img src="JM_회사소개서_이미지/gnt_r_03.jpg" alt="지엔티 회의실"></div>
+    <div class="sub"><img src="JM_회사소개서_이미지/gnt_r_04.jpg" alt="지엔티 직원 휴게공간"></div>
   </div>
   <div class="pf-desc">
     <div><div class="label">PROJECT NOTE</div></div>
@@ -519,25 +582,25 @@
   <div class="pf-page-head">
     <div class="left">
       <span class="pf-num">PROJECT 06</span>
-      <h3>부산대학교 밀양캠퍼스<small>바이오소재과학과 · 학과 사인 월 · 학과 라운지</small></h3>
+      <h3>부산대학교 밀양캠퍼스<small>생명자원과학대학 · 세미나실 · 독서실 · 학과 사인 월</small></h3>
     </div>
     <div class="right">
       <div><label>LOCATION</label><span>경남 밀양</span></div>
-      <div><label>YEAR</label><span>2025</span></div>
+      <div><label>YEAR</label><span>2024·2025</span></div>
       <div><label>TYPE</label><span>대학·교육시설</span></div>
     </div>
   </div>
   <div class="pf-images triple-sub">
-    <div class="main"><img src="JM_회사소개서_이미지/pnu_new_03.jpg" alt="부산대 학과 사인 월 + 우드 슬랫"></div>
-    <div class="sub"><img src="JM_회사소개서_이미지/pnu_04.jpg" alt="부산대 학과 라운지"></div>
-    <div class="sub"><img src="JM_회사소개서_이미지/pnu_new_05.jpg" alt="부산대 우드 패널 백라이트 복도"></div>
-    <div class="sub"><img src="JM_회사소개서_이미지/pnu_05.jpg" alt="부산대 학과 도서·세미나"></div>
+    <div class="main"><img src="JM_회사소개서_이미지/pnu_r_01.jpg" alt="부산대 밀양캠퍼스 세미나실 + 백라이트 우드 사인 월"></div>
+    <div class="sub"><img src="JM_회사소개서_이미지/pnu_r_02.jpg" alt="부산대 세미나실 영상 설비"></div>
+    <div class="sub"><img src="JM_회사소개서_이미지/pnu_r_03.jpg" alt="부산대 독서실 개인 열람석"></div>
+    <div class="sub"><img src="JM_회사소개서_이미지/pnu_r_04.jpg" alt="부산대 독서실 창측 열람석"></div>
   </div>
   <div class="pf-desc">
     <div><div class="label">PROJECT NOTE</div></div>
     <div>
-      <p>학과의 정체성을 입구의 디자인 사인 월로 전환한 사례. "Department of Biomaterials Science" 워드마크와 부산대 공식 엠블럼을 사선 구도로 배치하고, 우드 슬랫(살빗) 패널을 사다리꼴 그라데이션으로 잘라내 학문의 진취성을 형상화했습니다. 학과 주 복도에는 우드 패널 + 백라이트 띠 마감으로 안내 게시판을 통합 디자인 — 학생용 카페·도서·세미나가 한 공간에서 자연스럽게 이어집니다.</p>
-      <div class="tags"><span># 대학시설</span><span># 학과사인월</span><span># 우드슬랫</span><span># 사선그래픽</span></div>
+      <p>부산대학교 밀양캠퍼스 생명자원과학대학의 세미나실·독서실 환경개선 공사. 세미나실은 백라이트 우드 패널 벽면에 "부산대학교 밀양캠퍼스" 사인을 새기고, 대형 디스플레이와 이동식 세미나 테이블을 두어 강의·발표·회의를 모두 수용하도록 구성했습니다. 독서실은 우드 슬랫과 번호 사인으로 구획한 개인 열람석을 창측으로 배치해 채광과 집중도를 동시에 확보했습니다. 학생들의 학습 동선에 맞춘 교육시설 전문 시공 사례입니다.</p>
+      <div class="tags"><span># 대학시설</span><span># 세미나실</span><span># 독서실</span><span># 사인월</span></div>
     </div>
   </div>
 </div>
@@ -570,67 +633,39 @@
   </div>
 </div>
 
-<!-- ============ PROJECT 08 — 키움에셋플래너 ============ -->
+<!-- ============ PROJECT 08 — ㈜삼백육십오 ============ -->
 <div class="pf-page">
   <div class="pf-page-head">
     <div class="left">
       <span class="pf-num">PROJECT 08</span>
-      <h3>키움에셋플래너 사무실<small>금융 자산관리 · 리셉션 · 오픈오피스</small></h3>
+      <h3>(주)삼백육십오<small>기업 본사 사무실 · 오픈오피스 · 라운지 · 대회의실</small></h3>
     </div>
     <div class="right">
-      <div><label>LOCATION</label><span>경남 창원</span></div>
-      <div><label>YEAR</label><span>2025</span></div>
-      <div><label>TYPE</label><span>금융 사무실</span></div>
+      <div><label>LOCATION</label><span>경남</span></div>
+      <div><label>YEAR</label><span>2023</span></div>
+      <div><label>TYPE</label><span>기업 사무실</span></div>
     </div>
   </div>
   <div class="pf-images triple-sub">
-    <div class="main"><img src="JM_회사소개서_이미지/kiwoom_03.jpg" alt="키움에셋플래너 리셉션 사인"></div>
-    <div class="sub"><img src="JM_회사소개서_이미지/kiwoom_01.jpg" alt="키움에셋플래너 메인 오피스"></div>
-    <div class="sub"><img src="JM_회사소개서_이미지/kiwoom_02.jpg" alt="키움에셋플래너 측면 디테일"></div>
-    <div class="sub"><img src="JM_회사소개서_이미지/kicox_07.jpg" alt="유사 사례 라운지"></div>
+    <div class="main"><img src="JM_회사소개서_이미지/smo_r_01.jpg" alt="삼백육십오 대회의실 + 갤러리 월"></div>
+    <div class="sub"><img src="JM_회사소개서_이미지/smo_r_02.jpg" alt="삼백육십오 카페형 직원 라운지"></div>
+    <div class="sub"><img src="JM_회사소개서_이미지/smo_r_03.jpg" alt="삼백육십오 제품 진열 복도"></div>
+    <div class="sub"><img src="JM_회사소개서_이미지/smo_r_04.jpg" alt="삼백육십오 오픈 오피스"></div>
   </div>
   <div class="pf-desc">
     <div><div class="label">PROJECT NOTE</div></div>
     <div>
-      <p>금융 자산관리 영업 사무실은 다수의 직원이 함께 근무하면서도 고객 응대가 자유로워야 합니다. 입구의 미니멀 화이트 카운터에 키움에셋플래너 워드마크 사인을 배치해 첫인상을 잡고, 메인 오피스는 ㄷ자형 책상 배치 + 다운라이트 패턴 천장으로 균일한 조도를 확보 — 종일 모니터 업무에도 눈의 피로를 최소화한 디자인입니다.</p>
-      <div class="tags"><span># 금융사무실</span><span># 리셉션사인</span><span># 오픈오피스</span><span># 균일조도</span></div>
+      <p>㈜삼백육십오 본사 사무공간 전체를 하나의 흐름으로 설계한 프로젝트. 넓은 오픈 오피스를 중심으로, 원목 테이블과 그린을 배치한 카페형 직원 라운지, 제품·연혁을 전시하는 화이트 진열 복도, 그리고 긴 원목 테이블과 액자 갤러리 월을 갖춘 대회의실까지 — 업무·미팅·휴식이 한 층에서 자연스럽게 이어지도록 구성했습니다. 간접 조명과 우드·화이트 톤의 절제된 마감으로 기업의 안정감을 담아낸 사무공간입니다.</p>
+      <div class="tags"><span># 기업사무실</span><span># 오픈오피스</span><span># 카페라운지</span><span># 갤러리월</span></div>
     </div>
   </div>
 </div>
 
-<!-- ============ PROJECT 09 — 현대마린엔진 대표실 ============ -->
+<!-- ============ PROJECT 09 — 헥사곤 코리아 ============ -->
 <div class="pf-page">
   <div class="pf-page-head">
     <div class="left">
       <span class="pf-num">PROJECT 09</span>
-      <h3>현대마린엔진 대표실<small>임원집무실 · 응접 · 회의공간</small></h3>
-    </div>
-    <div class="right">
-      <div><label>LOCATION</label><span>경남 창원</span></div>
-      <div><label>YEAR</label><span>2026</span></div>
-      <div><label>TYPE</label><span>임원공간</span></div>
-    </div>
-  </div>
-  <div class="pf-images triple-sub">
-    <div class="main"><img src="JM_회사소개서_이미지/hyundai_3d_01.jpg" alt="현대마린엔진 대표실 회의공간 3D"></div>
-    <div class="sub"><img src="JM_회사소개서_이미지/hyundai_3d_03.jpg" alt="현대마린엔진 회의실 측면 3D"></div>
-    <div class="sub"><img src="JM_회사소개서_이미지/hyundai_02.jpg" alt="현대마린엔진 대표실 시공"></div>
-    <div class="sub"><img src="JM_회사소개서_이미지/hyundai_3d_02.jpg" alt="현대마린엔진 회의실 디테일 3D"></div>
-  </div>
-  <div class="pf-desc">
-    <div><div class="label">PROJECT NOTE</div></div>
-    <div>
-      <p>현대마린엔진의 대표 집무실 리뉴얼. 사전 단계의 3D 시뮬레이션 이미지(좌·중)에서 보듯 — 우드 패널 벽면, 블랙 프레임의 글래스 파티션, 검정 가죽 회의 의자로 임원 회의 공간의 격을 잡고, 대표 책상 영역과 응접 영역을 글래스로 분리하면서도 시각적으로 연결되도록 설계했습니다. 운영 중인 사무실의 부분 리뉴얼 — "공사 기간 동안의 업무 영향 최소화"가 핵심이었던 사례입니다.</p>
-      <div class="tags"><span># 대표실</span><span># 부분리뉴얼</span><span># 3D시뮬레이션</span><span># 글래스파티션</span></div>
-    </div>
-  </div>
-</div>
-
-<!-- ============ PROJECT 10 — 헥사곤 코리아 (NEW) ============ -->
-<div class="pf-page">
-  <div class="pf-page-head">
-    <div class="left">
-      <span class="pf-num">PROJECT 10</span>
       <h3>HEXAGON 헥사곤 코리아<small>글로벌 측정 솔루션 · 쇼룸 · 측정 교육실 · 회의실</small></h3>
     </div>
     <div class="right">
@@ -654,6 +689,261 @@
   </div>
 </div>
 
+<!-- ============ PROJECT HISTORY ============ -->
+<section class="history-section" id="history">
+  <div class="history-inner">
+    <div class="section-head">
+      <div class="section-tag">PROJECT HISTORY</div>
+      <h2>JM 시공 실적 연혁</h2>
+      <p class="lead">제이엠건축인테리어(주)가 2020년부터 현재까지 시공한 <strong>207개 현장</strong>의 기록입니다.<br>사무실·기업·공공기관부터 상업·주거 공간까지 — 도면·디자인 단독 건은 제외한 실제 시공 실적입니다.</p>
+    </div>
+    <div class="history-years">
+      <div class="hist-year">
+        <div class="hist-year-label"><span class="hy-num">2026</span><span class="hy-cnt">18건</span></div>
+        <ul class="hist-list">
+        <li><b>26.01</b> 대상힐스미용실 인테리어</li>
+        <li><b>26.01</b> 2025 PNU 펜토미노 융합전공 원예생명과학과 환경개선 공사</li>
+        <li><b>26.02</b> 기타학원 인테리어</li>
+        <li><b>26.02</b> 영어학원인테리어</li>
+        <li><b>26.02</b> RISE 기능성푸드평가 동물조직분석실 교육 환경 개선 공사</li>
+        <li><b>26.03</b> HD현대마린엔진 대표이사실 개선 공사</li>
+        <li><b>26.03</b> 주식회사 대한재해예방 인테리어</li>
+        <li><b>26.03</b> 어반컴퓨터 교습소 인테리어</li>
+        <li><b>26.03</b> 반도유보라 교습소 인테리어</li>
+        <li><b>26.03</b> HD현대마린엔진 Ownet Room 개선공사</li>
+        <li><b>26.03</b> 밀양미부닥트㈜_금속작업</li>
+        <li><b>26.04</b> 창원공장 공무, 고객지원 사무실 인테리어 공사</li>
+        <li><b>26.04</b> 푸른회전문 부분인테리어</li>
+        <li><b>26.05</b> 현대마린엔진접견실인테리어</li>
+        <li><b>26.05</b> 제이정헤어 인테리어(오늘도 봄 미용실)</li>
+        <li><b>26.06</b> 오늘은 반찬데이 인테리어</li>
+        <li><b>26.06</b> 지엔티 4공장 R&amp;D 센터공사</li>
+        <li><b>26.06</b> HD현대크랭크샤프트 안전교육장 개선 공사</li>
+        </ul>
+      </div>
+      <div class="hist-year">
+        <div class="hist-year-label"><span class="hy-num">2025</span><span class="hy-cnt">40건</span></div>
+        <ul class="hist-list">
+        <li><b>25.01</b> 더 젤 네일샵 인테리어</li>
+        <li><b>25.01</b> 계단실 인테리어</li>
+        <li><b>25.01</b> 라온메디칼 사무실 인테리어</li>
+        <li><b>25.01</b> MH에탄올 사무실 인테리어</li>
+        <li><b>25.02</b> 양산타코야끼 인테리어</li>
+        <li><b>25.03</b> ㈜MH에탄올 사무실 인테리어</li>
+        <li><b>25.03</b> 다구리 109번지 근린생활시설 신축공사</li>
+        <li><b>25.03</b> 창원 키움에셋플레너 인테리어</li>
+        <li><b>25.03</b> 경남산소 사무실 리모델링</li>
+        <li><b>25.03</b> 보루(어반브릭스)인테리어</li>
+        <li><b>25.04</b> 네일샵 인테리어</li>
+        <li><b>25.04</b> 숲칼프(두피탈모관리샵)인테리어</li>
+        <li><b>25.04</b> 셀포렙 라헨느 인테리어</li>
+        <li><b>25.05</b> 제일전자공업㈜ 전시실 인테리어</li>
+        <li><b>25.05</b> 마산종말이</li>
+        <li><b>25.06</b> 이우철한방누릉지삼계탕(진해점)</li>
+        <li><b>25.06</b> 도만 카페 인테리어</li>
+        <li><b>25.06</b> 이홍열법률사무소 인테리어</li>
+        <li><b>25.07</b> 디에프</li>
+        <li><b>25.07</b> 주식회사 세영테크놀러지</li>
+        <li><b>25.07</b> 중동 미용실 인테리어</li>
+        <li><b>25.07</b> HD현대마린엔진 생활관 탈의실 개선 및 가구 교체 공사</li>
+        <li><b>25.07</b> 2025 PNU 펜토미노 교육과정 원예생명과학과 강의실 환경개선 공사</li>
+        <li><b>25.09</b> 스포츠가치센터 이용자 휴게공간 및 흡연부스 공사</li>
+        <li><b>25.09</b> 카페디아크마린 인테리어</li>
+        <li><b>25.09</b> 2025 PNU 펜토미노 교육과정 바이오소재과학과 강의실 환경개선 공사</li>
+        <li><b>25.09</b> 진영 HNS 온수기</li>
+        <li><b>25.09</b> 법무법인 디에이치 인테리어</li>
+        <li><b>25.09</b> 진영 HNS 휴게실</li>
+        <li><b>25.09</b> KICXUP AI LOUNGE 구축 실내 인테리어 공사</li>
+        <li><b>25.09</b> 회원동 교습소 인테리어</li>
+        <li><b>25.10</b> 내동 교습소 인테리어</li>
+        <li><b>25.10</b> 진주 수학학원 인테리어</li>
+        <li><b>25.10</b> 서경방송 2층 사무실 인테리어</li>
+        <li><b>25.10</b> 주남 엘리브 인테리어 공사</li>
+        <li><b>25.10</b> 동전산단 사무실 인테리어</li>
+        <li><b>25.10</b> 에이지로보틱스 사무실 인테리어</li>
+        <li><b>25.11</b> 나라정보시스템 인테리어</li>
+        <li><b>25.12</b> 리화바버샵 인테리어</li>
+        <li><b>25.12</b> 사파동 변호사 사무실</li>
+        </ul>
+      </div>
+      <div class="hist-year">
+        <div class="hist-year-label"><span class="hy-num">2024</span><span class="hy-cnt">50건</span></div>
+        <ul class="hist-list">
+        <li><b>24.01</b> 소답동 미용실 인테리어</li>
+        <li><b>24.01</b> 교방동 누리학원 인테리어 공사</li>
+        <li><b>24.01</b> 경남대학교 평생교육관 미래라이프대학 강의실 및 실습실 구축공사</li>
+        <li><b>24.03</b> 소답동 카페 인테리어</li>
+        <li><b>24.03</b> 엠에스이 회의실 인테리어</li>
+        <li><b>24.03</b> 진영HNS로비/접견실 인테리어</li>
+        <li><b>24.03</b> 앨리스 인테리어 공사</li>
+        <li><b>24.03</b> 더 베이커스 인테리어</li>
+        <li><b>24.03</b> 헤어샾 인테리어 공사</li>
+        <li><b>24.03</b> 진해삼성영어학원 인테리어</li>
+        <li><b>24.04</b> 더강해진수학교습소 인테리어</li>
+        <li><b>24.04</b> 주식회사 삼일기술단 인테리어</li>
+        <li><b>24.05</b> 주식회사 모드텍 인테리어 공사</li>
+        <li><b>24.05</b> 착한미용실 인테리어</li>
+        <li><b>24.05</b> 주식회사 에스지 정공</li>
+        <li><b>24.05</b> 낙동강유역환경청 1층 인테리어 공사</li>
+        <li><b>24.06</b> 화연제과 반송점 인테리어 공사</li>
+        <li><b>24.06</b> JD윙스 505호 인테리어 공사</li>
+        <li><b>24.06</b> JD윙스 504호 인테리어 공사</li>
+        <li><b>24.06</b> 낙동강유역환경청 2층 부분 인테리어 공사</li>
+        <li><b>24.06</b> 창원 북면 학원인테리어</li>
+        <li><b>24.06</b> SK테크노파크 618호 사무실인테리어</li>
+        <li><b>24.06</b> 창원 한국샌드빅㈜회의실 환경개선공사</li>
+        <li><b>24.07</b> 손길헤어 인테리어 공사</li>
+        <li><b>24.07</b> 미래환경㈜인테리어공사</li>
+        <li><b>24.07</b> 어반브릭스12층</li>
+        <li><b>24.07</b> 휴텍스 코리아</li>
+        <li><b>24.07</b> 창원 북면 감계 푸르지오 교습소인테리어</li>
+        <li><b>24.07</b> ㈜지엔티 인테리어 공사</li>
+        <li><b>24.08</b> 청춘푸줏간 인테리어</li>
+        <li><b>24.08</b> 창원 힐스테이트 미용실 인테리어</li>
+        <li><b>24.08</b> 세영수학교습소 인테리어</li>
+        <li><b>24.09</b> 아름드리숲상담센터 인테리어</li>
+        <li><b>24.09</b> 에이치케이금융파트너스 경남사업단 인테리어 및 원상복구</li>
+        <li><b>24.10</b> 문소영 수학관리학원인테리어</li>
+        <li><b>24.10</b> 태웅산전 사무실 인테리어</li>
+        <li><b>24.10</b> HSC공장 사무동 계단 및 복도 보수공사</li>
+        <li><b>24.10</b> 삼명기계공업주식회사 환경개선공사</li>
+        <li><b>24.10</b> 주식회사 다원이엔씨 사무실 인테리어</li>
+        <li><b>24.11</b> 에이치케이금융파트너스 대구사업단 인테리어</li>
+        <li><b>24.11</b> 에이치케이금융파트너스 대구사업단 안동주재팀 인테리어</li>
+        <li><b>24.11</b> 윤앤오 음악학원 인테리어</li>
+        <li><b>24.11</b> 사무실인테리어</li>
+        <li><b>24.11</b> PNU 펜토미노 교육과정 사업 바이오소재과학과 강의실 환경개선 공사</li>
+        <li><b>24.11</b> HCS공장 탈의실 및 샤워실 보수공사</li>
+        <li><b>24.12</b> 진해 자은동 교습소 인테리어</li>
+        <li><b>24.12</b> 교습소인테리어</li>
+        <li><b>24.12</b> 블루돌핀어학원인테리어</li>
+        <li><b>24.12</b> 복도인테리어</li>
+        <li><b>24.12</b> 계단실 인테리어</li>
+        </ul>
+      </div>
+      <div class="hist-year">
+        <div class="hist-year-label"><span class="hy-num">2023</span><span class="hy-cnt">31건</span></div>
+        <ul class="hist-list">
+        <li><b>23.01</b> 재니스코딩 교습소 인테리어</li>
+        <li><b>23.02</b> 유니시티1단지 수학교습소</li>
+        <li><b>23.02</b> 고성이발소 인테리어</li>
+        <li><b>23.02</b> ㈜코아텍시스템즈</li>
+        <li><b>23.03</b> 창녕 바당돌담 인테리어</li>
+        <li><b>23.03</b> 가로수길 바버샾</li>
+        <li><b>23.03</b> 아모레퍼시픽 인테리어</li>
+        <li><b>23.03</b> 신화철강 샘플하우스 인테리어</li>
+        <li><b>23.04</b> 그롭코리아 회의실 인테리어</li>
+        <li><b>23.04</b> ㈜지엔티 인테리어 공사</li>
+        <li><b>23.04</b> 창녕미용실 인테리어 공사</li>
+        <li><b>23.06</b> ㈜삼백육십오 인테리어 공사</li>
+        <li><b>23.06</b> 보원산업 A동 2층 난간공사</li>
+        <li><b>23.07</b> 보원산업 F동 2층 사무실공사</li>
+        <li><b>23.07</b> 상남동 미용실 인테리어 공사</li>
+        <li><b>23.07</b> 그롭코리아 리모델링 공사</li>
+        <li><b>23.08</b> ㈜지엔티1공장 2층 인테리어</li>
+        <li><b>23.08</b> 율하피부샵 인테리어공사</li>
+        <li><b>23.08</b> 창원 한국샌드빅㈜회의실 흡음재 공사</li>
+        <li><b>23.08</b> 창원 한국샌드빅㈜창고가벽체 및 단열공사</li>
+        <li><b>23.09</b> 보원산업 2층 사무실공사</li>
+        <li><b>23.10</b> 혜성정밀 사무실 인테리어</li>
+        <li><b>23.11</b> 창원 야마자키마작 사무실 인테리어</li>
+        <li><b>23.11</b> 제주 낙천리 목조주택 기초 및 토목공사</li>
+        <li><b>23.11</b> DS동산㈜사무동 리모델링 공사</li>
+        <li><b>23.11</b> 헥사곤 사무실인테리어 공사</li>
+        <li><b>23.11</b> 진영HNS화장실 인테리어공사</li>
+        <li><b>23.11</b> 요리수수학교습소 인테리어</li>
+        <li><b>23.11</b> 보원산업 추가공사</li>
+        <li><b>23.11</b> 주식회사 위딘 4층 회의실 인테리어작업</li>
+        <li><b>23.12</b> 지안SMP인테리어 공사</li>
+        </ul>
+      </div>
+      <div class="hist-year">
+        <div class="hist-year-label"><span class="hy-num">2022</span><span class="hy-cnt">35건</span></div>
+        <ul class="hist-list">
+        <li><b>22.01</b> 마린애시앙학원</li>
+        <li><b>22.01</b> 신월동 배달음식점</li>
+        <li><b>22.01</b> 김해 테일러샵</li>
+        <li><b>22.02</b> 가음정미용실</li>
+        <li><b>22.02</b> 본파이어베이프 마산</li>
+        <li><b>22.02</b> 일진G&amp;S㈜사무동 리모델링</li>
+        <li><b>22.03</b> 큰나래학원(당리동)</li>
+        <li><b>22.03</b> 밀양청학리농막리모델링</li>
+        <li><b>22.03</b> 마산 합포구 회원동북로52 1층</li>
+        <li><b>22.03</b> 대낭숲리모델링</li>
+        <li><b>22.03</b> 합성동 디스튜디오 뷰티아카데미</li>
+        <li><b>22.03</b> 한일타운 리모델링</li>
+        <li><b>22.04</b> 울루카페</li>
+        <li><b>22.04</b> 어반브릭스 보루 창원의창점</li>
+        <li><b>22.05</b> 본 파이어 베이프 장유점</li>
+        <li><b>22.05</b> 함안미용실</li>
+        <li><b>22.05</b> 밀양 단장면 국전리 농막</li>
+        <li><b>22.05</b> 서상동 미용실</li>
+        <li><b>22.06</b> 후사포리 농막</li>
+        <li><b>22.06</b> 케이비엠툴스㈜창원사무실인테리어</li>
+        <li><b>22.07</b> 태룡리 소형주택 신축공사</li>
+        <li><b>22.08</b> 벽돌집</li>
+        <li><b>22.08</b> 롯데캐슬 해쉬커피 인테리어</li>
+        <li><b>22.08</b> 도계동 태리하우스인테리어</li>
+        <li><b>22.08</b> 삼성생명</li>
+        <li><b>22.09</b> 롯데캐슬상가136호 네일샾 인테리어</li>
+        <li><b>22.09</b> 부북면 위양리 107-1 농막</li>
+        <li><b>22.11</b> 보은헤어</li>
+        <li><b>22.11</b> 헤어 오늘 헤어숍인테리어</li>
+        <li><b>22.12</b> 코아텍시스템즈</li>
+        <li><b>22.12</b> 바모스 부산 인테리어</li>
+        <li><b>22.12</b> ㈜유엔테크 사무실 인테리어</li>
+        <li><b>22.12</b> 주식회사 제이엠모터스 인테리어</li>
+        <li><b>22.12</b> 대낭숲 사무실</li>
+        <li><b>22.12</b> 창녕 사회복지타운 카운터 교체</li>
+        </ul>
+      </div>
+      <div class="hist-year">
+        <div class="hist-year-label"><span class="hy-num">2021</span><span class="hy-cnt">23건</span></div>
+        <ul class="hist-list">
+        <li><b>21.01</b> 미코미용실</li>
+        <li><b>21.01</b> 대성 프리존텔 402호</li>
+        <li><b>21.01</b> 진해우림필유상가 미용실</li>
+        <li><b>21.02</b> 대한토목설계사무소</li>
+        <li><b>21.03</b> 명성수학교습소</li>
+        <li><b>21.03</b> 떡메치는조서방</li>
+        <li><b>21.05</b> 금돌부동산중개</li>
+        <li><b>21.05</b> 북면떡볶이</li>
+        <li><b>21.05</b> 북면과학학원</li>
+        <li><b>21.07</b> 비앤지사원아파트506호</li>
+        <li><b>21.07</b> 사무실리모델링</li>
+        <li><b>21.08</b> 어반브릭스 오피스동 학원</li>
+        <li><b>21.09</b> 공장동 판넬공사</li>
+        <li><b>21.09</b> 사무동 내부인테리어</li>
+        <li><b>21.10</b> 빵긋 인테리어</li>
+        <li><b>21.10</b> 장유 관동 바모스 인테리어</li>
+        <li><b>21.11</b> 바이엘 크롭 사이언스</li>
+        <li><b>21.11</b> 팔용동 힐스테이트미용실 인테리어</li>
+        <li><b>21.11</b> 합성동 희쁘다 미용실 인테리어</li>
+        <li><b>21.11</b> 산호동 삼성아파트 교습소 인테리어</li>
+        <li><b>21.12</b> 사림동 144-9 헤어샵 인테리어</li>
+        <li><b>21.12</b> 부산 큰나래 학원</li>
+        <li><b>21.12</b> 월영동 미용실</li>
+        </ul>
+      </div>
+      <div class="hist-year">
+        <div class="hist-year-label"><span class="hy-num">2020</span><span class="hy-cnt">10건</span></div>
+        <ul class="hist-list">
+        <li><b>20.02</b> 성산구 동산로 115, 장미상가 2층</li>
+        <li><b>20.02</b> 성산구 용호동 일동아파트 12동 207호</li>
+        <li><b>20.02</b> 오 부리또</li>
+        <li><b>20.03</b> 도계동 한마음코아 102동 301호</li>
+        <li><b>20.05</b> 용호동 카페</li>
+        <li><b>20.08</b> 성산구 대방동 덕산 2차 207동 1704호</li>
+        <li><b>20.08</b> 샐러디 창원상남점</li>
+        <li><b>20.12</b> 마산내서스튜디오</li>
+        <li><b>20.12</b> 메트로미용실</li>
+        <li><b>20.12</b> 곽두리 쪽갈비</li>
+        </ul>
+      </div>
+    </div>
+  </div>
+</section>
+
 <!-- ============ CONTACT ============ -->
 <section class="contact-section" id="contact">
   <div class="contact-inner">
@@ -668,13 +958,15 @@
       </div>
       <div class="contact-card">
         <div class="label">VISIT</div>
-        <strong>본사 쇼룸</strong>
+        <strong>본사</strong>
         <p>경남 창원시 의창구<br>평산로135번길 4 (서상동) 2층</p>
       </div>
       <div class="contact-card">
         <div class="label">ONLINE</div>
         <strong>jminterior.co.kr</strong>
-        <p>blog.naver.com/jminterior<br>@jminterior_official</p>
+        <p>
+          <span class="sns"><svg class="sns-ic" viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="8" fill="#03C75A"/><text x="16" y="23" font-family="Arial, sans-serif" font-size="19" font-weight="800" fill="#fff" text-anchor="middle">b</text></svg>blog.naver.com/jminterior</span><br>
+          <span class="sns"><svg class="sns-ic" viewBox="0 0 32 32" aria-hidden="true"><defs><linearGradient id="igGrad" x1="0" y1="1" x2="1" y2="0"><stop offset="0" stop-color="#feda75"/><stop offset=".35" stop-color="#fa7e1e"/><stop offset=".6" stop-color="#d62976"/><stop offset="1" stop-color="#962fbf"/></linearGradient></defs><rect width="32" height="32" rx="8" fill="url(#igGrad)"/><rect x="8" y="8" width="16" height="16" rx="5" fill="none" stroke="#fff" stroke-width="2"/><circle cx="16" cy="16" r="4" fill="none" stroke="#fff" stroke-width="2"/><circle cx="21.6" cy="10.4" r="1.5" fill="#fff"/></svg>@jminterior_official</span></p>
       </div>
     </div>
   </div>
