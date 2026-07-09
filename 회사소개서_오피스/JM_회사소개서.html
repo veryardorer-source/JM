@@ -268,6 +268,9 @@
     .hist-year:not(:first-child) {
       page-break-before: always; min-height: 176mm; align-content: center;
     }
+    /* 2021 + 2020 은 한 페이지에 함께 */
+    .hist-year:nth-last-child(2) { min-height: 0; align-content: start; page-break-after: avoid; }
+    .hist-year:last-child { page-break-before: avoid; min-height: 0; align-content: start; padding-top: 12mm; }
     .hist-year-label .hy-num { font-size: 40px; }
     .hist-list { columns: 4; column-gap: 28px; }
     .hist-list li { font-size: 12.5px; line-height: 2.15; }
