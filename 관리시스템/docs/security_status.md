@@ -67,7 +67,7 @@
   - `push_subscriptions`(푸시 구독): 타인 구독정보 조회 가능한 상태 → `db/push_subscriptions.sql`의 RLS 블록 실행
 
 ## 남은 보안 과제 (roadmap, 미구현)
-- **partner "배정 현장만" DB 제한**: `project_assignments`가 `employee_name`(텍스트)로 연결돼 있어 `auth.uid()`와 못 맞춤. → 배정 테이블에 `user_id` 컬럼 추가 후 projects/project_files에 배정 기반 RLS 필요.
+- ~~partner "배정 현장만" DB 제한~~ → **구현됨(2026-07-10, `db/project_access.sql` — 적용 여부 확인 필요)**: `project_access`(project_id+user_id) 테이블 + `has_project_access()` 헬퍼. projects/schedules/project_assignments/project_files select를 partner=공개 지정 현장만으로 교체, 쓰기는 직원만. 관리자 UI: 현장 상세 → 🔒 외부공개. **⚠️ 실행 직후 partner는 아무 현장도 안 보임(안전 기본값) — 현장마다 공개 체크 필요.** security_and_realtime.sql 공용 목록에서 해당 3테이블 제거됨.
 - **Storage(uploads) 비공개화 + signed URL**: 현재 public 버킷 — 손익표·매출매입·견적서·급여 관련 첨부까지 public URL로 접근 가능(URL을 아는 사람은 로그인 없이 열람 가능). **민감 파일(재정·계약·직원자료)은 private bucket + signed URL(만료시간부) 전환이 필요.**
   - 전환 시 영향: 사진 표시·공유·오피스 뷰어 로직 전반 수정 필요 → 카테고리별(민감/일반) 버킷 분리 방식 권장.
   - **뷰어 유의점**: 엑셀·PDF "바로 열기"는 MS Office/Google 뷰어에 **파일 URL을 전달**하는 방식이라 외부 서비스가 해당 파일을 읽음. 민감 파일을 private+signed URL로 바꿔도 뷰어에 전달하면 그 순간은 외부에 노출됨 — 민감 재무 파일은 뷰어 대신 다운로드 열람으로 정책 결정 필요.
