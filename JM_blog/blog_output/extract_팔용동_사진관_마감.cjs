@@ -5,15 +5,15 @@ const sharp = require("sharp");
 const NAS_BASE = "\\\\jm\\003_JM도면n사진\\2026년\\2026.03.24_팔용동이담사진관(o)";
 const OUT_DIR = path.join(__dirname, "팔용동_사진관_마감_사진");
 
-// 사람/얼굴 없는 사진만 선정 (본문 등장 순서대로 번호 부여)
+// 인테리어 요소 중심 파일명. 사람/얼굴 없는 사진만
 const images = [
-  { folder: "010_마감사진", file: "KakaoTalk_20260505_160803523_11.jpg", order: "01", label: "입구 - 웨이브 미러와 아치 개구부" },
-  { folder: "010_마감사진", file: "KakaoTalk_20260505_160803523_10.jpg", order: "02", label: "편집 데스크와 대기 벤치" },
+  { folder: "010_마감사진", file: "KakaoTalk_20260505_160803523_11.jpg", order: "01", label: "입구 - 아치 개구부" },
+  { folder: "010_마감사진", file: "KakaoTalk_20260505_160803523_10.jpg", order: "02", label: "편집 공간과 대기 영역" },
   { folder: "010_마감사진", file: "KakaoTalk_20260505_160803523_12.jpg", order: "03", label: "편집실 전체 뷰" },
-  { folder: "010_마감사진", file: "KakaoTalk_20260505_160803523.jpg", order: "04", label: "촬영 스튜디오 - 컬러 배경지 롤" },
+  { folder: "010_마감사진", file: "KakaoTalk_20260505_160803523.jpg", order: "04", label: "촬영 스튜디오 - 우드 데크 스테이지" },
   { folder: "010_마감사진", file: "KakaoTalk_20260505_160803523_03.jpg", order: "05", label: "촬영 스튜디오 다른 각도" },
   { folder: "010_마감사진", file: "KakaoTalk_20260505_160803523_07.jpg", order: "06", label: "스튜디오 넓은 뷰 - 프레임 LED 조명" },
-  { folder: "010_마감사진", file: "KakaoTalk_20260505_160803523_08.jpg", order: "07", label: "스튜디오 안쪽 - 창문 자연광" },
+  { folder: "010_마감사진", file: "KakaoTalk_20260505_160803523_08.jpg", order: "07", label: "스튜디오 안쪽 - 창가 자연광" },
 ];
 
 async function main() {
