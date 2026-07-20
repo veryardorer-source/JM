@@ -164,32 +164,57 @@ receipts, schedules, withdrawal_requests
 
 > 상태: 대표가 항목을 조금 더 정리한 뒤 개발 예정. 지금은 문서화만.
 
-## 11. 권한(역할) 체계 (2026-06-30 정리)
+## 11. 권한(역할) 체계 (2026-07-10 전면 갱신)
 
 ### 역할 종류
-가입 시 `staff`로 생성되고, **관리자가 직원 관리(`/admin/users`)에서 역할을 부여**한다. (DB `profiles.role`)
+가입(회원가입)하면 `pending`(승인 대기)으로 생성 — **아무 업무 데이터도 못 봄**(AuthGate '승인 대기' 화면 + DB RLS 차단). 관리자가 **회원 관리(`/admin/users`)**에서 역할을 부여해야 사용 가능. (DB `profiles.role`)
 
-| 역할 | 설명 | 금액(비용·원가·재정) | 편집 | 비고 |
-|------|------|:---:|:---:|------|
-| **관리자(admin)** | 대표/이사 | O | O | 직원·재정관리 등 전 기능 |
-| **디자인팀(designer)** | 내부 직원 | O | O | 금액 포함 전체 |
-| **현장팀(field)** | 내부 직원 | **X(숨김)** | O | 금액만 안 보임 |
-| **외부협력업체(partner)** | 외부 회사 | **X(숨김)** | **X(보기 전용)** | 현장 관련만 |
+| 역할 | 대상 | 요약 |
+|------|------|------|
+| **admin (관리자)** | 대표/이사 | 전 기능 + 관리자 메뉴(회원 관리·직원정보내역·경영관리) + **수금 관리** |
+| **designer (디자인팀)** | 내부 직원 | 현장·비용 포함 대부분. 수금·급여·재정·직원정보는 차단 |
+| **field (현장팀)** | 내부 직원 | 현장 실무 전반. 금액류(수금·비용)·급여·재정 차단 |
+| **partner (외부협력업체)** | 외부 회사 | **공개 지정된 현장만, 보기 전용** |
+| **pending (승인 대기)** | 신규 가입 | 전면 차단 |
 
-### 외부협력업체(partner) 상세 — "현장 관련(금전 제외)만, 보기 전용"
-- **볼 수 있음**: 대시보드(현장 현황·직원업무, 금액 없음) / 현장 관리(현황·자료·공정·SNS 탭, **비용 탭·누적원가 숨김**) / 공지사항(**사용법 카테고리만**) / 알림.
-- **볼 수 없음(메뉴 숨김 + 주소로 와도 "접근 권한 없음")**: 영수증, 출금요청, 수금관리(=금전), 작업일지, 회사 서류, 채팅, 관리자 메뉴(직원·직원정보·재정관리).
-- **편집 불가**: 모든 추가/수정/삭제/업로드 버튼 숨김. 대시보드 공정표 편집도 차단.
+### 메뉴/기능별 매트릭스 (✅=가능 · 👁=보기만 · ❌=차단)
+| 메뉴 | admin | designer | field | partner |
+|---|:---:|:---:|:---:|:---:|
+| 대시보드 | ✅ | ✅ | ✅ | 👁 (공개 현장만, 금액 없음) |
+| 공지사항 | ✅(등록·수정·삭제) | ✅ | ✅ | 👁 '사용법'만 |
+| 현장 관리 | ✅ | ✅ | ✅ | 👁 **공개 지정 현장만** |
+| └ 비용 탭 | ✅ | ✅ | ❌ | ❌ |
+| └ 🔒 외부공개 설정 | ✅ | ✅ | ✅ | ❌ |
+| 작업일지 | ✅ | ✅ | ✅ | ❌ |
+| 영수증 | ✅ | ✅ | ✅ | ❌ |
+| 출금 요청 | ✅ | ✅ | ✅ | ❌ |
+| **수금 관리** | ✅ | **❌** | **❌** | ❌ |
+| 회사 서류 | ✅ 전체+쓰기 | 👁 전체공개만 | 👁 전체공개만 | ❌ |
+| 거래처 | ✅ | ✅ | ✅ | ❌ |
+| 채팅 | ✅ | ✅ | ✅ | ❌ |
+| 통합검색 | ✅ | ✅(수금 제외) | ✅(금전 제외) | ❌ |
+| 회원 관리·직원정보내역·경영관리 | ✅ | ❌ | ❌ | ❌ |
 
-### 구현 방식 / 한계
-- **앱 화면(UI) 레벨 잠금**. 헬퍼: `canEdit()`(partner=불가), `canSeeMoney()`(field·partner=숨김) — `lib/auth-context.tsx`. 메뉴 필터 `PARTNER_HIDDEN`(`components/Sidebar.tsx`).
-- **DB 레벨(RLS) 차단도 적용됨(2026-07-02)** — 화면 숨김에 더해 DB가 강제: 금전/서류/현장자료는 역할별(`db/rls_money.sql`), 채팅은 참여자 기준(`db/rls_chat.sql`), 민감정보는 admin 전용(`db/rls_sensitive.sql`). partner는 금전·채팅·서류 insert/update 불가, pending은 업무 데이터 접근 불가. (초기엔 "앱 화면만 잠금" 선택(2026-06-30)이었으나 이후 DB까지 강화)
-- **남은 한계**: partner "배정된 현장만"은 `project_assignments`에 `user_id` 연결이 없어 보류(전 현장 자료 읽기 가능). 상세: `docs/security_status.md`.
+- **수금 관리 = admin 전용** (2026-07-10 대표 확정): 메뉴 숨김 + 페이지 차단 + 검색 제외 + **알림도 admin에게만** + RLS.
+- 알림: 금액이 body에 없는 알림은 전원 발송, 비용 등록 알림은 금액 미노출, 수금 알림은 admin만.
+
+### 외부협력업체(partner) — "공개 지정된 현장만, 보기 전용" (잔디식)
+- **현장별 공개**: 현장 등록 시 공개할 업체 체크, 이후 현장 상세 → **🔒 외부공개**에서 초대/내보내기(직원 누구나 관리). 미지정 현장은 **목록에도 안 나오고 직접 URL도 차단**(`project_access` + RLS).
+- 볼 수 있음: 공개 현장의 현황·자료·공정(비용 제외), 공지 '사용법', 알림.
+- 편집 전면 불가(`canEdit()`), 채팅·금전·서류·거래처·검색 차단.
+
+### 구현 방식 — 화면 + DB 이중 잠금
+- **화면**: `canEdit()`/`isApproved()`(`lib/auth-context.tsx`), 메뉴 필터 `PARTNER_HIDDEN`/`ADMIN_ONLY_NAV`(`components/Sidebar.tsx`), 페이지별 role 가드.
+- **DB(RLS)**: 화면과 동일 기준을 DB가 강제 — URL 직접 요청·기술적 우회도 차단.
+  - admin 전용: 급여·근태·직원정보·finance_*·**payments** (`rls_sensitive.sql`, `rls_money.sql`)
+  - 역할별: receipts/withdrawals(admin·designer·field), project_costs(admin·designer), company_documents, project_files, contacts, work_logs (`rls_money.sql` 등)
+  - 참여자 기준: 채팅 전체 (`rls_chat.sql`) / 본인만: notifications·chat_reads·push_subscriptions
+  - partner 현장별: projects/schedules/assignments/project_files (`project_access.sql`)
+  - 역할·테이블별 전체 표와 적용 상태: **`docs/security_status.md`** (단일 기준 문서)
 
 ### 추후 검토
-- partner **배정 현장 기반 RLS**(`project_assignments.user_id` 추가 필요).
-- Storage(uploads) 비공개 버킷 + signed URL.
-- 가입 승인 흐름(4장)과 연결 — 신규 가입자가 즉시 사용되지 않도록.
+- Storage(uploads) 비공개 버킷 + signed URL (현재 public — security_status.md 참고).
+- 감사 로그(삭제·금액수정 이력).
 
 ## 12. 구현 완료 기능 (2026-06-29~30 대량 추가)
 
@@ -410,3 +435,12 @@ receipts, schedules, withdrawal_requests
 - `chat_images.sql`(채팅 사진 묶음) · `contacts.sql`+`contacts_seed.sql`(거래처) · `project_access.sql`(협력업체 현장권한) · `payroll_ledger.sql`(급여대장 전체보기) · `profit_file.sql`(손익표 첨부)
 - 카테고리 일괄 변경: `update public.project_files set category='공사전사진' where category='시공전사진';`
 - 운영 잔여 느슨 정책 2건: worklogs·push_subscriptions (16장 이후 안내됨)
+
+## 18. 마무리 다듬기 (2026-07-10)
+
+- **수금 관리 = 관리자 전용 확정** — 대표 지시("관리자만 봐야지"). 메뉴(ADMIN_ONLY_NAV)·페이지 가드·통합검색·수금 알림(roles=['admin'])·RLS 전부 admin만. push API broadcast에 **roles 필터**(서버 검증) 신설. → 11장 매트릭스 반영.
+- **알림 딥링크** — 알림 클릭 시 해당 내용이 바로 열림: 공지 `?open=id`(상세 자동 오픈), 출금 `?open=id`(건 상세), 현장 `?tab=자료/공정/비용`(비용은 권한자만), 채팅 `?dm=`/`?room=`(해당 대화방 오픈). 인앱 목록·토스트·OS 푸시 모두 동일.
+- **공지사항 수정** — 상세보기 ✏ 수정 버튼, 기존 내용 불러와 저장. 수정 시 알림 재발송 없음(등록 때만).
+- **공지사항 링크** — 내용 속 URL 클릭 가능 + 첫 링크 미리보기 카드(채팅과 동일). 기존 공지에도 자동 적용.
+- **자료 이동 2단계** — 📁 이동 모달: ①현장 ②분류 모두 선택 후 [이동] 버튼(즉시 이동 실수 방지, 이동 위치 미리 표시).
+- 사진 분류의 PDF 문서 카드(16→17장 이어짐), 알림 켜기/끄기 실구독 기준 등은 17장 참조.
