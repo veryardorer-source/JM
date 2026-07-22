@@ -8,7 +8,7 @@ const OUT_DIR = path.join(__dirname, "롯데캐슬_교습소_마감_사진");
 // 사람 없는 사진만 선정
 const images = [
   { folder: "010_마감사진", file: "KakaoTalk_20260602_105401021_06.jpg", order: "01", label: "입구 - 유리도어와 로고" },
-  { folder: "010_마감사진", file: "KakaoTalk_20260602_105401021_08.jpg", order: "02", label: "유리 진열장 - 교재 진열" },
+  { folder: "010_마감사진", file: "KakaoTalk_20260602_105401021_08.jpg", order: "02", label: "진열 코너 - 가벽 선반 디자인" },
   { folder: "010_마감사진", file: "ChatGPT Image 2026년 6월 8일 오후 03_46_41.png", order: "03", label: "교실 오버뷰 - 아치 매입 책장" },
   { folder: "010_마감사진", file: "KakaoTalk_20260602_105401021_05.jpg", order: "04", label: "아치 매입 책장 클로즈업" },
   { folder: "010_마감사진", file: "KakaoTalk_20260602_105401021_03.jpg", order: "05", label: "교실 - 매입 선반과 화이트 벽" },
