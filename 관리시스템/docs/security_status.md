@@ -1,6 +1,6 @@
 # 보안(RLS/권한) 적용 현황
 
-> 마지막 정리: 2026-07-02
+> 마지막 정리: 2026-07-17 — **미적용분 일괄 SQL 실행 완료(대표, Success 확인)**: chat_images·notice_images·contacts(+18곳)·payroll_ledger·profit_file·project_access(현장별 partner)·payments admin전용·work_logs/push_subscriptions 조임·카테고리 공사전사진 변경
 > ⚠️ Claude는 Supabase에 직접 접속할 수 없어 **원격으로 실제 적용 여부를 확인할 수 없습니다.**
 > 아래 "적용" 표시는 **대화 기록(대표님이 SQL Editor에서 실행하고 알려준 것) 기준**입니다.
 > 확실한 확인은 아래 §검증 쿼리를 Supabase에서 직접 실행해 주세요.
@@ -62,7 +62,7 @@
 `db/` 안의 옛 "authenticated 전체허용(auth_all)" 정책 잔재를 전부 최신 RLS 기준으로 수정 — **어떤 파일을 재실행해도 보안이 느슨해지지 않음.**
 - `security_and_realtime.sql`: 공용 5테이블(profiles/projects/notices/schedules/project_assignments)만 auth_all 유지(의도된 설계), 채팅·알림은 테이블 생성만(정책은 rls_chat/rls_notifications)
 - `finance_quotes.sql`·`employee_records.sql`: admin 전용 / `payments.sql`: admin·designer·field / `chat_features.sql`·`chat_reads.sql`: 정책 제거(rls_chat 참조)
-- **⚠️ 운영 DB에 아직 전체허용으로 남아 있는 2건 — 아래 실행 권장**:
+- ~~운영 DB 잔여 전체허용 2건~~ → **적용 완료(2026-07-17 일괄 SQL)**:
   - `work_logs`(작업일지): partner·pending도 읽기 가능한 상태 → `db/worklogs.sql`의 RLS 블록 실행
   - `push_subscriptions`(푸시 구독): 타인 구독정보 조회 가능한 상태 → `db/push_subscriptions.sql`의 RLS 블록 실행
 
