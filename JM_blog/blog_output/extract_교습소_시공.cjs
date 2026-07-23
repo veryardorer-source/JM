@@ -13,7 +13,7 @@ const images = [
   { folder: "009_시공사진", file: "KakaoTalk_20260421_164512161_02.jpg", order: "04", label: "매입 선반 시공 + 도배 하지 작업" },
   { folder: "009_시공사진", file: "KakaoTalk_20260422_175846965_01.jpg", order: "05", label: "실크 도배 마감 진행" },
   { folder: "009_시공사진", file: "KakaoTalk_20260424_152250409_03.jpg", order: "06", label: "유리 창호 - 도장 교체 전 블랙 프레임" },
-  { folder: "009_시공사진", file: "KakaoTalk_20260424_152250409_07.jpg", order: "07", label: "유리 파티션 반투명 시트 시공 완료" },
+  { folder: "009_시공사진", file: "KakaoTalk_20260424_152250409_07.jpg", order: "07", label: "뒤쪽 출입구 시트 전면 시공" },
 ];
 
 async function main() {
