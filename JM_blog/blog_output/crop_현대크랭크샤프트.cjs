@@ -5,14 +5,12 @@ const sharp = require("sharp");
 const SRC_DIR = path.join(__dirname, "현대크랭크샤프트_강당_A_도면");
 const OUT_DIR = path.join(__dirname, "현대크랭크샤프트_강당_A_도면_블로그용");
 
-// A안 최종 크롭 (원본 2977x2105 기준)
-// 오른쪽 타이틀블록 제거 + 큰 외곽 치수 최대한 제거
-// (벽 옆 작은 레벨 표시 ±150은 남을 수 있음)
+// 첨부 이미지 기준 크롭 (오른쪽 타이틀블록만 제거, 도면과 치수는 그대로 유지)
 const CROP = {
-  left: 280,
-  top: 730,
-  width: 1980,   // right = 2260
-  height: 820,   // bottom = 1550
+  left: 0,
+  top: 0,
+  width: 2500,   // 오른쪽 타이틀블록 제거
+  height: 2105,  // 전체 높이 유지
 };
 
 async function main() {
@@ -31,8 +29,8 @@ async function main() {
       const cropRegion = {
         left: Math.round(CROP.left * ratioX),
         top: Math.round(CROP.top * ratioY),
-        width: Math.round(CROP.width * ratioX),
-        height: Math.round(CROP.height * ratioY),
+        width: Math.min(Math.round(CROP.width * ratioX), meta.width),
+        height: Math.min(Math.round(CROP.height * ratioY), meta.height),
       };
 
       await sharp(src)
