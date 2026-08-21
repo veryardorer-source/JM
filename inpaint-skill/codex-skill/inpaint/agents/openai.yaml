@@ -1,0 +1,8 @@
+interface:
+  display_name: "Inpaint"
+  short_description: "Select image regions and send them to ChatGPT"
+  default_prompt: "Use $inpaint to open my inpaint selection app."
+
+policy:
+  allow_implicit_invocation: true
+
