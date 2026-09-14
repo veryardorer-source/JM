@@ -1,0 +1,16 @@
+# AutoCAD/PDF 작업 중 생성되는 임시 파일
+tmp/
+acad.err
+plot.log
+_N.pdf
+*.bak
+*.sv$
+*.ac$
+
+# 현재 컴퓨터의 임시 경로에 종속된 조사용 스크립트
+inspect_plotstyle_paths.lsp
+inspect_plotstyle_paths.scr
+list_layers.lsp
+list_layers.scr
+test_existing_jm_ctb.lsp
+run_existing_jm_ctb.scr
