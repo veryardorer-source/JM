@@ -12,7 +12,15 @@ embedded='''
 '''+ '\n'.join(quote(line) for line in ps.splitlines())+'''
   ) (write-line line f)) (close f) p)
 '''
-text=base+'\n'+addon+'\n'+embedded
+ui=(root/'src/JM_ListUI.ps1').read_text(encoding='utf-8-sig')
+ui_embedded='''
+(defun jl:ui-script (/ p f line)
+  (setq p (vl-filename-mktemp "JM_ListUI_" nil ".ps1") f (open p "w" "utf8-bom"))
+  (foreach line '(
+'''+ '\n'.join(quote(line) for line in ui.splitlines())+'''
+  ) (write-line line f)) (close f) p)
+'''
+text=base+'\n'+addon+'\n'+embedded+'\n'+ui_embedded
 depth=0; string=False; escaped=False
 for number,line in enumerate(text.splitlines(),1):
  for c in line:
