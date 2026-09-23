@@ -20,7 +20,15 @@ ui_embedded='''
 '''+ '\n'.join(quote(line) for line in ui.splitlines())+'''
   ) (write-line line f)) (close f) p)
 '''
-text=base+'\n'+addon+'\n'+embedded+'\n'+ui_embedded
+settings=(root/'src/JM_Settings.ps1').read_text(encoding='utf-8-sig')
+settings_embedded='''
+(defun jl:settings-script (/ p f line)
+  (setq p (vl-filename-mktemp "JM_Settings_" nil ".ps1") f (open p "w" "utf8-bom"))
+  (foreach line '(
+'''+ '\n'.join(quote(line) for line in settings.splitlines())+'''
+  ) (write-line line f)) (close f) p)
+'''
+text=base+'\n'+addon+'\n'+embedded+'\n'+ui_embedded+'\n'+settings_embedded
 depth=0; string=False; escaped=False
 for number,line in enumerate(text.splitlines(),1):
  for c in line:
