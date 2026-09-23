@@ -1,0 +1,6 @@
+*.bak
+*.dwl
+*.dwl2
+~$*
+__pycache__/
+배포/
