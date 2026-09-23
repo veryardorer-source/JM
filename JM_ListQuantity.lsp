@@ -735,7 +735,7 @@
   (close f) path)
 (princ)
 
-; JM estimate-to-CAD links 2026-09-23a. UTF-8 source; CP949 distribution.
+; JM estimate-to-CAD links 2026-09-23b. UTF-8 source; CP949 distribution.
 (vl-load-com)
 (defun jl:g (r k) (cdr (assoc k r)))
 (defun jl:s (r k v) (if (assoc k r) (subst (cons k v) (assoc k r) r) (append r (list (cons k v)))))
@@ -1063,7 +1063,7 @@
           ((= status 3) (jl:audit item) (setq jl:exit T))
           ((= status 4) (jl:links-dialog item))))
       (unload_dialog jl:dclid) (vl-file-delete jl:dcl))) (princ))
-(princ "\nJM 내역 연결 2026-09-23a: JMLIST / JMIMPORT / JMEXCEL") (princ)
+(princ "\nJM 내역 연결 2026-09-23b: JMLIST / JMIMPORT / JMEXCEL") (princ)
 
 (defun jl:raise (s) (setq jl:last-error s) (exit))
 
@@ -1126,6 +1126,8 @@
   (setq jl:settings (list (cons 'path path) (cons 'token token) (cons 'id (jl:g item 'id)))
     exe (strcat (getenv "WINDIR") "/System32/WindowsPowerShell/v1.0/powershell.exe")
     args (strcat "-NoProfile -ExecutionPolicy Bypass -STA -WindowStyle Hidden -File " (jl:q (jl:settings-script)) " -Config " (jl:q path)))
+  (jl:ensure-rids)
+  (jl:settings-snapshot)
   (if (not (startapp exe args)) (jl:fail "설정창을 시작하지 못했습니다."))
   (princ "\n설정창을 켜둔 채 도면을 이동·확대하세요. 준비되면 설정창의 도면 선택 버튼을 누르세요."))
 (defun jl:request-valid (r / mode)
@@ -1145,36 +1147,9 @@
     (foreach s sources (if (vl-some '(lambda (x) (jl:overlap s x)) (jl:g existing 'sources)) (setq clash T))))
   (if clash (jl:raise "이미 이 항목에 연결한 구간입니다. 중복 저장하지 않았습니다."))
   (setq link (jl:s link 'sources sources) r (jl:number link))
+  (setq jl:state (jl:s jl:state 'linkseq (1+ (cond ((jl:g jl:state 'linkseq)) (0)))))
+  (setq link (jl:s link 'rid (strcat "L" (itoa (jl:g jl:state 'linkseq)))))
   (jl:put-item (jl:s item 'links (append (jl:g item 'links) (list link)))) r)
-(defun jl:pick-request (token / *error* jl:state f path request item sources r link jl:owned)
-  (defun *error* (msg)
-    (if f (close f))
-    (if jl:owned (jl:settings-reply (if jl:last-error jl:last-error "선택을 취소했습니다. 설정은 유지됩니다.")))
-    (setq jl:last-error nil) (princ))
-  (setq jl:last-error nil)
-  (if (not (and jl:settings (= token (jl:g jl:settings 'token))))
-    (progn (princ "\n다른 도면 또는 만료된 설정창의 요청은 실행하지 않습니다.") (exit)))
-  (setq jl:owned T)
-  (if (findfile (strcat (jl:g jl:settings 'path) ".closed")) (jl:raise "닫힌 설정창의 요청은 실행하지 않습니다."))
-  (setq path (strcat (jl:g jl:settings 'path) ".request"))
-  (if (not (findfile path)) (jl:raise "설정창에서 도면 선택 버튼을 먼저 누르세요."))
-  (setq f (open path "r") request (read (read-line f))) (close f) (setq f nil)
-  (if (not (and (= token (jl:g request 'token)) (= (jl:g request 'id) (jl:g jl:settings 'id)) (jl:request-valid request)))
-    (jl:raise "설정 값이 유효하지 않습니다. 설정창을 다시 열어주세요."))
-  (if (= (jl:g jl:settings 'lastnonce) (jl:g request 'nonce)) (jl:raise "이미 처리한 요청입니다. 중복 저장하지 않았습니다."))
-  (setq jl:settings (jl:s jl:settings 'lastnonce (jl:g request 'nonce)))
-  (vl-file-delete path)
-  (setq jl:state (jl:read-state) item (vl-some '(lambda (x) (if (= (jl:g x 'id) (jl:g request 'id)) x)) (jl:g jl:state 'items)))
-  (if (not item) (jl:raise "연결할 내역 항목을 찾지 못했습니다."))
-  (setq link (vl-remove-if '(lambda (x) (member (car x) '(token nonce id))) request))
-  (if (/= (jl:g link 'mode) 4) (setq sources (jl:pick-sources (jl:g link 'mode))))
-  (if (or sources (= (jl:g link 'mode) 4))
-    (progn
-      (if (findfile (strcat (jl:g jl:settings 'path) ".closed")) (jl:raise "설정창이 닫혀 저장을 취소했습니다."))
-      (setq r (jl:commit-link item link sources))
-      (jl:settings-reply (strcat "저장 완료: " (rtos r 2 3) " " (jl:g item 'unit) ". 다른 위치를 계속 추가할 수 있습니다."))
-      (princ (strcat "\n추가 수량: " (rtos r 2 3) " / DWG를 저장하세요.")))
-    (jl:settings-reply "선택한 대상이 없습니다. 다시 선택할 수 있습니다.")) (princ))
 (defun c:JMLPICK ()
   (if jl:settings (jl:pick-request (jl:g jl:settings 'token)) (princ "\nJMLIST에서 산출 설정을 먼저 여세요.")) (princ))
 
@@ -1182,6 +1157,125 @@
   (if jl:settings (progn
     (setq f (open (strcat (jl:g jl:settings 'path) ".closed") "w"))
     (close f) (setq jl:settings nil))))
+
+; Region-based continuous capture, one independently stored link per click.
+(defun jl:region (link) (cond ((jl:g link 'region)) ((jl:g link 'label)) ("미지정")))
+(defun jl:current-item () (vl-some '(lambda (x) (if (= (jl:g x 'id) (jl:g jl:settings 'id)) x)) (jl:g jl:state 'items)))
+(defun jl:ensure-rids (/ item link items links seq changed)
+  (setq jl:state (jl:read-state) seq (cond ((jl:g jl:state 'linkseq)) (0)))
+  (foreach item (jl:g jl:state 'items)
+    (setq links nil)
+    (foreach link (jl:g item 'links)
+      (if (not (jl:g link 'rid))
+        (setq seq (1+ seq) link (jl:s link 'rid (strcat "L" (itoa seq))) changed T))
+      (setq links (cons link links)))
+    (setq items (cons (jl:s item 'links (reverse links)) items)))
+  (if changed (jl:save (jl:s (jl:s jl:state 'items (reverse items)) 'linkseq seq))))
+(defun jl:zone-add (name handle / zones)
+  (setq zones (jl:g jl:state 'zones))
+  (if (not (vl-some '(lambda (z) (= (jl:g z 'name) name)) zones))
+    (jl:save (jl:s jl:state 'zones (append zones (list (list (cons 'name name) (cons 'handle handle))))))))
+(defun jl:settings-snapshot (/ path stage f item link r zone)
+  (if jl:settings
+    (progn
+      (setq jl:state (jl:read-state) item (jl:current-item) path (strcat (jl:g jl:settings 'path) ".links.csv") stage (strcat path ".next") f (open stage "w"))
+      (write-line "type,rid,region,label,source,quantity,status" f)
+      (foreach zone (jl:g jl:state 'zones)
+        (write-line (jl:csvline (list "zone" "" (jl:g zone 'name) "" "" "" "")) f))
+      (foreach link (jl:g item 'links)
+        (setq r (vl-catch-all-apply 'jl:number (list link)))
+        (write-line (jl:csvline (list "link" (jl:g link 'rid) (jl:region link) (jl:g link 'label)
+          (if (jl:g link 'sources) (strcat (itoa (length (jl:g link 'sources))) "개 구간") "수동")
+          (if (vl-catch-all-error-p r) "" (rtos r 2 8))
+          (if (vl-catch-all-error-p r) "확인필요" "정상"))) f))
+      (close f) (if (findfile path) (vl-file-delete path)) (vl-file-rename stage path))))
+(defun jl:progress (msg / f)
+  (setq f (open (strcat (jl:g jl:settings 'path) ".progress") "w")) (write-line msg f) (close f)
+  (princ (strcat "\n" msg)))
+(defun jl:text-name (e / typ text a)
+  (setq typ (cdr (assoc 0 (entget e))))
+  (if (member typ '("TEXT" "ATTRIB" "MTEXT"))
+    (progn
+      (if (= typ "MTEXT")
+        (foreach a (entget e) (if (member (car a) '(1 3)) (setq text (strcat (if text text "") (cdr a)))))
+        (setq text (cdr (assoc 1 (entget e)))))
+      (while (vl-string-search "\\P" text) (setq text (vl-string-subst " " "\\P" text)))
+      (vl-string-trim " " text))))
+(defun jl:one-source (pick mode selection / e d p i)
+  (setq e (car pick) d (entget e))
+  (cond
+    ((= mode 3) (if (/= (cdr (assoc 0 d)) "INSERT") (jl:raise "개수 산출은 블록을 클릭하세요.")) (jl:source e nil))
+    ((member mode '(1 9 11)) (jl:area (jl:source e nil)) (jl:source e nil))
+    ((and (/= selection "whole") (= (cdr (assoc 0 d)) "LWPOLYLINE"))
+      (setq p (vlax-curve-getClosestPointTo e (trans (cadr pick) 1 0))
+        i (min (fix (vlax-curve-getParamAtPoint e p)) (1- (fix (vlax-curve-getEndParam e)))))
+      (jl:source e i))
+    ((member (cdr (assoc 0 d)) '("LINE" "ARC" "LWPOLYLINE" "POLYLINE" "CIRCLE")) (jl:source e nil))
+    (T (jl:raise "산출할 선·경계·블록을 클릭하세요."))))
+(defun jl:append-click (link pick / source item value)
+  (setq jl:state (jl:read-state) item (jl:current-item))
+  (if (or (not item) (findfile (strcat (jl:g jl:settings 'path) ".closed"))) (jl:raise "설정창이 닫혀 저장하지 않았습니다."))
+  (setq source (jl:one-source pick (jl:g link 'mode) (jl:g link 'selection)))
+  (setq value (jl:commit-link item link (list source)))
+  (jl:zone-add (jl:region link) nil)
+  (jl:settings-snapshot)
+  (vl-catch-all-apply 'jl:paint (list source 3)) value)
+(defun jl:continuous (link / pick result count)
+  (setq count 0)
+  (princ (strcat "\n구역 [" (jl:region link) "] 클릭마다 저장합니다. Enter 또는 Esc로 끝내세요."))
+  (while (and (not (findfile (strcat (jl:g jl:settings 'path) ".closed")))
+              (setq pick (entsel "\n산출할 부분 클릭 <Enter: 종료>: ")))
+    (setq jl:last-error nil result (vl-catch-all-apply 'jl:append-click (list link pick)))
+    (if (vl-catch-all-error-p result)
+      (progn (jl:progress (if jl:last-error jl:last-error "이 대상은 산출할 수 없습니다.")) (setq jl:last-error nil))
+      (progn (setq count (1+ count)) (jl:progress (strcat (itoa count) "건 추가 / 방금 수량 " (rtos result 2 3) " / 계속 클릭하세요.")))))
+  (jl:settings-reply (strcat "선택 종료: " (itoa count) "건 추가. 저장된 내역은 유지됩니다.")))
+(defun jl:pick-request (token / *error* jl:state jl:owned f path request op item link pick name sources value selected)
+  (defun *error* (msg)
+    (if f (close f))
+    (if jl:owned (progn
+      (jl:settings-snapshot)
+      (jl:settings-reply (if jl:last-error jl:last-error "선택 종료. 이미 추가한 내역은 유지됩니다."))))
+    (setq jl:last-error nil) (princ))
+  (setq jl:last-error nil)
+  (if (not (and jl:settings (= token (jl:g jl:settings 'token)))) (progn (princ "\n다른 도면 또는 만료된 창의 요청입니다.") (exit)))
+  (setq jl:owned T path (strcat (jl:g jl:settings 'path) ".request"))
+  (if (findfile (strcat (jl:g jl:settings 'path) ".closed")) (jl:raise "설정창이 닫혔습니다."))
+  (if (not (findfile path)) (jl:raise "창에서 작업 버튼을 먼저 누르세요."))
+  (setq f (open path "r") request (read (read-line f))) (close f) (setq f nil op (cond ((jl:g request 'op)) ("pick")))
+  (if (not (and (= token (jl:g request 'token)) (= (jl:g request 'id) (jl:g jl:settings 'id))
+    (member op '("pick" "zone" "show" "showzone" "remove" "refresh"))
+    (= (type (jl:g request 'nonce)) 'STR) (= 32 (strlen (jl:g request 'nonce)))
+    (or (/= op "pick") (jl:request-valid request)))) (jl:raise "유효하지 않은 요청입니다."))
+  (if (= (jl:g jl:settings 'lastnonce) (jl:g request 'nonce)) (jl:raise "이미 처리한 요청입니다."))
+  (setq jl:settings (jl:s jl:settings 'lastnonce (jl:g request 'nonce))) (vl-file-delete path)
+  (jl:ensure-rids) (setq item (jl:current-item))
+  (if (not item) (jl:raise "내역 항목을 찾지 못했습니다."))
+  (cond
+    ((= op "zone")
+      (if (setq pick (nentsel "\n실명·도면번호 글자 또는 속성 글자를 클릭하세요: "))
+        (progn (setq name (jl:text-name (car pick)))
+          (if (not (and name (/= name ""))) (jl:raise "실명·번호의 글자를 직접 클릭하세요."))
+          (jl:zone-add name (cdr (assoc 5 (entget (car pick)))))
+          (setq f (open (strcat (jl:g jl:settings 'path) ".zone") "w")) (write-line name f) (close f) (setq f nil)
+          (jl:settings-reply (strcat "구역 등록: " name)))
+        (jl:settings-reply "구역 등록을 취소했습니다.")))
+    ((= op "pick")
+      (setq link (vl-remove-if '(lambda (x) (member (car x) '(token nonce id op))) request))
+      (setq link (jl:s link 'region (jl:g link 'label)))
+      (if (= (jl:g link 'mode) 4)
+        (progn (setq value (jl:commit-link item link nil)) (jl:zone-add (jl:region link) nil) (jl:settings-reply (strcat "수동 수량 추가: " (rtos value 2 3))))
+        (jl:continuous link)))
+    ((member op '("show" "remove"))
+      (setq selected (vl-some '(lambda (x) (if (= (jl:g x 'rid) (jl:g request 'rid)) x)) (jl:g item 'links)))
+      (if (not selected) (jl:raise "선택한 연결이 변경되었습니다. 목록을 다시 확인하세요."))
+      (if (= op "show") (progn (jl:show (jl:g selected 'sources)) (jl:settings-reply "선택 위치를 표시했습니다."))
+        (progn (jl:put-item (jl:s item 'links (vl-remove-if '(lambda (x) (= (jl:g x 'rid) (jl:g request 'rid))) (jl:g item 'links)))) (jl:settings-reply "선택한 연결만 삭제했습니다. 도면은 그대로입니다."))))
+    ((= op "showzone")
+      (foreach link (jl:g item 'links) (if (= (jl:region link) (jl:g request 'region)) (setq sources (append sources (jl:g link 'sources)))))
+      (jl:show sources) (jl:settings-reply "현재 구역에 연결된 위치를 표시했습니다."))
+    ((= op "refresh") (jl:settings-reply "현재 도면 기준으로 다시 계산했습니다.")))
+  (jl:settings-snapshot) (princ))
 
 
 (defun jl:bridge-script (/ p f line)
@@ -1416,16 +1510,18 @@
 "$c=Import-Csv -LiteralPath $Config -Encoding Default | Select-Object -First 1"
 "if($c.token -notmatch '^[A-Za-z0-9_-]+$'){throw '잘못된 설정 세션입니다.'}"
 "$enc=[Text.Encoding]::GetEncoding(949)"
-"$script:pending=$false"
+"$script:pending=$false;$script:stamp='';$script:rows=@()"
 "function LispString([string]$s){'\"'+$s.Replace('\\','\\\\').Replace('\"','\\\"').Replace(\"`r\",' ').Replace(\"`n\",' ')+'\"'}"
-"$form=New-Object Windows.Forms.Form;$form.Text='내역 산출 설정 · 도면과 함께 보기'"
-"$form.Font=New-Object Drawing.Font('맑은 고딕',11);$form.Size=New-Object Drawing.Size(590,640);$form.MinimumSize=$form.Size"
+"$form=New-Object Windows.Forms.Form;$form.Text='구역별 물량 연결 · 도면을 보면서 추가'"
+"$form.Font=New-Object Drawing.Font('맑은 고딕',11);$form.Size=New-Object Drawing.Size(1120,760);$form.MinimumSize=$form.Size"
 "$form.StartPosition='CenterScreen';$form.TopMost=$true;$form.BackColor=[Drawing.Color]::FromArgb(246,248,251)"
-"$layout=New-Object Windows.Forms.TableLayoutPanel;$layout.Dock='Fill';$layout.Padding=New-Object Windows.Forms.Padding(16);$layout.ColumnCount=2;$layout.RowCount=14"
-"$layout.ColumnStyles.Add((New-Object Windows.Forms.ColumnStyle('Absolute',215))) | Out-Null"
-"$layout.ColumnStyles.Add((New-Object Windows.Forms.ColumnStyle('Percent',100))) | Out-Null"
-"foreach($h in @(58,39,39,39,39,39,39,39,39,35,52,45,20,20)){$layout.RowStyles.Add((New-Object Windows.Forms.RowStyle('Absolute',$h))) | Out-Null};$form.Controls.Add($layout)"
-"$title=New-Object Windows.Forms.Label;$title.Text=$c.title;$title.Dock='Fill';$title.Font=New-Object Drawing.Font('맑은 고딕',12,[Drawing.FontStyle]::Bold);$layout.Controls.Add($title,0,0);$layout.SetColumnSpan($title,2)"
+"$outer=New-Object Windows.Forms.TableLayoutPanel;$outer.Dock='Fill';$outer.Padding=New-Object Windows.Forms.Padding(14);$outer.ColumnCount=2;$outer.RowCount=3"
+"[void]$outer.ColumnStyles.Add((New-Object Windows.Forms.ColumnStyle('Absolute',415)));[void]$outer.ColumnStyles.Add((New-Object Windows.Forms.ColumnStyle('Percent',100)))"
+"foreach($v in @(52,-1,55)){[void]$outer.RowStyles.Add((New-Object Windows.Forms.RowStyle($(if($v -eq -1){'Percent'}else{'Absolute'}),$(if($v -eq -1){100}else{$v}))))};$form.Controls.Add($outer)"
+"$title=New-Object Windows.Forms.Label;$title.Text=$c.title;$title.Dock='Fill';$title.Font=New-Object Drawing.Font('맑은 고딕',13,[Drawing.FontStyle]::Bold);$outer.Controls.Add($title,0,0);$outer.SetColumnSpan($title,2)"
+"$layout=New-Object Windows.Forms.TableLayoutPanel;$layout.Dock='Fill';$layout.ColumnCount=2;$layout.RowCount=14;$layout.Padding=New-Object Windows.Forms.Padding(0,0,14,0)"
+"[void]$layout.ColumnStyles.Add((New-Object Windows.Forms.ColumnStyle('Absolute',175)));[void]$layout.ColumnStyles.Add((New-Object Windows.Forms.ColumnStyle('Percent',100)))"
+"foreach($v in @(38,42,38,38,38,38,38,38,38,38,32,62,48,10)){[void]$layout.RowStyles.Add((New-Object Windows.Forms.RowStyle('Absolute',$v)))};$outer.Controls.Add($layout,0,1)"
 "$modes=@('길이(m)','닫힌 경계 면적(㎡)','벽 길이×높이(㎡)','블록 개수(EA/SET)','수동 수량(식/인 등)','각재 합계(EA)','석고보드(EA)','보강 합판(EA)','벽지(롤)','천장지(롤)','걸레받이(개)','면적→BOX')"
 "$fields=@{}"
 "function AddField($key,$label,$row,$value,$choices){"
@@ -1433,39 +1529,65 @@
 " if($choices){$x=New-Object Windows.Forms.ComboBox;$x.DropDownStyle='DropDownList';$x.Items.AddRange($choices);$x.SelectedIndex=0;$x.SelectedItem=[string]$value}else{$x=New-Object Windows.Forms.TextBox;$x.Text=[string]$value}"
 " $x.Dock='Fill';$x.Margin=New-Object Windows.Forms.Padding(3,4,3,4);$layout.Controls.Add($x,1,$row);$fields[$key]=$x"
 "}"
-"AddField mode '계산 방식' 1 $modes[[int]$c.mode] $modes"
-"AddField label '위치 / 방 / 면 이름' 2 '101-A' $null"
-"AddField factor 'CAD 1단위 = 실제 mm' 3 '1' $null"
-"AddField height '벽 높이(mm)' 4 '2580' $null"
-"AddField stock '각재 주문 길이(mm)' 5 '2700' @('2400','2700','3000','3600')"
-"AddField width '보강 합판 띠 폭(mm)' 6 '80' $null"
-"AddField pack 'BOX당 면적(㎡)' 7 '' $null"
-"AddField manual '수동 수량' 8 '1' $null"
-"$top=New-Object Windows.Forms.CheckBox;$top.Text='항상 위에 표시';$top.Checked=$true;$top.AutoSize=$true;$layout.Controls.Add($top,0,9);$layout.SetColumnSpan($top,2);$top.Add_CheckedChanged({$form.TopMost=$top.Checked})"
-"$hint=New-Object Windows.Forms.Label;$hint.Text=\"창을 켜둔 채 CAD에서 이동·확대할 수 있습니다.`r`n도면을 찾은 뒤 아래 버튼으로 선택을 시작하세요.\";$hint.Dock='Fill';$hint.ForeColor=[Drawing.Color]::FromArgb(50,76,108);$layout.Controls.Add($hint,0,10);$layout.SetColumnSpan($hint,2)"
-"$pick=New-Object Windows.Forms.Button;$pick.Text='설정 적용 후 도면 선택';$pick.Dock='Fill';$pick.BackColor=[Drawing.Color]::FromArgb(30,94,190);$pick.ForeColor=[Drawing.Color]::White;$pick.FlatStyle='Flat';$layout.Controls.Add($pick,0,11);$layout.SetColumnSpan($pick,2)"
-"$status=New-Object Windows.Forms.Label;$status.Text='목록은 CAD 명령 JMLIST로 다시 열 수 있습니다.';$status.Dock='Fill';$status.AutoSize=$false;$status.Font=New-Object Drawing.Font('맑은 고딕',9);$layout.Controls.Add($status,0,12);$layout.SetColumnSpan($status,2);$layout.SetRowSpan($status,2)"
+"AddField label '① 구역 선택' 0 '' @('구역을 등록하세요')"
+"$fields.label.DropDownStyle='DropDown';$fields.label.Items.Clear();$fields.label.SelectedIndex=-1;$fields.label.Text=''"
+"$zone=New-Object Windows.Forms.Button;$zone.Text='CAD 실명·도면번호 글자에서 등록';$zone.Dock='Fill';$layout.Controls.Add($zone,0,1);$layout.SetColumnSpan($zone,2)"
+"AddField mode '② 계산 방식' 2 $modes[[int]$c.mode] $modes"
+"AddField selection '폴리선 선택 범위' 3 '클릭한 한 변' @('클릭한 한 변','객체 전체')"
+"AddField factor 'CAD 1단위 = 실제 mm' 4 '1' $null"
+"AddField height '벽 높이(mm)' 5 '2580' $null"
+"AddField stock '각재 주문 길이(mm)' 6 '2700' @('2400','2700','3000','3600')"
+"AddField width '보강 합판 띠 폭(mm)' 7 '80' $null"
+"AddField pack 'BOX당 면적(㎡)' 8 '' $null"
+"AddField manual '수동 수량' 9 '1' $null"
+"$top=New-Object Windows.Forms.CheckBox;$top.Text='항상 위에 표시';$top.Checked=$true;$top.AutoSize=$true;$layout.Controls.Add($top,0,10);$layout.SetColumnSpan($top,2);$top.Add_CheckedChanged({$form.TopMost=$top.Checked})"
+"$hint=New-Object Windows.Forms.Label;$hint.Text=\"클릭할 때마다 한 건씩 저장됩니다.`r`nEnter / Esc로 선택을 끝낸 뒤 구역을 바꾸세요.`r`n이미 추가한 내역은 그대로 유지됩니다.\";$hint.Dock='Fill';$hint.Font=New-Object Drawing.Font('맑은 고딕',10);$hint.ForeColor=[Drawing.Color]::FromArgb(50,76,108);$layout.Controls.Add($hint,0,11);$layout.SetColumnSpan($hint,2)"
+"$pick=New-Object Windows.Forms.Button;$pick.Text='③ 연속 선택 시작';$pick.Dock='Fill';$pick.BackColor=[Drawing.Color]::FromArgb(30,94,190);$pick.ForeColor=[Drawing.Color]::White;$pick.FlatStyle='Flat';$layout.Controls.Add($pick,0,12);$layout.SetColumnSpan($pick,2)"
+"$right=New-Object Windows.Forms.TableLayoutPanel;$right.Dock='Fill';$right.ColumnCount=1;$right.RowCount=4"
+"foreach($v in @(38,-1,54,78)){[void]$right.RowStyles.Add((New-Object Windows.Forms.RowStyle($(if($v -eq -1){'Percent'}else{'Absolute'}),$(if($v -eq -1){100}else{$v}))))};$outer.Controls.Add($right,1,1)"
+"$heading=New-Object Windows.Forms.Label;$heading.Text='이 품목에 추가된 내역 · 모든 구역';$heading.Dock='Fill';$heading.Font=New-Object Drawing.Font('맑은 고딕',12,[Drawing.FontStyle]::Bold);$right.Controls.Add($heading,0,0)"
+"$grid=New-Object Windows.Forms.DataGridView;$grid.Dock='Fill';$grid.ReadOnly=$true;$grid.AllowUserToAddRows=$false;$grid.AllowUserToDeleteRows=$false;$grid.RowHeadersVisible=$false;$grid.MultiSelect=$false;$grid.SelectionMode='FullRowSelect';$grid.BackgroundColor=[Drawing.Color]::White;$grid.AutoSizeColumnsMode='Fill';$grid.RowTemplate.Height=32;$grid.ColumnHeadersHeight=36;$grid.EnableHeadersVisualStyles=$false;$grid.ColumnHeadersDefaultCellStyle.BackColor=[Drawing.Color]::FromArgb(226,234,244);$grid.AlternatingRowsDefaultCellStyle.BackColor=[Drawing.Color]::FromArgb(246,249,253)"
+"foreach($pair in @(@('rid','ID'),@('region','구역'),@('source','선택'),@('quantity','수량'),@('status','상태'))){[void]$grid.Columns.Add($pair[0],$pair[1])};$grid.Columns['rid'].Visible=$false;$grid.Columns['region'].FillWeight=150;$right.Controls.Add($grid,0,1)"
+"$summary=New-Object Windows.Forms.Label;$summary.Dock='Fill';$summary.Font=New-Object Drawing.Font('맑은 고딕',10);$right.Controls.Add($summary,0,2)"
+"$buttons=New-Object Windows.Forms.TableLayoutPanel;$buttons.Dock='Fill';$buttons.ColumnCount=2;$buttons.RowCount=2"
+"[void]$buttons.ColumnStyles.Add((New-Object Windows.Forms.ColumnStyle('Percent',50)));[void]$buttons.ColumnStyles.Add((New-Object Windows.Forms.ColumnStyle('Percent',50)));$right.Controls.Add($buttons,0,3)"
+"$actions=@{}"
+"$i=0;foreach($pair in @(@('show','선택 내역 위치 보기'),@('showzone','현재 구역 위치 보기'),@('remove','선택 연결 삭제'),@('refresh','도면 변경 후 새로고침'))){$b=New-Object Windows.Forms.Button;$b.Text=$pair[1];$b.Dock='Fill';$b.Tag=$pair[0];$buttons.Controls.Add($b,($i%2),[int][Math]::Floor($i/2));$actions[$pair[0]]=$b;$i++}"
+"$status=New-Object Windows.Forms.Label;$status.Text='먼저 CAD의 실명·도면번호 글자를 클릭해 구역을 등록하세요.';$status.Dock='Fill';$status.Font=New-Object Drawing.Font('맑은 고딕',10);$outer.Controls.Add($status,0,2);$outer.SetColumnSpan($status,2)"
 "function RefreshFields {"
+" foreach($x in $fields.Values){$x.Enabled=-not $script:pending};$zone.Enabled=-not $script:pending;$pick.Enabled=-not $script:pending;foreach($b in $actions.Values){$b.Enabled=-not $script:pending}"
+" if($script:pending){return}"
 " $m=$fields.mode.SelectedIndex"
-" $fields.height.Enabled=$m -in @(2,5,6,7,8);$fields.stock.Enabled=$m -eq 5;$fields.width.Enabled=$m -eq 7;$fields.pack.Enabled=$m -eq 11;$fields.manual.Enabled=$m -eq 4;$fields.factor.Enabled=$m -ne 4"
-" $pick.Text=if($m -eq 4){'수동 수량 저장'}else{'설정 적용 후 도면 선택'}"
+" $fields.height.Enabled=$m -in @(2,5,6,7,8);$fields.stock.Enabled=$m -eq 5;$fields.width.Enabled=$m -eq 7;$fields.pack.Enabled=$m -eq 11;$fields.manual.Enabled=$m -eq 4;$fields.factor.Enabled=$m -ne 4;$fields.selection.Enabled=$m -notin @(1,3,4,9,11)"
+" $pick.Text=if($m -eq 4){'③ 수동 수량 추가'}else{'③ 연속 선택 시작'}"
 "}"
-"$fields.mode.Add_SelectedIndexChanged({RefreshFields});RefreshFields"
+"function UpdateSummary {"
+" $current=@($script:rows | Where-Object {$_.region -eq $fields.label.Text.Trim()});$valid=@($current | Where-Object {$_.status -eq '정상'});$sum=0.0;foreach($r in $valid){$sum+=[double]::Parse($r.quantity,[Globalization.CultureInfo]::InvariantCulture)}"
+" $bad=$current.Count-$valid.Count;$summary.Text=\"현재 구역: $($current.Count)건 / 정상 수량 합계 $($sum.ToString('0.###')) / 확인필요 $bad 건`r`n품목 전체: $($script:rows.Count)건 · 수량 단위는 선택한 품목 기준\""
+"}"
+"function ReadSnapshot {"
+" $path=$Config+'.links.csv';if(-not (Test-Path -LiteralPath $path)){return}"
+" $stamp=(Get-Item -LiteralPath $path).LastWriteTimeUtc.Ticks.ToString();if($stamp -eq $script:stamp){return}"
+" try{"
+"  $all=@(Import-Csv -LiteralPath $path -Encoding Default);$script:rows=@($all | Where-Object {$_.type -eq 'link'})"
+"  $name=$fields.label.Text;$fields.label.Items.Clear();foreach($n in @($all | Select-Object -ExpandProperty region -Unique)){if($n){[void]$fields.label.Items.Add($n)}};$fields.label.Text=$name"
+"  $selected=if($grid.CurrentRow){[string]$grid.CurrentRow.Cells['rid'].Value}else{''};$grid.Rows.Clear()"
+"  foreach($r in $script:rows){$q=if($r.quantity -ne ''){([double]::Parse($r.quantity,[Globalization.CultureInfo]::InvariantCulture)).ToString('0.###')}else{'-'};$idx=$grid.Rows.Add($r.rid,$r.region,$r.source,$q,$r.status);if($r.status -ne '정상'){$grid.Rows[$idx].DefaultCellStyle.BackColor=[Drawing.Color]::MistyRose};if($r.rid -eq $selected){$grid.CurrentCell=$grid.Rows[$idx].Cells['region']}}"
+"  if($script:pending -and $grid.Rows.Count -gt 0){$grid.FirstDisplayedScrollingRowIndex=$grid.Rows.Count-1}"
+"  $script:stamp=$stamp;UpdateSummary"
+" }catch{}"
+"}"
+"$fields.mode.Add_SelectedIndexChanged({RefreshFields});$fields.label.Add_TextChanged({UpdateSummary});RefreshFields"
 "function SettingsData {"
 " $m=$fields.mode.SelectedIndex;$data=@{mode=$m;label=$fields.label.Text.Trim();stock=[int]$fields.stock.SelectedItem}"
-" if(-not $data.label){throw '위치 / 방 / 면 이름을 입력하세요.'}"
+" if(-not $data.label){throw 'CAD 글자에서 구역을 등록하거나 구역 이름을 입력하세요.'}"
 " foreach($k in @('factor','height','width','pack','manual')){"
 "  $n=0.0;$needed=$fields[$k].Enabled"
-"  if(-not [double]::TryParse($fields[$k].Text,[Globalization.NumberStyles]::Float,[Globalization.CultureInfo]::InvariantCulture,[ref]$n) -or [double]::IsNaN($n) -or [double]::IsInfinity($n) -or ($needed -and (($k -ne 'manual' -and $n -le 0) -or ($k -eq 'manual' -and $n -lt 0)))){"
-"   if($needed){throw '필요한 치수와 수량을 숫자로 입력하세요.'}"
-"   $n=switch($k){'factor'{1}'height'{2580}'width'{80}'pack'{1}'manual'{0}}"
-"  }"
-"  $data[$k]=$n"
+"  if(-not [double]::TryParse($fields[$k].Text,[Globalization.NumberStyles]::Float,[Globalization.CultureInfo]::InvariantCulture,[ref]$n) -or [double]::IsNaN($n) -or [double]::IsInfinity($n) -or ($needed -and (($k -ne 'manual' -and $n -le 0) -or ($k -eq 'manual' -and $n -lt 0)))){if($needed){throw '필요한 치수와 수량을 숫자로 입력하세요.'};$n=switch($k){'factor'{1}'height'{2580}'width'{80}'pack'{1}'manual'{0}}};$data[$k]=$n"
 " }"
 " if($m -eq 7 -and $data.width -gt 1220){throw '합판 띠 폭은 1220mm 이하여야 합니다.'}"
-" $line='((token . '+(LispString $c.token)+') (nonce . '+(LispString ([guid]::NewGuid().ToString('N')))+') (id . '+(LispString $c.id)+') (label . '+(LispString $data.label)+')'"
-" foreach($k in @('mode','factor','height','stock','width','pack','manual')){$line+=' ('+$k+' . '+$data[$k].ToString([Globalization.CultureInfo]::InvariantCulture)+')'}"
-" $line+')'"
+" $line=' (label . '+(LispString $data.label)+') (selection . '+(LispString $(if($fields.selection.SelectedIndex -eq 1){'whole'}else{'segment'}))+')'"
+" foreach($k in @('mode','factor','height','stock','width','pack','manual')){$line+=' ('+$k+' . '+$data[$k].ToString([Globalization.CultureInfo]::InvariantCulture)+')'};$line"
 "}"
 "# Resolve the exact running DWG first; GetActiveObject alone can choose another CAD process."
 "Add-Type -TypeDefinition @\""
@@ -1503,29 +1625,40 @@
 " foreach($d in $app.Documents){if([string]$d.Name -eq $c.docname -and [string]$d.FullName -eq $c.docfull){return $d}}"
 " throw '원래 도면이 닫혔거나 이름이 바뀌었습니다. 해당 도면에서 설정을 다시 열어주세요.'"
 "}"
-"$pick.Add_Click({"
+""
+"function Dispatch([string]$op){"
 " try{"
-"  $data=SettingsData;$doc=TargetDocument"
-"  if(Test-Path -LiteralPath ($Config+'.reply')){Remove-Item -LiteralPath ($Config+'.reply')}"
+"  if($script:pending){return}"
+"  $data='((token . '+(LispString $c.token)+') (nonce . '+(LispString ([guid]::NewGuid().ToString('N')))+') (id . '+(LispString $c.id)+') (op . '+(LispString $op)+')'"
+"  if($op -eq 'pick'){$data+=SettingsData}"
+"  if($op -in @('show','remove')){if(-not $grid.CurrentRow){throw '오른쪽 목록에서 내역을 선택하세요.'};$data+=' (rid . '+(LispString ([string]$grid.CurrentRow.Cells['rid'].Value))+')'}"
+"  if($op -eq 'showzone'){if(-not $fields.label.Text.Trim()){throw '구역을 먼저 선택하세요.'};$data+=' (region . '+(LispString $fields.label.Text.Trim())+')'}"
+"  $data+=')';$doc=TargetDocument"
+"  foreach($ext in @('.reply','.progress','.zone')){if(Test-Path -LiteralPath ($Config+$ext)){Remove-Item -LiteralPath ($Config+$ext)}}"
 "  [IO.File]::WriteAllText($Config+'.request',$data,$enc)"
-"  $script:pending=$true;$pick.Enabled=$false;$status.Text='CAD에서 대상을 선택하세요. 취소하려면 CAD에서 Esc를 누르세요.'"
-"  $doc.Activate()"
-"  $doc.SendCommand('(jl:pick-request \"'+$c.token+'\")'+[char]13)"
-" }catch{"
-"  $status.Text=$_.Exception.Message"
-"  if($script:pending){$status.Text+=' CAD에서 JMLPICK을 입력하면 같은 요청을 이어갑니다.'}else{$pick.Enabled=$true}"
-" }"
-"})"
-"$timer=New-Object Windows.Forms.Timer;$timer.Interval=500"
+"  $script:pending=$true;RefreshFields;$status.Text=if($op -eq 'zone'){'CAD의 실명·도면번호 글자를 클릭하세요.'}elseif($op -eq 'pick'){'CAD에서 계속 클릭하세요. Enter / Esc로 종료합니다.'}else{'도면에서 요청을 처리하고 있습니다.'}"
+"  $doc.Activate();$doc.SendCommand('(jl:pick-request \"'+$c.token+'\")'+[char]13)"
+" }catch{$status.Text=$_.Exception.Message;if($script:pending){$status.Text+=' CAD에서 JMLPICK을 입력하면 이어갑니다.'}else{RefreshFields}}"
+"}"
+"$pick.Add_Click({Dispatch 'pick'});$zone.Add_Click({Dispatch 'zone'});foreach($b in $actions.Values){$b.Add_Click({Dispatch ([string]$this.Tag)})}"
+"$timer=New-Object Windows.Forms.Timer;$timer.Interval=400"
 "$timer.Add_Tick({"
 " if(Test-Path -LiteralPath ($Config+'.closed')){$form.Close();return}"
-" if($script:pending -and (Test-Path -LiteralPath ($Config+'.reply'))){"
-"  try{$status.Text=[IO.File]::ReadAllText($Config+'.reply',$enc);$script:pending=$false;$pick.Enabled=$true}catch{}"
+" ReadSnapshot"
+" if($script:pending){"
+"  try{if(Test-Path -LiteralPath ($Config+'.progress')){$status.Text=[IO.File]::ReadAllText($Config+'.progress',$enc)}}catch{}"
+"  if(Test-Path -LiteralPath ($Config+'.reply')){"
+"   try{"
+"    $status.Text=[IO.File]::ReadAllText($Config+'.reply',$enc)"
+"    if(Test-Path -LiteralPath ($Config+'.zone')){$fields.label.Text=[IO.File]::ReadAllText($Config+'.zone',$enc).Trim();Remove-Item -LiteralPath ($Config+'.zone')}"
+"    $script:pending=$false;RefreshFields;ReadSnapshot;UpdateSummary"
+"   }catch{}"
+"  }"
 " }"
 "})"
-"$form.Add_Shown({$timer.Start();if($SmokeTest){"
+"$form.Add_Shown({ReadSnapshot;$timer.Start();if($SmokeTest){"
 " $bitmap=New-Object Drawing.Bitmap($form.Width,$form.Height);$form.DrawToBitmap($bitmap,(New-Object Drawing.Rectangle(0,0,$form.Width,$form.Height)));$bitmap.Save($Config+'.png');$bitmap.Dispose()"
-" @{mode=$fields.mode.SelectedIndex;heightEnabled=$fields.height.Enabled;packEnabled=$fields.pack.Enabled;topMost=$form.TopMost} | ConvertTo-Json | Set-Content ($Config+'.test.json')"
+" @{mode=$fields.mode.SelectedIndex;rows=$grid.Rows.Count;regions=$fields.label.Items.Count;heightEnabled=$fields.height.Enabled;packEnabled=$fields.pack.Enabled;topMost=$form.TopMost} | ConvertTo-Json | Set-Content ($Config+'.test.json')"
 " $form.Close()"
 "}})"
 "$form.Add_FormClosed({$timer.Stop();[IO.File]::WriteAllText($Config+'.closed','closed')})"

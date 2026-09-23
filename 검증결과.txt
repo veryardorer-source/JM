@@ -1,3 +1,31 @@
 검증: 계산·연결19개 및 누락 후보5개 PASS. DWG 재열기142항목/28개 유지. AutoCAD 목록·입력·연결 대화상자 생성 PASS. XLSB E25만28로 변경, 나머지 값·수식 및 대표 수량 셀 서식 유지. 최종 전체 행 검증을 포함한 내보내기 PASS. 실제 사용자 마우스 전체 조작과 모든 페이지 시각 검증은 미실시.
 2026-09-22b UI: 142행/6열 표시, 각재 검색1건, 목작업14건, 빈 결과0건에서 작업 버튼 비활성화 확인. 글자11pt 기본, 11/12/13 선택 지원. 실제 Windows 표 렌더링 확인. AutoCAD JMLIST→새 UI→종료 반환 PASS, 내역142개 유지.
 2026-09-23a: 설정값/다른 token/재전송 nonce/닫힌 창 요청9개 PASS. AutoCAD 설정창 비차단 반환, 창이 열린 상태의 ZOOM, 올바른 테스트 도면에 수동2.0 저장 회신 PASS. 실제 사용자의 PAN 마우스 제스처 전체는 미검증.
+
+2026-09-23b 구역별 연속 산출
+PASS MIGRATE_OLD_LINK_ID
+PASS ROOM_TEXT
+PASS REGION_DEDUP
+PASS FIRST_CLICK_QTY_10
+PASS FIRST_CLICK_SAVED_IMMEDIATELY
+PASS LIVE_SNAPSHOT_WRITTEN
+PASS DUPLICATE_REJECTED
+PASS DUPLICATE_NOT_SAVED
+PASS SECOND_SEGMENT_QTY_8
+PASS SEPARATE_REGIONS
+PASS TOTAL_18
+PASS STABLE_UNIQUE_IDS
+PASS DELETE_ONE_LINK_ONLY
+PASS DELETE_PRESERVES_GEOMETRY
+PASS REMAINING_TOTAL_8
+PASS DELETED_GEOMETRY_INVALID
+
+SETTINGS_OPEN_RETURNED=PASS
+ZOOM_WITH_SETTINGS_OPEN=PASS
+CALLBACK_RESULT=(5.0 "OK")
+LINK_COUNT=2
+
+UI 실시간 갱신: FIRST_LIVE_ROW=PASS, SECOND_LIVE_ROW=PASS
+UI 렌더링: 1120x760 / 구역2개 / 정상·확인필요3행 확인
+
+새 핸들러 요청 검증 재실행: 9/9 PASS (독립 테스트 항목 초기화 후).
