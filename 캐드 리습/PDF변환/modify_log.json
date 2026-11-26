@@ -1,0 +1,19 @@
+{
+  "source": "C:\\Users\\User\\Desktop\\001_JM디자인\\SynologyDrive\\2026.08.26_크랭크샤프트 샤워장\\004_3D도면\\0916_크랭크샤프트 샤워실.skp",
+  "output": "C:\\Users\\User\\Desktop\\AI프로젝트\\캐드 리습\\PDF변환\\0916_크랭크샤프트 샤워실_수정본.skp",
+  "load_status": 1,
+  "removed_shower_partitions": 21,
+  "removed_old_furniture": 66,
+  "removed_old_finishes": 2,
+  "new_lockers": 64,
+  "new_locker_handles": 64,
+  "removed_reference_annotations": 5,
+  "wall_finish_faces": 48,
+  "dressing_floor_panels": 210,
+  "dressing_floor_faces": 1260,
+  "shower_ceiling_panels": 560,
+  "shower_ceiling_faces": 3360,
+  "dressing_ceiling_panels": 420,
+  "dressing_ceiling_faces": 2520,
+  "saved": true
+}
